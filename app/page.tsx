@@ -132,62 +132,7 @@ export default function HomePage() {
   const fabricContainerRef = useRef<HTMLDivElement | null>(null);
   const [editingMarkedUpId, setEditingMarkedUpId] = useState<string | null>(null);
 
-  // Toolbar drag state and logic
-  const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number } | null>(null);
-  const toolbarRef = useRef<HTMLDivElement | null>(null);
-  const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [draggingToolbar, setDraggingToolbar] = useState(false);
-  const modalRef = useRef<HTMLDivElement | null>(null);
-
-  // Center toolbar at bottom on modal open (measure actual toolbar size after render)
-  useLayoutEffect(() => {
-    if ((magnifyPageIdx !== null || editingMarkedUpId !== null) && modalRef.current && toolbarRef.current) {
-      requestAnimationFrame(() => {
-        const modalRect = modalRef.current!.getBoundingClientRect();
-        const toolbarRect = toolbarRef.current!.getBoundingClientRect();
-        const left = (modalRect.width - toolbarRect.width) / 2;
-        const top = modalRect.height - toolbarRect.height - 24; // 24px from bottom
-        setToolbarPos({ x: left, y: top });
-      });
-    }
-  }, [magnifyPageIdx, editingMarkedUpId]);
-
-  // Drag handlers for toolbar (relative to modal, not screen)
-  const handleToolbarMouseDown = (e: React.MouseEvent) => {
-    setDraggingToolbar(true);
-    const rect = toolbarRef.current?.getBoundingClientRect();
-    const modalRect = modalRef.current?.getBoundingClientRect();
-    dragOffset.current = {
-      x: e.clientX - (rect?.left ?? 0) + (modalRef.current ? modalRef.current.scrollLeft : 0),
-      y: e.clientY - (rect?.top ?? 0) + (modalRef.current ? modalRef.current.scrollTop : 0),
-    };
-    document.body.style.userSelect = 'none';
-  };
-  useEffect(() => {
-    if (!draggingToolbar) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!modalRef.current) return;
-      const modalRect = modalRef.current.getBoundingClientRect();
-      const toolbarWidth = 320;
-      const toolbarHeight = 56;
-      let x = e.clientX - modalRect.left - dragOffset.current.x;
-      let y = e.clientY - modalRect.top - dragOffset.current.y;
-      // Clamp within modal
-      x = Math.max(0, Math.min(x, modalRect.width - toolbarWidth));
-      y = Math.max(0, Math.min(y, modalRect.height - toolbarHeight));
-      setToolbarPos({ x, y });
-    };
-    const handleMouseUp = () => {
-      setDraggingToolbar(false);
-      document.body.style.userSelect = '';
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [draggingToolbar]);
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
 
   const [zoom, setZoom] = useState(1);
   const minZoom = 0.25;
@@ -798,34 +743,19 @@ export default function HomePage() {
           {/* Magnifier Modal with Annotation */}
           <Dialog open={magnifyPageIdx !== null || editingMarkedUpId !== null} onClose={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }} className="fixed z-50 inset-0 flex items-center justify-center">
             <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-            <div ref={modalRef} className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
-              <div style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-                <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
-              </div>
-              {/* Draggable Annotation Controls - absolutely positioned and draggable inside modal */}
-              {(magnifyImage || editingMarkedUpId) && (
-                <div
-                  ref={toolbarRef}
-                  className="flex flex-wrap gap-3 items-center bg-white/90 p-2 rounded shadow border border-legal-200 select-none cursor-move"
-                  style={toolbarPos ? {
-                    position: 'absolute',
-                    left: toolbarPos.x,
-                    top: toolbarPos.y,
-                    minWidth: 220,
-                    zIndex: 1000
-                  } : {
-                    position: 'absolute',
-                    left: '50%',
-                    bottom: 24,
-                    transform: 'translateX(-50%)',
-                    minWidth: 220,
-                    zIndex: 1000
-                  }}
-                  onMouseDown={handleToolbarMouseDown}
-                >
+            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {/* Toolbar at the top */}
+              <div className={`w-full flex items-center gap-2 bg-white/95 border-b border-legal-200 px-4 py-2 sticky top-0 z-20 ${toolbarCollapsed ? 'h-8 min-h-8' : ''}`} style={{ minHeight: toolbarCollapsed ? 32 : 56, transition: 'min-height 0.2s' }}>
+                <button onClick={() => setToolbarCollapsed(c => !c)} className="text-legal-500 hover:text-primary-600 focus:outline-none mr-2" title={toolbarCollapsed ? 'Show Tools' : 'Hide Tools'}>
+                  {toolbarCollapsed ? (
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 8v8m0 0l-4-4m4 4l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  ) : (
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 16V8m0 0l-4 4m4-4l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  )}
+                </button>
+                {!toolbarCollapsed && <>
                   <span className="font-semibold text-legal-700 select-none">✥ Tools</span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <button className="btn-secondary px-2" onClick={handleZoomOut} title="Zoom Out">-</button>
                     <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
                     <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
@@ -844,9 +774,13 @@ export default function HomePage() {
                   <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
                   <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
                   <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
-                </div>
-              )}
-              {(magnifyPageIdx !== null || editingMarkedUpId !== null) && (
+                </>}
+              </div>
+              {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
+              <div style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+                <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
+              </div>
+              {(magnifyImage || editingMarkedUpId) && (
                 <div className="flex gap-2 items-center mt-2">
                   {magnifyPageIdx !== null && (
                     <>
