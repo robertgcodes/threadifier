@@ -591,6 +591,35 @@ export default function HomePage() {
     setZoom(+scale.toFixed(2));
   };
 
+  // Set toolbar default position to bottom middle
+  useEffect(() => {
+    if ((magnifyPageIdx !== null || editingMarkedUpId !== null) && modalContentRef.current && canvasNaturalSize && zoom) {
+      const modalRect = modalContentRef.current.getBoundingClientRect();
+      const canvasW = canvasNaturalSize.width * zoom;
+      const canvasH = canvasNaturalSize.height * zoom;
+      const left = modalRect.left + (modalRect.width - 320) / 2; // 320px toolbar width
+      const top = modalRect.top + modalRect.height - 80; // 80px from bottom
+      setToolbarPos({ x: left, y: top });
+    }
+    // Only set on open, not on every render
+    // eslint-disable-next-line
+  }, [magnifyPageIdx, editingMarkedUpId, canvasNaturalSize, zoom]);
+
+  // Save only (no download)
+  const handleSaveOnlyMarkedUpImage = () => {
+    if (fabricCanvasRef.current) {
+      const url = fabricCanvasRef.current.toDataURL({ format: "png", multiplier: 1 });
+      const json = fabricCanvasRef.current.toJSON();
+      const label = magnifyPageIdx !== null ? `Page ${magnifyPageIdx + 1} (Marked)` : `Marked Image`;
+      if (editingMarkedUpId) {
+        setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, url, label, json } : m));
+        setEditingMarkedUpId(null);
+      } else {
+        setMarkedUpImages(prev => [...prev, { id: uuidv4(), url, label, json }]);
+      }
+    }
+  };
+
   return (
     <main className="min-h-screen bg-legal-50 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -764,8 +793,8 @@ export default function HomePage() {
             <Dialog.Overlay className="fixed inset-0 bg-black/40" />
             <div className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
-              <div style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16 }}>
-                <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined }} />
+              <div style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
               </div>
               {/* Draggable Annotation Controls */}
               {(magnifyImage || editingMarkedUpId) && (
@@ -793,13 +822,22 @@ export default function HomePage() {
                   </label>
                   <button className={`btn-secondary py-1 px-3 text-sm ${isErasing ? 'bg-red-200' : ''}`} onClick={() => setIsErasing(e => !e)}>{isErasing ? 'Eraser (On)' : 'Eraser'}</button>
                   <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
+                  <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
                   <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
                 </div>
               )}
               {(magnifyPageIdx !== null || editingMarkedUpId !== null) && (
-                <div className="text-xs text-legal-700 mt-2">{magnifyPageIdx !== null ? `Page ${magnifyPageIdx + 1}` : 'Marked-up Image'}</div>
+                <div className="flex gap-2 items-center mt-2">
+                  {magnifyPageIdx !== null && (
+                    <>
+                      <button className="btn-secondary" disabled={magnifyPageIdx <= 0} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx > 0 ? idx - 1 : idx))}>Prev</button>
+                      <span className="text-xs text-legal-700">Page {magnifyPageIdx + 1}</span>
+                      <button className="btn-secondary" disabled={magnifyPageIdx >= pageImages.length - 1} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx < pageImages.length - 1 ? idx + 1 : idx))}>Next</button>
+                    </>
+                  )}
+                  <button className="btn-secondary" onClick={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }}>Close</button>
+                </div>
               )}
-              <button className="btn-secondary mt-4" onClick={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }}>Close</button>
             </div>
           </Dialog>
         </div>
