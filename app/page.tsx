@@ -591,33 +591,6 @@ export default function HomePage() {
     setZoom(+scale.toFixed(2));
   };
 
-  // Set toolbar default position to bottom middle only when modal opens
-  useEffect(() => {
-    if ((magnifyPageIdx !== null || editingMarkedUpId !== null) && modalContentRef.current && canvasNaturalSize && zoom) {
-      // Only set on modal open
-      setTimeout(() => {
-        const modalRect = modalContentRef.current!.getBoundingClientRect();
-        const toolbarWidth = 320;
-        const left = modalRect.left + (modalRect.width - toolbarWidth) / 2;
-        const top = modalRect.top + modalRect.height - 80;
-        setToolbarPos({ x: left, y: top });
-      }, 0);
-    }
-    // eslint-disable-next-line
-  }, [magnifyPageIdx, editingMarkedUpId]);
-
-  // Pan mode disables drawing mode
-  useEffect(() => {
-    if (fabricCanvasRef.current) {
-      fabricCanvasRef.current.isDrawingMode = !panMode;
-      if (panMode) {
-        fabricCanvasRef.current.defaultCursor = 'grab';
-      } else {
-        fabricCanvasRef.current.defaultCursor = 'default';
-      }
-    }
-  }, [panMode]);
-
   // Save only (no download)
   const handleSaveOnlyMarkedUpImage = () => {
     if (fabricCanvasRef.current) {
@@ -806,39 +779,37 @@ export default function HomePage() {
             <Dialog.Overlay className="fixed inset-0 bg-black/40" />
             <div className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
-              <div style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <div style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
                 <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
-              </div>
-              {/* Draggable Annotation Controls */}
-              {(magnifyImage || editingMarkedUpId) && (
-                <div
-                  ref={toolbarRef}
-                  className="flex flex-wrap gap-3 items-center bg-white/90 p-2 rounded shadow border border-legal-200 cursor-move select-none"
-                  style={{ position: 'fixed', left: toolbarPos.x, top: toolbarPos.y, zIndex: 1000, minWidth: 220 }}
-                  onMouseDown={handleToolbarMouseDown}
-                >
-                  <span className="font-semibold text-legal-700 cursor-move select-none">✥ Tools</span>
-                  <div className="flex items-center gap-1">
-                    <button className="btn-secondary px-2" onClick={handleZoomOut} title="Zoom Out">-</button>
-                    <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
-                    <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
-                    <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
-                    <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
+                {/* Draggable Annotation Controls - now absolutely positioned and centered at the bottom */}
+                {(magnifyImage || editingMarkedUpId) && (
+                  <div
+                    className="flex flex-wrap gap-3 items-center bg-white/90 p-2 rounded shadow border border-legal-200 select-none"
+                    style={{ position: 'absolute', left: '50%', bottom: 24, transform: 'translateX(-50%)', minWidth: 220, zIndex: 1000 }}
+                  >
+                    <span className="font-semibold text-legal-700 select-none">✥ Tools</span>
+                    <div className="flex items-center gap-1">
+                      <button className="btn-secondary px-2" onClick={handleZoomOut} title="Zoom Out">-</button>
+                      <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
+                      <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
+                      <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
+                      <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
+                    </div>
+                    <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (Hand Tool, disables drawing)">🖐️</button>
+                    <label className="text-sm text-legal-700">Pen Color:
+                      <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
+                    </label>
+                    <label className="text-sm text-legal-700">Pen Size:
+                      <input type="range" min={2} max={16} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="ml-2" />
+                      <span className="ml-2">{penSize}px</span>
+                    </label>
+                    <button className={`btn-secondary py-1 px-3 text-sm ${isErasing ? 'bg-red-200' : ''}`} onClick={() => setIsErasing(e => !e)}>{isErasing ? 'Eraser (On)' : 'Eraser'}</button>
+                    <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
+                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
+                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
                   </div>
-                  <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (Hand Tool, disables drawing)">🖐️</button>
-                  <label className="text-sm text-legal-700">Pen Color:
-                    <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
-                  </label>
-                  <label className="text-sm text-legal-700">Pen Size:
-                    <input type="range" min={2} max={16} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="ml-2" />
-                    <span className="ml-2">{penSize}px</span>
-                  </label>
-                  <button className={`btn-secondary py-1 px-3 text-sm ${isErasing ? 'bg-red-200' : ''}`} onClick={() => setIsErasing(e => !e)}>{isErasing ? 'Eraser (On)' : 'Eraser'}</button>
-                  <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
-                  <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
-                  <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
-                </div>
-              )}
+                )}
+              </div>
               {(magnifyPageIdx !== null || editingMarkedUpId !== null) && (
                 <div className="flex gap-2 items-center mt-2">
                   {magnifyPageIdx !== null && (
@@ -919,23 +890,20 @@ export default function HomePage() {
                                   className="border border-legal-200 rounded focus:ring-2 focus:ring-primary-500"
                                   onClick={() => handleSelectPage(post.id, 'pdf', idx)}
                                 >
-                                  <img src={img} alt={`Page ${idx + 1}`} className="h-12 w-auto" />
-                                  <div className="text-[10px] text-center text-legal-500">Page {idx + 1}</div>
+                                  <img src={img} alt={`Page ${idx + 1}`} />
                                 </button>
                               ))}
                               {/* Marked-up images */}
                               {markedUpImages.map((img) => (
                                 <button
                                   key={`marked-${img.id}`}
-                                  className="border border-blue-400 rounded focus:ring-2 focus:ring-primary-500"
+                                  className="border border-legal-200 rounded focus:ring-2 focus:ring-primary-500"
                                   onClick={() => handleSelectPage(post.id, 'marked', img.id)}
                                 >
-                                  <img src={img.url} alt={img.label} className="h-12 w-auto" />
-                                  <div className="text-[10px] text-center text-blue-700">Marked</div>
+                                  <img src={img.url} alt={img.label} />
                                 </button>
                               ))}
                             </div>
-                            <button className="btn-secondary mt-2 w-full text-xs" onClick={() => setSelectingForPost(null)}>Cancel</button>
                           </div>
                         )}
                       </div>
@@ -964,4 +932,4 @@ export default function HomePage() {
       </div>
     </main>
   );
-} 
+}
