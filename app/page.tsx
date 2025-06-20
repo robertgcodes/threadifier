@@ -591,19 +591,32 @@ export default function HomePage() {
     setZoom(+scale.toFixed(2));
   };
 
-  // Set toolbar default position to bottom middle
+  // Set toolbar default position to bottom middle only when modal opens
   useEffect(() => {
     if ((magnifyPageIdx !== null || editingMarkedUpId !== null) && modalContentRef.current && canvasNaturalSize && zoom) {
-      const modalRect = modalContentRef.current.getBoundingClientRect();
-      const canvasW = canvasNaturalSize.width * zoom;
-      const canvasH = canvasNaturalSize.height * zoom;
-      const left = modalRect.left + (modalRect.width - 320) / 2; // 320px toolbar width
-      const top = modalRect.top + modalRect.height - 80; // 80px from bottom
-      setToolbarPos({ x: left, y: top });
+      // Only set on modal open
+      setTimeout(() => {
+        const modalRect = modalContentRef.current!.getBoundingClientRect();
+        const toolbarWidth = 320;
+        const left = modalRect.left + (modalRect.width - toolbarWidth) / 2;
+        const top = modalRect.top + modalRect.height - 80;
+        setToolbarPos({ x: left, y: top });
+      }, 0);
     }
-    // Only set on open, not on every render
     // eslint-disable-next-line
-  }, [magnifyPageIdx, editingMarkedUpId, canvasNaturalSize, zoom]);
+  }, [magnifyPageIdx, editingMarkedUpId]);
+
+  // Pan mode disables drawing mode
+  useEffect(() => {
+    if (fabricCanvasRef.current) {
+      fabricCanvasRef.current.isDrawingMode = !panMode;
+      if (panMode) {
+        fabricCanvasRef.current.defaultCursor = 'grab';
+      } else {
+        fabricCanvasRef.current.defaultCursor = 'default';
+      }
+    }
+  }, [panMode]);
 
   // Save only (no download)
   const handleSaveOnlyMarkedUpImage = () => {
@@ -812,7 +825,7 @@ export default function HomePage() {
                     <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
                     <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
                   </div>
-                  <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (or hold Space)">🖐️</button>
+                  <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (Hand Tool, disables drawing)">🖐️</button>
                   <label className="text-sm text-legal-700">Pen Color:
                     <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
                   </label>
