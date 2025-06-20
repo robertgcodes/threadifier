@@ -23,6 +23,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Switch } from '@headlessui/react';
+import { Dialog } from '@headlessui/react';
 
 // Use a stable CDN for the PDF.js worker to ensure compatibility with Vercel's build environment.
 // We also point to the '.mjs' version for modern module compatibility.
@@ -117,6 +118,7 @@ export default function HomePage() {
   const [pageImages, setPageImages] = useState<string[]>([]);
   const [postPageMap, setPostPageMap] = useState<{ [postId: number]: number | null }>({});
   const [selectingForPost, setSelectingForPost] = useState<number | null>(null);
+  const [magnifyPageIdx, setMagnifyPageIdx] = useState<number | null>(null);
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -400,7 +402,41 @@ export default function HomePage() {
             </div>
           )}
         </div>
-        {/* Center Column: Thread Editor */}
+        {/* Middle Column: PDF Page Thumbnails */}
+        <div className="col-span-1">
+          <div className="card">
+            <h2 className="text-lg font-semibold mb-4 text-legal-700">PDF Pages</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
+              {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
+              {pageImages.map((img, idx) => (
+                <button
+                  key={idx}
+                  className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500"
+                  onClick={() => setMagnifyPageIdx(idx)}
+                  tabIndex={0}
+                  aria-label={`Magnify Page ${idx + 1}`}
+                >
+                  <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" />
+                  <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Magnifier Modal */}
+          <Dialog open={magnifyPageIdx !== null} onClose={() => setMagnifyPageIdx(null)} className="fixed z-50 inset-0 flex items-center justify-center">
+            <Dialog.Overlay className="fixed inset-0 bg-black/40" />
+            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-3xl w-full flex flex-col items-center">
+              {magnifyPageIdx !== null && pageImages[magnifyPageIdx] && (
+                <>
+                  <img src={pageImages[magnifyPageIdx]} alt={`Page ${magnifyPageIdx + 1}`} className="max-h-[70vh] w-auto border border-legal-200 rounded" />
+                  <div className="text-xs text-legal-700 mt-2">Page {magnifyPageIdx + 1}</div>
+                  <button className="btn-secondary mt-4" onClick={() => setMagnifyPageIdx(null)}>Close</button>
+                </>
+              )}
+            </div>
+          </Dialog>
+        </div>
+        {/* Right Column: Thread Editor */}
         <div className="col-span-1 lg:col-span-1 space-y-8">
           {/* Generated Thread Editor */}
           {generatedThread.length > 0 && (
@@ -488,21 +524,6 @@ export default function HomePage() {
               />
             </div>
           )}
-        </div>
-        {/* Right Column: PDF Page Thumbnails */}
-        <div className="col-span-1">
-          <div className="card">
-            <h2 className="text-lg font-semibold mb-4 text-legal-700">PDF Pages</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
-              {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
-              {pageImages.map((img, idx) => (
-                <div key={idx} className="border border-legal-200 rounded overflow-hidden">
-                  <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" />
-                  <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </main>
