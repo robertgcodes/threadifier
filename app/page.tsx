@@ -22,6 +22,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Switch } from '@headlessui/react';
 
 // Use a stable CDN for the PDF.js worker to ensure compatibility with Vercel's build environment.
 // We also point to the '.mjs' version for modern module compatibility.
@@ -97,6 +98,14 @@ export default function HomePage() {
   const [editingPostId, setEditingPostId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
   
+  // Prompt customization state
+  const [charLimit, setCharLimit] = useState(280);
+  const [numPosts, setNumPosts] = useState(5);
+  const [customInstructions, setCustomInstructions] = useState("");
+  const [tone, setTone] = useState("Neutral");
+  const [useEmojis, setUseEmojis] = useState(false);
+  const [useNumbering, setUseNumbering] = useState(true);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -151,7 +160,15 @@ export default function HomePage() {
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: extractedText }),
+        body: JSON.stringify({
+          text: extractedText,
+          charLimit,
+          numPosts,
+          customInstructions,
+          tone,
+          useEmojis,
+          useNumbering,
+        }),
       });
 
       if (!response.ok) {
@@ -256,6 +273,94 @@ export default function HomePage() {
               {isAnalyzing ? <Loader2 className="animate-spin mx-auto" /> : "2. Generate Thread"}
             </button>
           </div>
+
+          {/* Prompt Customization Panel */}
+          {extractedText && (
+            <div className="mt-8 border-t pt-6">
+              <h3 className="text-lg font-semibold mb-4 text-legal-700">Customize AI Thread Generation</h3>
+              <div className="space-y-4">
+                {/* Character Limit Slider */}
+                <div>
+                  <label className="block text-legal-600 font-medium mb-1">Character Limit per Post: <span className="font-bold text-legal-800">{charLimit}</span></label>
+                  <input
+                    type="range"
+                    min={100}
+                    max={500}
+                    step={10}
+                    value={charLimit}
+                    onChange={e => setCharLimit(Number(e.target.value))}
+                    className="w-full accent-primary-600"
+                  />
+                </div>
+                {/* Number of Posts Slider */}
+                <div>
+                  <label className="block text-legal-600 font-medium mb-1">Number of Posts: <span className="font-bold text-legal-800">{numPosts}</span></label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={20}
+                    step={1}
+                    value={numPosts}
+                    onChange={e => setNumPosts(Number(e.target.value))}
+                    className="w-full accent-primary-600"
+                  />
+                </div>
+                {/* Tone Dropdown */}
+                <div>
+                  <label className="block text-legal-600 font-medium mb-1">Tone/Style:</label>
+                  <select
+                    className="input-field"
+                    value={tone}
+                    onChange={e => setTone(e.target.value)}
+                  >
+                    <option value="Neutral">Neutral</option>
+                    <option value="Explainer">Explainer</option>
+                    <option value="Persuasive">Persuasive</option>
+                    <option value="For Laypeople">For Laypeople</option>
+                    <option value="For Lawyers">For Lawyers</option>
+                  </select>
+                </div>
+                {/* Custom Instructions */}
+                <div>
+                  <label className="block text-legal-600 font-medium mb-1">Custom Instructions:</label>
+                  <textarea
+                    className="input-field h-20"
+                    placeholder="e.g. Focus on the holding, use plain English, etc."
+                    value={customInstructions}
+                    onChange={e => setCustomInstructions(e.target.value)}
+                  />
+                </div>
+                {/* Emojis Toggle */}
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={useEmojis}
+                    onChange={setUseEmojis}
+                    className={`${useEmojis ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                  >
+                    <span className="sr-only">Use Emojis</span>
+                    <span
+                      className={`${useEmojis ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                    />
+                  </Switch>
+                  <span className="text-legal-700">Use Emojis</span>
+                </div>
+                {/* Number Sequencing Toggle */}
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={useNumbering}
+                    onChange={setUseNumbering}
+                    className={`${useNumbering ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                  >
+                    <span className="sr-only">Number Sequencing</span>
+                    <span
+                      className={`${useNumbering ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                    />
+                  </Switch>
+                  <span className="text-legal-700">Number Sequencing (1/3, 2/3, ...)</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Results */}

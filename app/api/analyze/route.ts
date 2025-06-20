@@ -8,7 +8,15 @@ const anthropic = new Anthropic({
 
 export async function POST(req: Request) {
   try {
-    const { text } = await req.json();
+    const {
+      text,
+      charLimit = 280,
+      numPosts = 5,
+      customInstructions = '',
+      tone = 'Neutral',
+      useEmojis = false,
+      useNumbering = true,
+    } = await req.json();
 
     if (!text) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
@@ -18,18 +26,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Anthropic API key not configured' }, { status: 500 });
     }
 
-    const systemPrompt = `You are a legal analyst and social media expert. Your task is to analyze a legal document and break it down into a series of clear, concise, and engaging posts for X (formerly Twitter).
-
-    Guidelines:
-    1.  **Analyze the Text:** Read the provided legal document text carefully.
-    2.  **Identify Key Points:** Extract the most critical information: the main issue, the court's holding, key arguments, and the overall significance.
-    3.  **Simplify Language:** Translate complex legal jargon into plain English that a layperson can easily understand.
-    4.  **Create a Thread:** Structure your output as a JSON object containing an array of strings, where each string is a single post in the thread.
-    5.  **Character Limits:** Keep each post under 280 characters.
-    6.  **Hook the Reader:** The first post should be a strong hook that grabs attention.
-    7.  **Maintain Neutrality:** Present the information factually and without personal bias.
-    8.  **Output Format:** Your final output MUST be a valid JSON object in the format: { "thread": ["Post 1 text...", "Post 2 text...", "Post 3 text..."] }
-    9.  **CRITICAL:** Your entire response must ONLY be the raw JSON object. Do not include any introductory text, explanations, or markdown code fences like \`\`\`json.`;
+    // Build dynamic system prompt
+    let systemPrompt = `You are a legal analyst and social media expert. Your task is to analyze a legal document and break it down into a series of clear, concise, and engaging posts for X (formerly Twitter).\n\n`;
+    systemPrompt += `Guidelines:\n`;
+    systemPrompt += `1. Analyze the Text: Read the provided legal document text carefully.\n`;
+    systemPrompt += `2. Identify Key Points: Extract the most critical information: the main issue, the court's holding, key arguments, and the overall significance.\n`;
+    systemPrompt += `3. Simplify Language: Translate complex legal jargon into plain English that a layperson can easily understand.\n`;
+    systemPrompt += `4. Create a Thread: Structure your output as a JSON object containing an array of strings, where each string is a single post in the thread.\n`;
+    systemPrompt += `5. Character Limits: Keep each post under ${charLimit} characters.\n`;
+    systemPrompt += `6. Number of Posts: Generate exactly ${numPosts} posts in the thread.\n`;
+    systemPrompt += `7. Hook the Reader: The first post should be a strong hook that grabs attention.\n`;
+    systemPrompt += `8. Maintain Neutrality: Present the information factually and without personal bias, unless otherwise specified.\n`;
+    systemPrompt += `9. Output Format: Your final output MUST be a valid JSON object in the format: { "thread": ["Post 1 text...", "Post 2 text...", "Post 3 text..."] }\n`;
+    if (tone && tone !== 'Neutral') {
+      systemPrompt += `10. Tone/Style: Write in a "${tone}" style.\n`;
+    }
+    if (useEmojis) {
+      systemPrompt += `11. Emojis: Use relevant emojis to enhance the posts.\n`;
+    } else {
+      systemPrompt += `11. Emojis: Do NOT use emojis.\n`;
+    }
+    if (useNumbering) {
+      systemPrompt += `12. Numbering: Add number sequencing to each post (e.g., 1/${numPosts}, 2/${numPosts}, ...).\n`;
+    } else {
+      systemPrompt += `12. Numbering: Do NOT add number sequencing to the posts.\n`;
+    }
+    if (customInstructions && customInstructions.trim().length > 0) {
+      systemPrompt += `13. Custom Instructions: ${customInstructions.trim()}\n`;
+    }
+    systemPrompt += `14. CRITICAL: Your entire response must ONLY be the raw JSON object. Do not include any introductory text, explanations, or markdown code fences like \`\`\`json.`;
 
     const msg = await anthropic.messages.create({
       model: 'claude-3-haiku-20240307',
