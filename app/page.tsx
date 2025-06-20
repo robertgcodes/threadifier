@@ -132,11 +132,59 @@ export default function HomePage() {
   const fabricContainerRef = useRef<HTMLDivElement | null>(null);
   const [editingMarkedUpId, setEditingMarkedUpId] = useState<string | null>(null);
 
-  // Add draggable toolbar state
-  const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number }>({ x: 40, y: 40 });
+  // Toolbar drag state and logic
+  const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number } | null>(null);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [draggingToolbar, setDraggingToolbar] = useState(false);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+
+  // Center toolbar at bottom on modal open
+  useEffect(() => {
+    if ((magnifyPageIdx !== null || editingMarkedUpId !== null) && modalRef.current) {
+      const modalRect = modalRef.current.getBoundingClientRect();
+      const toolbarWidth = 320;
+      const left = (modalRect.width - toolbarWidth) / 2;
+      const top = modalRect.height - 80;
+      setToolbarPos({ x: left, y: top });
+    }
+  }, [magnifyPageIdx, editingMarkedUpId]);
+
+  // Drag handlers for toolbar
+  const handleToolbarMouseDown = (e: React.MouseEvent) => {
+    setDraggingToolbar(true);
+    const rect = toolbarRef.current?.getBoundingClientRect();
+    dragOffset.current = {
+      x: e.clientX - (rect?.left ?? 0),
+      y: e.clientY - (rect?.top ?? 0),
+    };
+    document.body.style.userSelect = 'none';
+  };
+  useEffect(() => {
+    if (!draggingToolbar) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!modalRef.current) return;
+      const modalRect = modalRef.current.getBoundingClientRect();
+      const toolbarWidth = 320;
+      const toolbarHeight = 56;
+      let x = e.clientX - modalRect.left - dragOffset.current.x;
+      let y = e.clientY - modalRect.top - dragOffset.current.y;
+      // Clamp within modal
+      x = Math.max(0, Math.min(x, modalRect.width - toolbarWidth));
+      y = Math.max(0, Math.min(y, modalRect.height - toolbarHeight));
+      setToolbarPos({ x, y });
+    };
+    const handleMouseUp = () => {
+      setDraggingToolbar(false);
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingToolbar]);
 
   const [zoom, setZoom] = useState(1);
   const minZoom = 0.25;
@@ -221,36 +269,6 @@ export default function HomePage() {
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
-
-  // Drag handlers for toolbar
-  const handleToolbarMouseDown = (e: React.MouseEvent) => {
-    setDraggingToolbar(true);
-    const rect = toolbarRef.current?.getBoundingClientRect();
-    dragOffset.current = {
-      x: e.clientX - (rect?.left ?? 0),
-      y: e.clientY - (rect?.top ?? 0),
-    };
-    document.body.style.userSelect = 'none';
-  };
-  useEffect(() => {
-    if (!draggingToolbar) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      setToolbarPos({
-        x: e.clientX - dragOffset.current.x,
-        y: e.clientY - dragOffset.current.y,
-      });
-    };
-    const handleMouseUp = () => {
-      setDraggingToolbar(false);
-      document.body.style.userSelect = '';
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [draggingToolbar]);
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -777,39 +795,41 @@ export default function HomePage() {
           {/* Magnifier Modal with Annotation */}
           <Dialog open={magnifyPageIdx !== null || editingMarkedUpId !== null} onClose={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }} className="fixed z-50 inset-0 flex items-center justify-center">
             <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div ref={modalRef} className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
               <div style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
                 <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
-                {/* Draggable Annotation Controls - now absolutely positioned and centered at the bottom */}
-                {(magnifyImage || editingMarkedUpId) && (
-                  <div
-                    className="flex flex-wrap gap-3 items-center bg-white/90 p-2 rounded shadow border border-legal-200 select-none"
-                    style={{ position: 'absolute', left: '50%', bottom: 24, transform: 'translateX(-50%)', minWidth: 220, zIndex: 1000 }}
-                  >
-                    <span className="font-semibold text-legal-700 select-none">✥ Tools</span>
-                    <div className="flex items-center gap-1">
-                      <button className="btn-secondary px-2" onClick={handleZoomOut} title="Zoom Out">-</button>
-                      <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
-                      <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
-                      <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
-                      <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
-                    </div>
-                    <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (Hand Tool, disables drawing)">🖐️</button>
-                    <label className="text-sm text-legal-700">Pen Color:
-                      <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
-                    </label>
-                    <label className="text-sm text-legal-700">Pen Size:
-                      <input type="range" min={2} max={16} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="ml-2" />
-                      <span className="ml-2">{penSize}px</span>
-                    </label>
-                    <button className={`btn-secondary py-1 px-3 text-sm ${isErasing ? 'bg-red-200' : ''}`} onClick={() => setIsErasing(e => !e)}>{isErasing ? 'Eraser (On)' : 'Eraser'}</button>
-                    <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
-                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
-                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
-                  </div>
-                )}
               </div>
+              {/* Draggable Annotation Controls - fixed and draggable, not inside scrollable area */}
+              {(magnifyImage || editingMarkedUpId) && toolbarPos && (
+                <div
+                  ref={toolbarRef}
+                  className="flex flex-wrap gap-3 items-center bg-white/90 p-2 rounded shadow border border-legal-200 select-none cursor-move"
+                  style={{ position: 'fixed', left: `calc(${toolbarPos.x}px + 5vw)`, top: `calc(${toolbarPos.y}px + 5vh)`, minWidth: 220, zIndex: 1000 }}
+                  onMouseDown={handleToolbarMouseDown}
+                >
+                  <span className="font-semibold text-legal-700 select-none">✥ Tools</span>
+                  <div className="flex items-center gap-1">
+                    <button className="btn-secondary px-2" onClick={handleZoomOut} title="Zoom Out">-</button>
+                    <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
+                    <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
+                    <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
+                    <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
+                  </div>
+                  <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (Hand Tool, disables drawing)">🖐️</button>
+                  <label className="text-sm text-legal-700">Pen Color:
+                    <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
+                  </label>
+                  <label className="text-sm text-legal-700">Pen Size:
+                    <input type="range" min={2} max={16} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="ml-2" />
+                    <span className="ml-2">{penSize}px</span>
+                  </label>
+                  <button className={`btn-secondary py-1 px-3 text-sm ${isErasing ? 'bg-red-200' : ''}`} onClick={() => setIsErasing(e => !e)}>{isErasing ? 'Eraser (On)' : 'Eraser'}</button>
+                  <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
+                  <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
+                  <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
+                </div>
+              )}
               {(magnifyPageIdx !== null || editingMarkedUpId !== null) && (
                 <div className="flex gap-2 items-center mt-2">
                   {magnifyPageIdx !== null && (
