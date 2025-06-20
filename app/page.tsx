@@ -139,15 +139,16 @@ export default function HomePage() {
   const [draggingToolbar, setDraggingToolbar] = useState(false);
   const modalRef = useRef<HTMLDivElement | null>(null);
 
-  // Center toolbar at bottom on modal open (relative to modal, not screen)
+  // Center toolbar at bottom on modal open (measure actual toolbar size after render)
   useEffect(() => {
-    if ((magnifyPageIdx !== null || editingMarkedUpId !== null) && modalRef.current) {
-      const modalRect = modalRef.current.getBoundingClientRect();
-      const toolbarWidth = 320;
-      const toolbarHeight = 56;
-      const left = (modalRect.width - toolbarWidth) / 2;
-      const top = modalRect.height - toolbarHeight - 24; // 24px from bottom
-      setToolbarPos({ x: left, y: top });
+    if ((magnifyPageIdx !== null || editingMarkedUpId !== null) && modalRef.current && toolbarRef.current) {
+      requestAnimationFrame(() => {
+        const modalRect = modalRef.current!.getBoundingClientRect();
+        const toolbarRect = toolbarRef.current!.getBoundingClientRect();
+        const left = (modalRect.width - toolbarRect.width) / 2;
+        const top = modalRect.height - toolbarRect.height - 24; // 24px from bottom
+        setToolbarPos({ x: left, y: top });
+      });
     }
   }, [magnifyPageIdx, editingMarkedUpId]);
 
