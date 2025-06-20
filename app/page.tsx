@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
@@ -140,7 +140,7 @@ export default function HomePage() {
   const modalRef = useRef<HTMLDivElement | null>(null);
 
   // Center toolbar at bottom on modal open (measure actual toolbar size after render)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if ((magnifyPageIdx !== null || editingMarkedUpId !== null) && modalRef.current && toolbarRef.current) {
       requestAnimationFrame(() => {
         const modalRect = modalRef.current!.getBoundingClientRect();
@@ -804,11 +804,24 @@ export default function HomePage() {
                 <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
               </div>
               {/* Draggable Annotation Controls - absolutely positioned and draggable inside modal */}
-              {(magnifyImage || editingMarkedUpId) && toolbarPos && (
+              {(magnifyImage || editingMarkedUpId) && (
                 <div
                   ref={toolbarRef}
                   className="flex flex-wrap gap-3 items-center bg-white/90 p-2 rounded shadow border border-legal-200 select-none cursor-move"
-                  style={{ position: 'absolute', left: toolbarPos.x, top: toolbarPos.y, minWidth: 220, zIndex: 1000 }}
+                  style={toolbarPos ? {
+                    position: 'absolute',
+                    left: toolbarPos.x,
+                    top: toolbarPos.y,
+                    minWidth: 220,
+                    zIndex: 1000
+                  } : {
+                    position: 'absolute',
+                    left: '50%',
+                    bottom: 24,
+                    transform: 'translateX(-50%)',
+                    minWidth: 220,
+                    zIndex: 1000
+                  }}
                   onMouseDown={handleToolbarMouseDown}
                 >
                   <span className="font-semibold text-legal-700 select-none">✥ Tools</span>
