@@ -118,7 +118,7 @@ export default function HomePage() {
   );
 
   const [pageImages, setPageImages] = useState<string[]>([]);
-  const [postPageMap, setPostPageMap] = useState<{ [postId: number]: number | null }>({});
+  const [postPageMap, setPostPageMap] = useState<{ [postId: number]: { type: 'pdf' | 'marked', value: number | string } | null }>({});
   const [selectingForPost, setSelectingForPost] = useState<number | null>(null);
   const [magnifyPageIdx, setMagnifyPageIdx] = useState<number | null>(null);
   const [magnifyImage, setMagnifyImage] = useState<string | null>(null);
@@ -574,9 +574,9 @@ export default function HomePage() {
     }
   };
 
-  // Handler to select a page for a post
-  const handleSelectPage = (postId: number, pageIdx: number) => {
-    setPostPageMap((prev) => ({ ...prev, [postId]: pageIdx }));
+  // Handler to select a page or marked-up image for a post
+  const handleSelectPage = (postId: number, type: 'pdf' | 'marked', value: number | string) => {
+    setPostPageMap((prev) => ({ ...prev, [postId]: { type, value } }));
     setSelectingForPost(null);
   };
 
@@ -840,29 +840,47 @@ export default function HomePage() {
                             className="btn-secondary text-xs px-2 py-1"
                             onClick={() => setSelectingForPost(post.id)}
                           >
-                            {postPageMap[post.id] !== undefined && postPageMap[post.id] !== null ? 'Change Page' : 'Select Page'}
+                            {postPageMap[post.id] ? 'Change Page/Image' : 'Select Page/Image'}
                           </button>
-                          {postPageMap[post.id] !== undefined && postPageMap[post.id] !== null && pageImages[postPageMap[post.id]!] && (
-                            <img
-                              src={pageImages[postPageMap[post.id]!]} 
-                              alt={`Page ${postPageMap[post.id]! + 1}`}
-                              className="h-16 w-auto border border-legal-200 rounded shadow-sm"
-                            />
+                          {postPageMap[post.id] && (
+                            (() => {
+                              const mapping = postPageMap[post.id];
+                              if (mapping?.type === 'pdf' && typeof mapping.value === 'number' && pageImages[mapping.value]) {
+                                return <img src={pageImages[mapping.value]} alt={`Page ${mapping.value + 1}`} className="h-16 w-auto border border-legal-200 rounded shadow-sm" />;
+                              }
+                              if (mapping?.type === 'marked' && typeof mapping.value === 'string') {
+                                const img = markedUpImages.find(m => m.id === mapping.value);
+                                if (img) return <img src={img.url} alt={img.label} className="h-16 w-auto border border-legal-200 rounded shadow-sm" />;
+                              }
+                              return null;
+                            })()
                           )}
                         </div>
-                        {/* Page Picker Modal/Popover */}
+                        {/* Page/Image Picker Modal/Popover */}
                         {selectingForPost === post.id && (
                           <div className="absolute z-20 bg-white border border-legal-300 rounded shadow-lg p-2 mt-2 left-0 w-full max-w-xs">
-                            <div className="text-xs text-legal-700 mb-2">Select a page for this post:</div>
+                            <div className="text-xs text-legal-700 mb-2">Select a page or marked-up image for this post:</div>
                             <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+                              {/* Original PDF pages */}
                               {pageImages.map((img, idx) => (
                                 <button
-                                  key={idx}
+                                  key={`pdf-${idx}`}
                                   className="border border-legal-200 rounded focus:ring-2 focus:ring-primary-500"
-                                  onClick={() => handleSelectPage(post.id, idx)}
+                                  onClick={() => handleSelectPage(post.id, 'pdf', idx)}
                                 >
                                   <img src={img} alt={`Page ${idx + 1}`} className="h-12 w-auto" />
-                                  <div className="text-[10px] text-center text-legal-500">{idx + 1}</div>
+                                  <div className="text-[10px] text-center text-legal-500">Page {idx + 1}</div>
+                                </button>
+                              ))}
+                              {/* Marked-up images */}
+                              {markedUpImages.map((img) => (
+                                <button
+                                  key={`marked-${img.id}`}
+                                  className="border border-blue-400 rounded focus:ring-2 focus:ring-primary-500"
+                                  onClick={() => handleSelectPage(post.id, 'marked', img.id)}
+                                >
+                                  <img src={img.url} alt={img.label} className="h-12 w-auto" />
+                                  <div className="text-[10px] text-center text-blue-700">Marked</div>
                                 </button>
                               ))}
                             </div>
