@@ -27,11 +27,12 @@ export async function POST(req: Request) {
     4.  **Create a Thread:** Structure your output as a JSON object containing an array of strings, where each string is a single post in the thread.
     5.  **Character Limits:** Keep each post under 280 characters.
     6.  **Hook the Reader:** The first post should be a strong hook that grabs attention.
-    7.  **Maintain Neutrality:** Present the information factually and without personal bias, unless the user specifies a tone.
-    8.  **Output Format:** Your final output MUST be a valid JSON object in the format: { "thread": ["Post 1 text...", "Post 2 text...", "Post 3 text..."] }`;
+    7.  **Maintain Neutrality:** Present the information factually and without personal bias.
+    8.  **Output Format:** Your final output MUST be a valid JSON object in the format: { "thread": ["Post 1 text...", "Post 2 text...", "Post 3 text..."] }
+    9.  **CRITICAL:** Your entire response must ONLY be the raw JSON object. Do not include any introductory text, explanations, or markdown code fences like \`\`\`json.`;
 
     const msg = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307', // A fast and cost-effective model
+      model: 'claude-3-haiku-20240307',
       max_tokens: 1024,
       system: systemPrompt,
       messages: [
@@ -42,19 +43,31 @@ export async function POST(req: Request) {
       ],
     });
 
-    // Ensure the response from Claude is valid content
     if (!msg.content || msg.content.length === 0 || msg.content[0].type !== 'text') {
       return NextResponse.json({ error: 'Invalid response from AI' }, { status: 500 });
     }
 
-    // Claude might return the JSON as a string within a code block, so we need to parse it
     const rawResponse = msg.content[0].text;
-    const jsonResponse = JSON.parse(rawResponse.replace(/```json|```/g, '').trim());
+    
+    // Find the JSON object within the AI's response
+    const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error("AI response did not contain a valid JSON object:", rawResponse);
+      return NextResponse.json({ error: 'AI did not return a parsable JSON object.' }, { status: 500 });
+    }
+    
+    const jsonString = jsonMatch[0];
+    const jsonResponse = JSON.parse(jsonString);
 
     return NextResponse.json(jsonResponse);
 
   } catch (error) {
-    console.error('Error analyzing document:', error);
+    // Log the actual error for better debugging
+    if (error instanceof Error) {
+      console.error('Error analyzing document:', error.message);
+    } else {
+      console.error('An unknown error occurred:', error);
+    }
     return NextResponse.json({ error: 'Failed to analyze document' }, { status: 500 });
   }
 } 
