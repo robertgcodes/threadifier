@@ -25,6 +25,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Switch } from '@headlessui/react';
 import { Dialog } from '@headlessui/react';
 import { fabric } from 'fabric';
+import { v4 as uuidv4 } from 'uuid';
 
 // Use a stable CDN for the PDF.js worker to ensure compatibility with Vercel's build environment.
 // We also point to the '.mjs' version for modern module compatibility.
@@ -122,13 +123,14 @@ export default function HomePage() {
   const [magnifyPageIdx, setMagnifyPageIdx] = useState<number | null>(null);
   const [magnifyImage, setMagnifyImage] = useState<string | null>(null);
   const [magnifyLoading, setMagnifyLoading] = useState(false);
-  const [markedUpImages, setMarkedUpImages] = useState<{ url: string, label: string }[]>([]);
+  const [markedUpImages, setMarkedUpImages] = useState<{ id: string, url: string, label: string, json: any }[]>([]);
   const [penColor, setPenColor] = useState<string>("#e11d48");
   const [penSize, setPenSize] = useState<number>(4);
   const [isErasing, setIsErasing] = useState(false);
   const pdfDocRef = useRef<any>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
   const fabricContainerRef = useRef<HTMLDivElement | null>(null);
+  const [editingMarkedUpId, setEditingMarkedUpId] = useState<string | null>(null);
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -370,12 +372,28 @@ export default function HomePage() {
     }
   }, [penColor, penSize, isErasing, magnifyImage]);
 
-  // Save/download marked-up image
+  // Open modal for editing a marked-up image
+  const handleEditMarkedUpImage = (id: string) => {
+    const img = markedUpImages.find(m => m.id === id);
+    if (img) {
+      setEditingMarkedUpId(id);
+      setMagnifyImage(img.url); // will be replaced by fabric load
+      setMagnifyPageIdx(null); // not a PDF page
+    }
+  };
+
+  // Save/download marked-up image (now also saves fabric JSON)
   const handleSaveMarkedUpImage = () => {
     if (fabricCanvasRef.current) {
       const url = fabricCanvasRef.current.toDataURL({ format: "png", multiplier: 1 });
+      const json = fabricCanvasRef.current.toJSON();
       const label = magnifyPageIdx !== null ? `Page ${magnifyPageIdx + 1} (Marked)` : `Marked Image`;
-      setMarkedUpImages((prev) => [...prev, { url, label }]);
+      if (editingMarkedUpId) {
+        setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, url, label, json } : m));
+        setEditingMarkedUpId(null);
+      } else {
+        setMarkedUpImages(prev => [...prev, { id: uuidv4(), url, label, json }]);
+      }
       // Download
       const a = document.createElement('a');
       a.href = url;
@@ -383,6 +401,39 @@ export default function HomePage() {
       a.click();
     }
   };
+
+  // Delete marked-up image with confirmation
+  const handleDeleteMarkedUpImage = (id: string) => {
+    if (window.confirm('Delete this marked-up image?')) {
+      setMarkedUpImages(prev => prev.filter(m => m.id !== id));
+    }
+  };
+
+  // When opening modal for editing a marked-up image, load its fabric JSON
+  useEffect(() => {
+    if (editingMarkedUpId && fabricContainerRef.current) {
+      const img = markedUpImages.find(m => m.id === editingMarkedUpId);
+      if (img && fabricContainerRef.current) {
+        if (fabricCanvasRef.current) {
+          fabricCanvasRef.current.dispose();
+          fabricCanvasRef.current = null;
+        }
+        const canvasEl = document.createElement("canvas");
+        canvasEl.width = 1000;
+        canvasEl.height = 1400;
+        fabricContainerRef.current.innerHTML = "";
+        fabricContainerRef.current.appendChild(canvasEl);
+        const canvas = new fabric.Canvas(canvasEl, {
+          isDrawingMode: true,
+          selection: false,
+        });
+        canvas.loadFromJSON(img.json, () => {
+          canvas.renderAll();
+        });
+        fabricCanvasRef.current = canvas;
+      }
+    }
+  }, [editingMarkedUpId]);
 
   // Reset/clear annotation
   const handleResetAnnotation = () => {
@@ -548,11 +599,22 @@ export default function HomePage() {
             {markedUpImages.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-sm font-semibold mb-2 text-legal-700">Marked-up Images</h3>
-                <div className="flex flex-wrap gap-2">
-                  {markedUpImages.map((img, idx) => (
-                    <div key={idx} className="border border-legal-200 rounded overflow-hidden">
-                      <img src={img.url} alt={img.label} className="h-16 w-auto" />
-                      <div className="text-xs text-center text-legal-500 py-1">{img.label}</div>
+                <div className="flex flex-wrap gap-4">
+                  {markedUpImages.map((img) => (
+                    <div key={img.id} className="relative group border border-legal-200 rounded overflow-hidden shadow-lg" style={{ width: 120 }}>
+                      <img src={img.url} alt={img.label} className="h-28 w-full object-contain bg-white" />
+                      <div className="text-xs text-center text-legal-500 py-1 truncate">{img.label}</div>
+                      <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button title="Edit" className="bg-blue-500 text-white rounded-full p-1 shadow" onClick={() => handleEditMarkedUpImage(img.id)}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2l-6 6m-2 2h6" /></svg>
+                        </button>
+                        <button title="Download" className="bg-green-500 text-white rounded-full p-1 shadow" onClick={() => { const a = document.createElement('a'); a.href = img.url; a.download = `${img.label.replace(/\s+/g, '_')}.png`; a.click(); }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                        </button>
+                        <button title="Delete" className="bg-red-500 text-white rounded-full p-1 shadow" onClick={() => handleDeleteMarkedUpImage(img.id)}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -560,14 +622,14 @@ export default function HomePage() {
             )}
           </div>
           {/* Magnifier Modal with Annotation */}
-          <Dialog open={magnifyPageIdx !== null} onClose={() => setMagnifyPageIdx(null)} className="fixed z-50 inset-0 flex items-center justify-center">
+          <Dialog open={magnifyPageIdx !== null || editingMarkedUpId !== null} onClose={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }} className="fixed z-50 inset-0 flex items-center justify-center">
             <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-4xl w-full flex flex-col items-center">
+            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-[90vw] max-h-[90vh] w-full flex flex-col items-center overflow-auto">
               {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
-              <div ref={fabricContainerRef} className="w-full flex justify-center items-center" style={{ minHeight: 400, minWidth: 300 }} />
+              <div ref={fabricContainerRef} className="w-full flex justify-center items-center" style={{ minHeight: 400, minWidth: 300, maxHeight: '60vh', maxWidth: '60vw' }} />
               {/* Annotation Controls */}
-              {magnifyImage && (
-                <div className="flex flex-wrap gap-3 mt-4 items-center">
+              {(magnifyImage || editingMarkedUpId) && (
+                <div className="flex flex-wrap gap-3 mt-4 items-center sticky bottom-0 bg-white/90 p-2 rounded shadow">
                   <label className="text-sm text-legal-700">Pen Color:
                     <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
                   </label>
@@ -580,10 +642,10 @@ export default function HomePage() {
                   <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
                 </div>
               )}
-              {magnifyPageIdx !== null && (
-                <div className="text-xs text-legal-700 mt-2">Page {magnifyPageIdx + 1}</div>
+              {(magnifyPageIdx !== null || editingMarkedUpId !== null) && (
+                <div className="text-xs text-legal-700 mt-2">{magnifyPageIdx !== null ? `Page ${magnifyPageIdx + 1}` : 'Marked-up Image'}</div>
               )}
-              <button className="btn-secondary mt-4" onClick={() => setMagnifyPageIdx(null)}>Close</button>
+              <button className="btn-secondary mt-4" onClick={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }}>Close</button>
             </div>
           </Dialog>
         </div>
