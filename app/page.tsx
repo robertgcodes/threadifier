@@ -138,6 +138,87 @@ export default function HomePage() {
   const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [draggingToolbar, setDraggingToolbar] = useState(false);
 
+  const [zoom, setZoom] = useState(1);
+  const minZoom = 0.25;
+  const maxZoom = 2;
+  const zoomStep = 0.1;
+  const [panMode, setPanMode] = useState(false);
+  const lastPan = useRef<{ x: number; y: number } | null>(null);
+
+  // Zoom handlers
+  const handleZoomIn = () => setZoom(z => Math.min(maxZoom, +(z + zoomStep).toFixed(2)));
+  const handleZoomOut = () => setZoom(z => Math.max(minZoom, +(z - zoomStep).toFixed(2)));
+  const handleZoomReset = () => setZoom(1);
+
+  // Apply zoom to fabric canvas
+  useEffect(() => {
+    if (fabricCanvasRef.current) {
+      fabricCanvasRef.current.setZoom(zoom);
+      // Optionally, center the canvas on zoom reset
+      if (zoom === 1) {
+        fabricCanvasRef.current.absolutePan({ x: 0, y: 0 });
+      }
+    }
+  }, [zoom, magnifyImage, editingMarkedUpId]);
+
+  // Pan support: hold spacebar or toggle pan mode
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    let isPanning = false;
+    let lastPos = { x: 0, y: 0 };
+    const onMouseDown = (opt: any) => {
+      if (panMode || opt.e?.spaceKey) {
+        isPanning = true;
+        lastPos = { x: opt.e.clientX, y: opt.e.clientY };
+        canvas.setCursor('grab');
+        canvas.renderAll();
+      }
+    };
+    const onMouseMove = (opt: any) => {
+      if (isPanning) {
+        const dx = opt.e.clientX - lastPos.x;
+        const dy = opt.e.clientY - lastPos.y;
+        lastPos = { x: opt.e.clientX, y: opt.e.clientY };
+        const vp = canvas.viewportTransform;
+        if (vp) {
+          vp[4] += dx;
+          vp[5] += dy;
+          canvas.setViewportTransform(vp);
+        }
+      }
+    };
+    const onMouseUp = () => {
+      isPanning = false;
+      canvas.setCursor('default');
+      canvas.renderAll();
+    };
+    canvas.on('mouse:down', onMouseDown);
+    canvas.on('mouse:move', onMouseMove);
+    canvas.on('mouse:up', onMouseUp);
+    return () => {
+      canvas.off('mouse:down', onMouseDown);
+      canvas.off('mouse:move', onMouseMove);
+      canvas.off('mouse:up', onMouseUp);
+    };
+  }, [panMode, fabricCanvasRef.current]);
+
+  // Spacebar toggles pan mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') setPanMode(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') setPanMode(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
   // Drag handlers for toolbar
   const handleToolbarMouseDown = (e: React.MouseEvent) => {
     setDraggingToolbar(true);
@@ -682,6 +763,13 @@ export default function HomePage() {
                   onMouseDown={handleToolbarMouseDown}
                 >
                   <span className="font-semibold text-legal-700 cursor-move select-none">✥ Tools</span>
+                  <div className="flex items-center gap-1">
+                    <button className="btn-secondary px-2" onClick={handleZoomOut} title="Zoom Out">-</button>
+                    <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
+                    <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
+                    <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
+                  </div>
+                  <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (or hold Space)">🖐️</button>
                   <label className="text-sm text-legal-700">Pen Color:
                     <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
                   </label>
