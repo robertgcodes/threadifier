@@ -119,6 +119,9 @@ export default function HomePage() {
   const [postPageMap, setPostPageMap] = useState<{ [postId: number]: number | null }>({});
   const [selectingForPost, setSelectingForPost] = useState<number | null>(null);
   const [magnifyPageIdx, setMagnifyPageIdx] = useState<number | null>(null);
+  const [magnifyImage, setMagnifyImage] = useState<string | null>(null);
+  const [magnifyLoading, setMagnifyLoading] = useState(false);
+  const pdfDocRef = useRef<any>(null);
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -273,6 +276,39 @@ export default function HomePage() {
     })();
   }, [pdfFile]);
 
+  // Store the loaded PDF document for high-res rendering
+  useEffect(() => {
+    if (!pdfFile) {
+      pdfDocRef.current = null;
+      return;
+    }
+    (async () => {
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      pdfDocRef.current = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    })();
+  }, [pdfFile]);
+
+  // Render high-res image for magnifier modal
+  useEffect(() => {
+    if (magnifyPageIdx === null || !pdfDocRef.current) {
+      setMagnifyImage(null);
+      setMagnifyLoading(false);
+      return;
+    }
+    setMagnifyLoading(true);
+    (async () => {
+      const page = await pdfDocRef.current.getPage(magnifyPageIdx + 1);
+      const viewport = page.getViewport({ scale: 1.5 }); // high-res
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const context = canvas.getContext("2d");
+      await page.render({ canvasContext: context!, viewport }).promise;
+      setMagnifyImage(canvas.toDataURL("image/png"));
+      setMagnifyLoading(false);
+    })();
+  }, [magnifyPageIdx]);
+
   // Handler to select a page for a post
   const handleSelectPage = (postId: number, pageIdx: number) => {
     setPostPageMap((prev) => ({ ...prev, [postId]: pageIdx }));
@@ -425,14 +461,15 @@ export default function HomePage() {
           {/* Magnifier Modal */}
           <Dialog open={magnifyPageIdx !== null} onClose={() => setMagnifyPageIdx(null)} className="fixed z-50 inset-0 flex items-center justify-center">
             <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-3xl w-full flex flex-col items-center">
-              {magnifyPageIdx !== null && pageImages[magnifyPageIdx] && (
-                <>
-                  <img src={pageImages[magnifyPageIdx]} alt={`Page ${magnifyPageIdx + 1}`} className="max-h-[70vh] w-auto border border-legal-200 rounded" />
-                  <div className="text-xs text-legal-700 mt-2">Page {magnifyPageIdx + 1}</div>
-                  <button className="btn-secondary mt-4" onClick={() => setMagnifyPageIdx(null)}>Close</button>
-                </>
+            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-4xl w-full flex flex-col items-center">
+              {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
+              {magnifyImage && (
+                <img src={magnifyImage} alt={`Page ${magnifyPageIdx! + 1}`} className="max-h-[80vh] w-auto border border-legal-200 rounded" />
               )}
+              {magnifyPageIdx !== null && (
+                <div className="text-xs text-legal-700 mt-2">Page {magnifyPageIdx + 1}</div>
+              )}
+              <button className="btn-secondary mt-4" onClick={() => setMagnifyPageIdx(null)}>Close</button>
             </div>
           </Dialog>
         </div>
