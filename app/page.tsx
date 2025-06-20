@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
-import { Loader2, Twitter, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical } from "lucide-react";
+import { Loader2, Twitter, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -34,7 +34,7 @@ interface ThreadPost {
 }
 
 // --- Sortable Post Item Component ---
-function SortablePostItem({ post, index, generatedThread, startEditing, deletePost, editingPostId, editingText, setEditingText, saveEdit, cancelEdit }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void }) {
+function SortablePostItem({ post, index, generatedThread, startEditing, deletePost, editingPostId, editingText, setEditingText, saveEdit, cancelEdit, handleCopy }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void }) {
   const {
     attributes,
     listeners,
@@ -64,7 +64,7 @@ function SortablePostItem({ post, index, generatedThread, startEditing, deletePo
         {editingPostId === post.id ? (
           <>
             <textarea
-              className="input-field w-full h-24 text-base"
+              className="input-field w-full h-36 text-base"
               value={editingText}
               onChange={(e) => setEditingText(e.target.value)}
               autoFocus
@@ -78,6 +78,7 @@ function SortablePostItem({ post, index, generatedThread, startEditing, deletePo
           <>
             <p className="text-legal-600 whitespace-pre-wrap">{post.text}</p>
             <div className="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+               <button onClick={() => handleCopy(post.text)} className="text-legal-500 hover:text-primary-600 text-sm flex items-center"><CopyIcon className="w-4 h-4 mr-1"/>Copy</button>
                <button onClick={() => startEditing(post)} className="text-legal-500 hover:text-primary-600 text-sm flex items-center"><Edit className="w-4 h-4 mr-1"/>Edit</button>
                <button onClick={() => deletePost(post.id)} className="text-legal-500 hover:text-red-600 text-sm flex items-center"><Trash2 className="w-4 h-4 mr-1"/>Delete</button>
             </div>
@@ -236,6 +237,11 @@ export default function HomePage() {
     }
   }
 
+  // Copy to clipboard handler
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard!");
+  };
 
   return (
     <main className="min-h-screen bg-legal-50 p-4 sm:p-8">
@@ -283,7 +289,7 @@ export default function HomePage() {
                 <div>
                   <label className="block text-legal-600 font-medium mb-1">Custom Instructions (style, tone, perspective, etc.):</label>
                   <textarea
-                    className="input-field h-20"
+                    className="input-field h-32"
                     placeholder="e.g. Write from a conservative perspective, use plain English, focus on the holding, etc."
                     value={customInstructions}
                     onChange={e => setCustomInstructions(e.target.value)}
@@ -391,6 +397,7 @@ export default function HomePage() {
                         setEditingText={setEditingText}
                         saveEdit={saveEdit}
                         cancelEdit={cancelEdit}
+                        handleCopy={handleCopy}
                       />
                     ))}
                   </div>
