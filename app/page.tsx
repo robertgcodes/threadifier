@@ -4,7 +4,24 @@ import { useState } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
-import { Loader2, Twitter, Edit, Trash2, PlusCircle, Save, XCircle } from "lucide-react";
+import { Loader2, Twitter, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Use a stable CDN for the PDF.js worker to ensure compatibility with Vercel's build environment.
 // We also point to the '.mjs' version for modern module compatibility.
@@ -15,6 +32,62 @@ interface ThreadPost {
   text: string;
 }
 
+// --- Sortable Post Item Component ---
+function SortablePostItem({ post, index, generatedThread, startEditing, deletePost, editingPostId, editingText, setEditingText, saveEdit, cancelEdit }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({id: post.id});
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex gap-4 group items-start">
+      {/* Drag Handle */}
+      <div {...attributes} {...listeners} className="flex-shrink-0 touch-none cursor-grab text-legal-400 hover:text-legal-600 pt-3">
+        <GripVertical className="h-5 w-5" />
+      </div>
+      <div className="flex-shrink-0">
+        <div className="h-10 w-10 rounded-full bg-legal-800 flex items-center justify-center">
+          <Twitter className="h-5 w-5 text-white" />
+        </div>
+      </div>
+      <div className="flex-grow">
+        <p className="font-semibold text-legal-800">Legal Eagle Bot <span className="text-legal-500 font-normal">· @threadifier</span></p>
+        {editingPostId === post.id ? (
+          <>
+            <textarea
+              className="input-field w-full h-24 text-base"
+              value={editingText}
+              onChange={(e) => setEditingText(e.target.value)}
+              autoFocus
+            />
+            <div className="flex gap-2 mt-2">
+              <button onClick={saveEdit} className="btn-primary py-1 px-3 text-sm flex items-center"><Save className="w-4 h-4 mr-1"/>Save</button>
+              <button onClick={cancelEdit} className="btn-secondary py-1 px-3 text-sm flex items-center"><XCircle className="w-4 h-4 mr-1"/>Cancel</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-legal-600 whitespace-pre-wrap">{post.text}</p>
+            <div className="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+               <button onClick={() => startEditing(post)} className="text-legal-500 hover:text-primary-600 text-sm flex items-center"><Edit className="w-4 h-4 mr-1"/>Edit</button>
+               <button onClick={() => deletePost(post.id)} className="text-legal-500 hover:text-red-600 text-sm flex items-center"><Trash2 className="w-4 h-4 mr-1"/>Delete</button>
+            </div>
+          </>
+        )}
+        <p className="text-legal-400 text-sm mt-1">{index + 1}/{generatedThread.length}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState<string>("");
@@ -23,6 +96,13 @@ export default function HomePage() {
   const [generatedThread, setGeneratedThread] = useState<ThreadPost[]>([]);
   const [editingPostId, setEditingPostId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -125,6 +205,19 @@ export default function HomePage() {
     setGeneratedThread([...generatedThread, newPost]);
     startEditing(newPost);
   };
+  
+  function handleDragEnd(event: DragEndEvent) {
+    const {active, over} = event;
+    
+    if (over && active.id !== over.id) {
+      setGeneratedThread((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  }
 
 
   return (
@@ -169,53 +262,44 @@ export default function HomePage() {
         <div className="space-y-8">
           {/* Generated Thread Editor */}
           {generatedThread.length > 0 && (
-            <div className="card">
-              <h2 className="text-xl font-semibold mb-4 text-legal-700">Edit Your Thread</h2>
-              <div className="space-y-4">
-                {generatedThread.map((post, index) => (
-                  <div key={post.id} className="flex gap-4 group">
-                    <div className="flex-shrink-0">
-                      <div className="h-10 w-10 rounded-full bg-legal-800 flex items-center justify-center">
-                        <Twitter className="h-5 w-5 text-white" />
-                      </div>
-                    </div>
-                    <div className="flex-grow">
-                      <p className="font-semibold text-legal-800">Legal Eagle Bot <span className="text-legal-500 font-normal">· @threadifier</span></p>
-                      {editingPostId === post.id ? (
-                        <>
-                          <textarea
-                            className="input-field w-full h-24 text-base"
-                            value={editingText}
-                            onChange={(e) => setEditingText(e.target.value)}
-                            autoFocus
-                          />
-                          <div className="flex gap-2 mt-2">
-                            <button onClick={saveEdit} className="btn-primary py-1 px-3 text-sm"><Save className="w-4 h-4 mr-1 inline-block"/>Save</button>
-                            <button onClick={cancelEdit} className="btn-secondary py-1 px-3 text-sm"><XCircle className="w-4 h-4 mr-1 inline-block"/>Cancel</button>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-legal-600 whitespace-pre-wrap">{post.text}</p>
-                          <div className="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <button onClick={() => startEditing(post)} className="text-legal-500 hover:text-primary-600 text-sm flex items-center"><Edit className="w-4 h-4 mr-1"/>Edit</button>
-                             <button onClick={() => deletePost(post.id)} className="text-legal-500 hover:text-red-600 text-sm flex items-center"><Trash2 className="w-4 h-4 mr-1"/>Delete</button>
-                          </div>
-                        </>
-                      )}
-                      <p className="text-legal-400 text-sm mt-1">{index + 1}/{generatedThread.length}</p>
-                    </div>
+            <DndContext 
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext 
+                items={generatedThread}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="card">
+                  <h2 className="text-xl font-semibold mb-4 text-legal-700">Edit Your Thread</h2>
+                  <div className="space-y-4">
+                    {generatedThread.map((post, index) => (
+                      <SortablePostItem 
+                        key={post.id}
+                        post={post}
+                        index={index}
+                        generatedThread={generatedThread}
+                        startEditing={startEditing}
+                        deletePost={deletePost}
+                        editingPostId={editingPostId}
+                        editingText={editingText}
+                        setEditingText={setEditingText}
+                        saveEdit={saveEdit}
+                        cancelEdit={cancelEdit}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
-              <button onClick={addPost} className="btn-secondary mt-6 w-full flex items-center justify-center">
-                <PlusCircle className="w-5 h-5 mr-2" /> Add Post to Thread
-              </button>
-            </div>
+                  <button onClick={addPost} className="btn-secondary mt-6 w-full flex items-center justify-center">
+                    <PlusCircle className="w-5 h-5 mr-2" /> Add Post to Thread
+                  </button>
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
 
           {/* Extracted Text */}
-          {extractedText && !isAnalyzing && generatedThread.length === 0 && (
+          {extractedText && (
             <div className="card">
               <h2 className="text-xl font-semibold mb-2 text-legal-700">Extracted Document Text</h2>
               <textarea
