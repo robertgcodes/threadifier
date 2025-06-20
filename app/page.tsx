@@ -762,10 +762,10 @@ export default function HomePage() {
           {/* Magnifier Modal with Annotation */}
           <Dialog open={magnifyPageIdx !== null || editingMarkedUpId !== null} onClose={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }} className="fixed z-50 inset-0 flex items-center justify-center">
             <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-            <div ref={modalContentRef} className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-[95vw] max-h-[95vh] w-full flex flex-col items-center overflow-auto" style={{ minHeight: 400, minWidth: 300 }}>
+            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
-              <div className="w-full h-full flex-1 flex justify-center items-center overflow-auto" style={{ position: 'relative' }}>
-                <div ref={fabricContainerRef} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, minHeight: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined }} />
+              <div style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16 }}>
+                <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined }} />
               </div>
               {/* Draggable Annotation Controls */}
               {(magnifyImage || editingMarkedUpId) && (
