@@ -16,6 +16,7 @@ export async function POST(req: Request) {
       tone = 'Neutral',
       useEmojis = false,
       useNumbering = true,
+      audience = 'General',
     } = await req.json();
 
     if (!text) {
@@ -27,7 +28,11 @@ export async function POST(req: Request) {
     }
 
     // Build dynamic system prompt
-    let systemPrompt = `You are a legal analyst and social media expert. Your task is to analyze a legal document and break it down into a series of clear, concise, and engaging posts for X (formerly Twitter).\n\n`;
+    let systemPrompt = '';
+    if (audience && audience !== 'General') {
+      systemPrompt += `Your top priority is to write for a ${audience} audience. Use language, tone, and examples that resonate with this group.\n`;
+    }
+    systemPrompt += `You are a legal analyst and social media expert. Your task is to analyze a legal document and break it down into a series of clear, concise, and engaging posts for X (formerly Twitter).\n\n`;
     systemPrompt += `Guidelines:\n`;
     systemPrompt += `1. Analyze the Text: Read the provided legal document text carefully.\n`;
     systemPrompt += `2. Identify Key Points: Extract the most critical information: the main issue, the court's holding, key arguments, and the overall significance.\n`;
@@ -56,6 +61,15 @@ export async function POST(req: Request) {
     }
     systemPrompt += `14. CRITICAL: Your entire response must ONLY be the raw JSON object. Do not include any introductory text, explanations, or markdown code fences like \`\`\`json.`;
 
+    // User message with audience emphasis
+    let userMessage = '';
+    if (audience && audience !== 'General') {
+      userMessage += `Please generate the X thread for a ${audience} audience, following the guidelines.\n\n`;
+    } else {
+      userMessage += `Please generate the X thread following the guidelines.\n\n`;
+    }
+    userMessage += text;
+
     const msg = await anthropic.messages.create({
       model: 'claude-3-haiku-20240307',
       max_tokens: 1024,
@@ -63,7 +77,7 @@ export async function POST(req: Request) {
       messages: [
         {
           role: 'user',
-          content: `Here is the legal document text. Please generate the X thread based on the guidelines:\n\n${text}`,
+          content: userMessage,
         },
       ],
     });

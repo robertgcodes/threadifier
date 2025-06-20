@@ -105,6 +105,7 @@ export default function HomePage() {
   const [tone, setTone] = useState("Neutral");
   const [useEmojis, setUseEmojis] = useState(false);
   const [useNumbering, setUseNumbering] = useState(true);
+  const [audience, setAudience] = useState("General");
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -168,6 +169,7 @@ export default function HomePage() {
           tone,
           useEmojis,
           useNumbering,
+          audience,
         }),
       });
 
@@ -279,6 +281,22 @@ export default function HomePage() {
             <div className="mt-8 border-t pt-6">
               <h3 className="text-lg font-semibold mb-4 text-legal-700">Customize AI Thread Generation</h3>
               <div className="space-y-4">
+                {/* Audience Dropdown */}
+                <div>
+                  <label className="block text-legal-600 font-medium mb-1">Audience:</label>
+                  <select
+                    className="input-field"
+                    value={audience}
+                    onChange={e => setAudience(e.target.value)}
+                  >
+                    <option value="General">General</option>
+                    <option value="Conservative">Conservative</option>
+                    <option value="Progressive">Progressive</option>
+                    <option value="Legal Professionals">Legal Professionals</option>
+                    <option value="Laypeople">Laypeople</option>
+                    <option value="News Media">News Media</option>
+                  </select>
+                </div>
                 {/* Character Limit Slider */}
                 <div>
                   <label className="block text-legal-600 font-medium mb-1">Character Limit per Post: <span className="font-bold text-legal-800">{charLimit}</span></label>
