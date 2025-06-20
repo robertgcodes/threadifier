@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
-import { Loader2, Twitter } from "lucide-react";
+import { Loader2, Twitter, Edit, Trash2, PlusCircle, Save, XCircle } from "lucide-react";
 
 // Use a stable CDN for the PDF.js worker to ensure compatibility with Vercel's build environment.
 // We also point to the '.mjs' version for modern module compatibility.
@@ -21,6 +21,8 @@ export default function HomePage() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [generatedThread, setGeneratedThread] = useState<ThreadPost[]>([]);
+  const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState("");
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -77,7 +79,7 @@ export default function HomePage() {
       }
 
       const data = await response.json();
-      const threadWithIds = data.thread.map((text: string, index: number) => ({ id: index + 1, text }));
+      const threadWithIds = data.thread.map((text: string, index: number) => ({ id: Date.now() + index, text }));
       setGeneratedThread(threadWithIds);
       toast.success("AI analysis complete!");
 
@@ -88,6 +90,42 @@ export default function HomePage() {
       setIsAnalyzing(false);
     }
   }
+  
+  // --- Editing Functions ---
+
+  const startEditing = (post: ThreadPost) => {
+    setEditingPostId(post.id);
+    setEditingText(post.text);
+  };
+
+  const saveEdit = () => {
+    setGeneratedThread(generatedThread.map(post => 
+      post.id === editingPostId ? { ...post, text: editingText } : post
+    ));
+    setEditingPostId(null);
+    setEditingText("");
+    toast.success("Post updated!");
+  };
+
+  const cancelEdit = () => {
+    setEditingPostId(null);
+    setEditingText("");
+  };
+
+  const deletePost = (postId: number) => {
+    setGeneratedThread(generatedThread.filter(post => post.id !== postId));
+    toast.error("Post deleted.");
+  };
+
+  const addPost = () => {
+    const newPost: ThreadPost = {
+      id: Date.now(),
+      text: "New post..."
+    };
+    setGeneratedThread([...generatedThread, newPost]);
+    startEditing(newPost);
+  };
+
 
   return (
     <main className="min-h-screen bg-legal-50 p-4 sm:p-8">
@@ -129,29 +167,55 @@ export default function HomePage() {
 
         {/* Right Column: Results */}
         <div className="space-y-8">
-          {/* Generated Thread */}
+          {/* Generated Thread Editor */}
           {generatedThread.length > 0 && (
             <div className="card">
-              <h2 className="text-xl font-semibold mb-4 text-legal-700">Generated X Thread</h2>
+              <h2 className="text-xl font-semibold mb-4 text-legal-700">Edit Your Thread</h2>
               <div className="space-y-4">
                 {generatedThread.map((post, index) => (
-                  <div key={post.id} className="flex gap-4">
-                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-legal-800 flex items-center justify-center">
-                       <Twitter className="h-5 w-5 text-white" />
+                  <div key={post.id} className="flex gap-4 group">
+                    <div className="flex-shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-legal-800 flex items-center justify-center">
+                        <Twitter className="h-5 w-5 text-white" />
+                      </div>
                     </div>
                     <div className="flex-grow">
                       <p className="font-semibold text-legal-800">Legal Eagle Bot <span className="text-legal-500 font-normal">· @threadifier</span></p>
-                      <p className="text-legal-600">{post.text}</p>
+                      {editingPostId === post.id ? (
+                        <>
+                          <textarea
+                            className="input-field w-full h-24 text-base"
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            autoFocus
+                          />
+                          <div className="flex gap-2 mt-2">
+                            <button onClick={saveEdit} className="btn-primary py-1 px-3 text-sm"><Save className="w-4 h-4 mr-1 inline-block"/>Save</button>
+                            <button onClick={cancelEdit} className="btn-secondary py-1 px-3 text-sm"><XCircle className="w-4 h-4 mr-1 inline-block"/>Cancel</button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-legal-600 whitespace-pre-wrap">{post.text}</p>
+                          <div className="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button onClick={() => startEditing(post)} className="text-legal-500 hover:text-primary-600 text-sm flex items-center"><Edit className="w-4 h-4 mr-1"/>Edit</button>
+                             <button onClick={() => deletePost(post.id)} className="text-legal-500 hover:text-red-600 text-sm flex items-center"><Trash2 className="w-4 h-4 mr-1"/>Delete</button>
+                          </div>
+                        </>
+                      )}
                       <p className="text-legal-400 text-sm mt-1">{index + 1}/{generatedThread.length}</p>
                     </div>
                   </div>
                 ))}
               </div>
+              <button onClick={addPost} className="btn-secondary mt-6 w-full flex items-center justify-center">
+                <PlusCircle className="w-5 h-5 mr-2" /> Add Post to Thread
+              </button>
             </div>
           )}
 
           {/* Extracted Text */}
-          {extractedText && (
+          {extractedText && !isAnalyzing && generatedThread.length === 0 && (
             <div className="card">
               <h2 className="text-xl font-semibold mb-2 text-legal-700">Extracted Document Text</h2>
               <textarea
