@@ -365,8 +365,9 @@ export default function HomePage() {
     // Create new canvas
     const img = new window.Image();
     img.onload = () => {
-      const width = img.width;
-      const height = img.height;
+      const width = img.naturalWidth;
+      const height = img.naturalHeight;
+      console.log('PDF page image natural size:', width, height);
       const canvasEl = document.createElement("canvas");
       canvasEl.width = width;
       canvasEl.height = height;
@@ -375,18 +376,25 @@ export default function HomePage() {
       const canvas = new fabric.Canvas(canvasEl, {
         isDrawingMode: true,
         selection: false,
+        width,
+        height,
       });
       fabric.Image.fromURL(magnifyImage, (bgImg: any) => {
         bgImg.selectable = false;
         canvas.setBackgroundImage(bgImg, canvas.renderAll.bind(canvas), {
+          left: 0,
+          top: 0,
           scaleX: width / bgImg.width!,
           scaleY: height / bgImg.height!,
+          originX: 'left',
+          originY: 'top',
         });
       });
       canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
       canvas.freeDrawingBrush.color = penColor;
       canvas.freeDrawingBrush.width = penSize;
       fabricCanvasRef.current = canvas;
+      console.log('Fabric canvas size:', canvas.width, canvas.height);
     };
     img.src = magnifyImage;
   }, [magnifyImage]);
@@ -663,7 +671,7 @@ export default function HomePage() {
             <div className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-[95vw] max-h-[95vh] w-full flex flex-col items-center overflow-auto">
               {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
               <div className="w-full flex justify-center items-center overflow-auto" style={{ flex: 1, minHeight: 400, minWidth: 300, maxHeight: '80vh', maxWidth: '80vw' }}>
-                <div ref={fabricContainerRef} style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }} />
+                <div ref={fabricContainerRef} style={{ width: 'auto', height: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'auto' }} />
               </div>
               {/* Draggable Annotation Controls */}
               {(magnifyImage || editingMarkedUpId) && (
