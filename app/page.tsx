@@ -145,6 +145,9 @@ export default function HomePage() {
   const [panMode, setPanMode] = useState(false);
   const lastPan = useRef<{ x: number; y: number } | null>(null);
 
+  const [canvasNaturalSize, setCanvasNaturalSize] = useState<{ width: number, height: number } | null>(null);
+  const modalContentRef = useRef<HTMLDivElement | null>(null);
+
   // Zoom handlers
   const handleZoomIn = () => setZoom(z => Math.min(maxZoom, +(z + zoomStep).toFixed(2)));
   const handleZoomOut = () => setZoom(z => Math.max(minZoom, +(z - zoomStep).toFixed(2)));
@@ -448,7 +451,7 @@ export default function HomePage() {
     img.onload = () => {
       const width = img.naturalWidth;
       const height = img.naturalHeight;
-      console.log('PDF page image natural size:', width, height);
+      setCanvasNaturalSize({ width, height });
       const canvasEl = document.createElement("canvas");
       canvasEl.width = width;
       canvasEl.height = height;
@@ -475,7 +478,6 @@ export default function HomePage() {
       canvas.freeDrawingBrush.color = penColor;
       canvas.freeDrawingBrush.width = penSize;
       fabricCanvasRef.current = canvas;
-      console.log('Fabric canvas size:', canvas.width, canvas.height);
     };
     img.src = magnifyImage;
   }, [magnifyImage]);
@@ -576,6 +578,17 @@ export default function HomePage() {
   const handleSelectPage = (postId: number, pageIdx: number) => {
     setPostPageMap((prev) => ({ ...prev, [postId]: pageIdx }));
     setSelectingForPost(null);
+  };
+
+  // Fit to window handler
+  const handleFitToWindow = () => {
+    if (!canvasNaturalSize || !modalContentRef.current) return;
+    const { width: imgW, height: imgH } = canvasNaturalSize;
+    const container = modalContentRef.current;
+    const containerW = container.clientWidth;
+    const containerH = container.clientHeight;
+    const scale = Math.min(containerW / imgW, containerH / imgH, 1);
+    setZoom(+scale.toFixed(2));
   };
 
   return (
@@ -749,10 +762,10 @@ export default function HomePage() {
           {/* Magnifier Modal with Annotation */}
           <Dialog open={magnifyPageIdx !== null || editingMarkedUpId !== null} onClose={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }} className="fixed z-50 inset-0 flex items-center justify-center">
             <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-[95vw] max-h-[95vh] w-full flex flex-col items-center overflow-auto">
+            <div ref={modalContentRef} className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-[95vw] max-h-[95vh] w-full flex flex-col items-center overflow-auto" style={{ minHeight: 400, minWidth: 300 }}>
               {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
-              <div className="w-full flex justify-center items-center overflow-auto" style={{ flex: 1, minHeight: 400, minWidth: 300, maxHeight: '80vh', maxWidth: '80vw' }}>
-                <div ref={fabricContainerRef} style={{ width: 'auto', height: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'auto' }} />
+              <div className="w-full h-full flex-1 flex justify-center items-center overflow-auto" style={{ position: 'relative' }}>
+                <div ref={fabricContainerRef} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, minHeight: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined }} />
               </div>
               {/* Draggable Annotation Controls */}
               {(magnifyImage || editingMarkedUpId) && (
@@ -768,6 +781,7 @@ export default function HomePage() {
                     <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
                     <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
                     <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
+                    <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
                   </div>
                   <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (or hold Space)">🖐️</button>
                   <label className="text-sm text-legal-700">Pen Color:
