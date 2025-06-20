@@ -139,24 +139,26 @@ export default function HomePage() {
   const [draggingToolbar, setDraggingToolbar] = useState(false);
   const modalRef = useRef<HTMLDivElement | null>(null);
 
-  // Center toolbar at bottom on modal open
+  // Center toolbar at bottom on modal open (relative to modal, not screen)
   useEffect(() => {
     if ((magnifyPageIdx !== null || editingMarkedUpId !== null) && modalRef.current) {
       const modalRect = modalRef.current.getBoundingClientRect();
       const toolbarWidth = 320;
+      const toolbarHeight = 56;
       const left = (modalRect.width - toolbarWidth) / 2;
-      const top = modalRect.height - 80;
+      const top = modalRect.height - toolbarHeight - 24; // 24px from bottom
       setToolbarPos({ x: left, y: top });
     }
   }, [magnifyPageIdx, editingMarkedUpId]);
 
-  // Drag handlers for toolbar
+  // Drag handlers for toolbar (relative to modal, not screen)
   const handleToolbarMouseDown = (e: React.MouseEvent) => {
     setDraggingToolbar(true);
     const rect = toolbarRef.current?.getBoundingClientRect();
+    const modalRect = modalRef.current?.getBoundingClientRect();
     dragOffset.current = {
-      x: e.clientX - (rect?.left ?? 0),
-      y: e.clientY - (rect?.top ?? 0),
+      x: e.clientX - (rect?.left ?? 0) + (modalRef.current ? modalRef.current.scrollLeft : 0),
+      y: e.clientY - (rect?.top ?? 0) + (modalRef.current ? modalRef.current.scrollTop : 0),
     };
     document.body.style.userSelect = 'none';
   };
@@ -800,12 +802,12 @@ export default function HomePage() {
               <div style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
                 <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
               </div>
-              {/* Draggable Annotation Controls - fixed and draggable, not inside scrollable area */}
+              {/* Draggable Annotation Controls - absolutely positioned and draggable inside modal */}
               {(magnifyImage || editingMarkedUpId) && toolbarPos && (
                 <div
                   ref={toolbarRef}
                   className="flex flex-wrap gap-3 items-center bg-white/90 p-2 rounded shadow border border-legal-200 select-none cursor-move"
-                  style={{ position: 'fixed', left: `calc(${toolbarPos.x}px + 5vw)`, top: `calc(${toolbarPos.y}px + 5vh)`, minWidth: 220, zIndex: 1000 }}
+                  style={{ position: 'absolute', left: toolbarPos.x, top: toolbarPos.y, minWidth: 220, zIndex: 1000 }}
                   onMouseDown={handleToolbarMouseDown}
                 >
                   <span className="font-semibold text-legal-700 select-none">✥ Tools</span>
