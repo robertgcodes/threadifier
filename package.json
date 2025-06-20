@@ -21,13 +21,15 @@
     "tailwind-merge": "^2.2.0",
     "@dnd-kit/core": "^6.1.0",
     "@dnd-kit/sortable": "^8.0.0",
-    "@headlessui/react": "^1.7.17"
+    "@headlessui/react": "^1.7.17",
+    "fabric": "^5.3.0"
   },
   "devDependencies": {
     "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/fabric": "^4.3.7",
     "autoprefixer": "^10.0.1",
     "postcss": "^8",
     "tailwindcss": "^3.3.0",

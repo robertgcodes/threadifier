@@ -24,6 +24,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Switch } from '@headlessui/react';
 import { Dialog } from '@headlessui/react';
+import { fabric } from 'fabric';
 
 // Use a stable CDN for the PDF.js worker to ensure compatibility with Vercel's build environment.
 // We also point to the '.mjs' version for modern module compatibility.
@@ -121,7 +122,13 @@ export default function HomePage() {
   const [magnifyPageIdx, setMagnifyPageIdx] = useState<number | null>(null);
   const [magnifyImage, setMagnifyImage] = useState<string | null>(null);
   const [magnifyLoading, setMagnifyLoading] = useState(false);
+  const [markedUpImages, setMarkedUpImages] = useState<{ url: string, label: string }[]>([]);
+  const [penColor, setPenColor] = useState<string>("#e11d48");
+  const [penSize, setPenSize] = useState<number>(4);
+  const [isErasing, setIsErasing] = useState(false);
   const pdfDocRef = useRef<any>(null);
+  const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
+  const fabricContainerRef = useRef<HTMLDivElement | null>(null);
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -309,6 +316,86 @@ export default function HomePage() {
     })();
   }, [magnifyPageIdx]);
 
+  // Setup fabric.js canvas when magnifier modal opens
+  useEffect(() => {
+    if (!magnifyImage || !fabricContainerRef.current) return;
+    // Clean up previous canvas
+    if (fabricCanvasRef.current) {
+      fabricCanvasRef.current.dispose();
+      fabricCanvasRef.current = null;
+    }
+    // Create new canvas
+    const img = new window.Image();
+    img.onload = () => {
+      const width = img.width;
+      const height = img.height;
+      const canvasEl = document.createElement("canvas");
+      canvasEl.width = width;
+      canvasEl.height = height;
+      fabricContainerRef.current!.innerHTML = "";
+      fabricContainerRef.current!.appendChild(canvasEl);
+      const canvas = new fabric.Canvas(canvasEl, {
+        isDrawingMode: true,
+        selection: false,
+      });
+      fabric.Image.fromURL(magnifyImage, (bgImg: any) => {
+        bgImg.selectable = false;
+        canvas.setBackgroundImage(bgImg, canvas.renderAll.bind(canvas), {
+          scaleX: width / bgImg.width!,
+          scaleY: height / bgImg.height!,
+        });
+      });
+      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+      canvas.freeDrawingBrush.color = penColor;
+      canvas.freeDrawingBrush.width = penSize;
+      fabricCanvasRef.current = canvas;
+    };
+    img.src = magnifyImage;
+  }, [magnifyImage]);
+
+  // Update pen color/size/eraser
+  useEffect(() => {
+    if (fabricCanvasRef.current) {
+      if (isErasing) {
+        fabricCanvasRef.current.isDrawingMode = true;
+        fabricCanvasRef.current.freeDrawingBrush = new fabric.PencilBrush(fabricCanvasRef.current);
+        fabricCanvasRef.current.freeDrawingBrush.color = "#ffffff";
+        fabricCanvasRef.current.freeDrawingBrush.width = penSize * 2;
+      } else {
+        fabricCanvasRef.current.isDrawingMode = true;
+        fabricCanvasRef.current.freeDrawingBrush = new fabric.PencilBrush(fabricCanvasRef.current);
+        fabricCanvasRef.current.freeDrawingBrush.color = penColor;
+        fabricCanvasRef.current.freeDrawingBrush.width = penSize;
+      }
+    }
+  }, [penColor, penSize, isErasing, magnifyImage]);
+
+  // Save/download marked-up image
+  const handleSaveMarkedUpImage = () => {
+    if (fabricCanvasRef.current) {
+      const url = fabricCanvasRef.current.toDataURL({ format: "png", multiplier: 1 });
+      const label = magnifyPageIdx !== null ? `Page ${magnifyPageIdx + 1} (Marked)` : `Marked Image`;
+      setMarkedUpImages((prev) => [...prev, { url, label }]);
+      // Download
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${label.replace(/\s+/g, '_')}.png`;
+      a.click();
+    }
+  };
+
+  // Reset/clear annotation
+  const handleResetAnnotation = () => {
+    if (fabricCanvasRef.current) {
+      fabricCanvasRef.current.getObjects().forEach((obj: any) => {
+        if (obj !== fabricCanvasRef.current!.backgroundImage) {
+          fabricCanvasRef.current!.remove(obj);
+        }
+      });
+      fabricCanvasRef.current.renderAll();
+    }
+  };
+
   // Handler to select a page for a post
   const handleSelectPage = (postId: number, pageIdx: number) => {
     setPostPageMap((prev) => ({ ...prev, [postId]: pageIdx }));
@@ -457,14 +544,41 @@ export default function HomePage() {
                 </button>
               ))}
             </div>
+            {/* Marked-up Images Gallery */}
+            {markedUpImages.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold mb-2 text-legal-700">Marked-up Images</h3>
+                <div className="flex flex-wrap gap-2">
+                  {markedUpImages.map((img, idx) => (
+                    <div key={idx} className="border border-legal-200 rounded overflow-hidden">
+                      <img src={img.url} alt={img.label} className="h-16 w-auto" />
+                      <div className="text-xs text-center text-legal-500 py-1">{img.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          {/* Magnifier Modal */}
+          {/* Magnifier Modal with Annotation */}
           <Dialog open={magnifyPageIdx !== null} onClose={() => setMagnifyPageIdx(null)} className="fixed z-50 inset-0 flex items-center justify-center">
             <Dialog.Overlay className="fixed inset-0 bg-black/40" />
             <div className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-4xl w-full flex flex-col items-center">
               {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
+              <div ref={fabricContainerRef} className="w-full flex justify-center items-center" style={{ minHeight: 400, minWidth: 300 }} />
+              {/* Annotation Controls */}
               {magnifyImage && (
-                <img src={magnifyImage} alt={`Page ${magnifyPageIdx! + 1}`} className="max-h-[80vh] w-auto border border-legal-200 rounded" />
+                <div className="flex flex-wrap gap-3 mt-4 items-center">
+                  <label className="text-sm text-legal-700">Pen Color:
+                    <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
+                  </label>
+                  <label className="text-sm text-legal-700">Pen Size:
+                    <input type="range" min={2} max={16} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="ml-2" />
+                    <span className="ml-2">{penSize}px</span>
+                  </label>
+                  <button className={`btn-secondary py-1 px-3 text-sm ${isErasing ? 'bg-red-200' : ''}`} onClick={() => setIsErasing(e => !e)}>{isErasing ? 'Eraser (On)' : 'Eraser'}</button>
+                  <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
+                  <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
+                </div>
               )}
               {magnifyPageIdx !== null && (
                 <div className="text-xs text-legal-700 mt-2">Page {magnifyPageIdx + 1}</div>
