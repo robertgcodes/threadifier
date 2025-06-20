@@ -103,7 +103,8 @@ export default function HomePage() {
   const [numPosts, setNumPosts] = useState(5);
   const [customInstructions, setCustomInstructions] = useState("");
   const [useEmojis, setUseEmojis] = useState(false);
-  const [useNumbering, setUseNumbering] = useState(true);
+  const [useNumbering, setUseNumbering] = useState(false);
+  const [useHashtags, setUseHashtags] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -166,6 +167,7 @@ export default function HomePage() {
           customInstructions,
           useEmojis,
           useNumbering,
+          useHashtags,
         }),
       });
 
@@ -340,6 +342,20 @@ export default function HomePage() {
                     />
                   </Switch>
                   <span className="text-legal-700">Number Sequencing (1/3, 2/3, ...)</span>
+                </div>
+                {/* Hashtags Toggle */}
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={useHashtags}
+                    onChange={setUseHashtags}
+                    className={`${useHashtags ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                  >
+                    <span className="sr-only">Include Hashtags</span>
+                    <span
+                      className={`${useHashtags ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                    />
+                  </Switch>
+                  <span className="text-legal-700">Include Hashtags</span>
                 </div>
               </div>
             </div>

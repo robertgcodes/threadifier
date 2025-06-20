@@ -15,6 +15,7 @@ export async function POST(req: Request) {
       customInstructions = '',
       useEmojis = false,
       useNumbering = true,
+      useHashtags = false,
     } = await req.json();
 
     if (!text) {
@@ -51,7 +52,12 @@ export async function POST(req: Request) {
     } else {
       systemPrompt += `11. Numbering: Do NOT add number sequencing to the posts.\n`;
     }
-    systemPrompt += `12. CRITICAL: Your entire response must ONLY be the raw JSON object. Do not include any introductory text, explanations, or markdown code fences like \`\`\`json.`;
+    if (useHashtags) {
+      systemPrompt += `12. Hashtags: Add relevant hashtags to the end of each post.\n`;
+    } else {
+      systemPrompt += `12. Hashtags: Do NOT use hashtags.\n`;
+    }
+    systemPrompt += `13. CRITICAL: Your entire response must ONLY be the raw JSON object. Do not include any introductory text, explanations, or markdown code fences like \`\`\`json.`;
 
     // User message
     let userMessage = '';
