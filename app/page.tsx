@@ -132,6 +132,42 @@ export default function HomePage() {
   const fabricContainerRef = useRef<HTMLDivElement | null>(null);
   const [editingMarkedUpId, setEditingMarkedUpId] = useState<string | null>(null);
 
+  // Add draggable toolbar state
+  const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number }>({ x: 40, y: 40 });
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [draggingToolbar, setDraggingToolbar] = useState(false);
+
+  // Drag handlers for toolbar
+  const handleToolbarMouseDown = (e: React.MouseEvent) => {
+    setDraggingToolbar(true);
+    const rect = toolbarRef.current?.getBoundingClientRect();
+    dragOffset.current = {
+      x: e.clientX - (rect?.left ?? 0),
+      y: e.clientY - (rect?.top ?? 0),
+    };
+    document.body.style.userSelect = 'none';
+  };
+  useEffect(() => {
+    if (!draggingToolbar) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      setToolbarPos({
+        x: e.clientX - dragOffset.current.x,
+        y: e.clientY - dragOffset.current.y,
+      });
+    };
+    const handleMouseUp = () => {
+      setDraggingToolbar(false);
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingToolbar]);
+
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       setPdfFile(acceptedFiles[0]);
@@ -624,12 +660,20 @@ export default function HomePage() {
           {/* Magnifier Modal with Annotation */}
           <Dialog open={magnifyPageIdx !== null || editingMarkedUpId !== null} onClose={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }} className="fixed z-50 inset-0 flex items-center justify-center">
             <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-[90vw] max-h-[90vh] w-full flex flex-col items-center overflow-auto">
+            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4 max-w-[95vw] max-h-[95vh] w-full flex flex-col items-center overflow-auto">
               {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
-              <div ref={fabricContainerRef} className="w-full flex justify-center items-center" style={{ minHeight: 400, minWidth: 300, maxHeight: '60vh', maxWidth: '60vw' }} />
-              {/* Annotation Controls */}
+              <div className="w-full flex justify-center items-center overflow-auto" style={{ flex: 1, minHeight: 400, minWidth: 300, maxHeight: '80vh', maxWidth: '80vw' }}>
+                <div ref={fabricContainerRef} style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }} />
+              </div>
+              {/* Draggable Annotation Controls */}
               {(magnifyImage || editingMarkedUpId) && (
-                <div className="flex flex-wrap gap-3 mt-4 items-center sticky bottom-0 bg-white/90 p-2 rounded shadow">
+                <div
+                  ref={toolbarRef}
+                  className="flex flex-wrap gap-3 items-center bg-white/90 p-2 rounded shadow border border-legal-200 cursor-move select-none"
+                  style={{ position: 'fixed', left: toolbarPos.x, top: toolbarPos.y, zIndex: 1000, minWidth: 220 }}
+                  onMouseDown={handleToolbarMouseDown}
+                >
+                  <span className="font-semibold text-legal-700 cursor-move select-none">✥ Tools</span>
                   <label className="text-sm text-legal-700">Pen Color:
                     <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
                   </label>
