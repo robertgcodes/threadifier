@@ -102,10 +102,8 @@ export default function HomePage() {
   const [charLimit, setCharLimit] = useState(280);
   const [numPosts, setNumPosts] = useState(5);
   const [customInstructions, setCustomInstructions] = useState("");
-  const [tone, setTone] = useState("Neutral");
   const [useEmojis, setUseEmojis] = useState(false);
   const [useNumbering, setUseNumbering] = useState(true);
-  const [audience, setAudience] = useState("General");
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -166,10 +164,8 @@ export default function HomePage() {
           charLimit,
           numPosts,
           customInstructions,
-          tone,
           useEmojis,
           useNumbering,
-          audience,
         }),
       });
 
@@ -281,21 +277,15 @@ export default function HomePage() {
             <div className="mt-8 border-t pt-6">
               <h3 className="text-lg font-semibold mb-4 text-legal-700">Customize AI Thread Generation</h3>
               <div className="space-y-4">
-                {/* Audience Dropdown */}
+                {/* Custom Instructions (now primary) */}
                 <div>
-                  <label className="block text-legal-600 font-medium mb-1">Audience:</label>
-                  <select
-                    className="input-field"
-                    value={audience}
-                    onChange={e => setAudience(e.target.value)}
-                  >
-                    <option value="General">General</option>
-                    <option value="Conservative">Conservative</option>
-                    <option value="Progressive">Progressive</option>
-                    <option value="Legal Professionals">Legal Professionals</option>
-                    <option value="Laypeople">Laypeople</option>
-                    <option value="News Media">News Media</option>
-                  </select>
+                  <label className="block text-legal-600 font-medium mb-1">Custom Instructions (style, tone, perspective, etc.):</label>
+                  <textarea
+                    className="input-field h-20"
+                    placeholder="e.g. Write from a conservative perspective, use plain English, focus on the holding, etc."
+                    value={customInstructions}
+                    onChange={e => setCustomInstructions(e.target.value)}
+                  />
                 </div>
                 {/* Character Limit Slider */}
                 <div>
@@ -321,31 +311,6 @@ export default function HomePage() {
                     value={numPosts}
                     onChange={e => setNumPosts(Number(e.target.value))}
                     className="w-full accent-primary-600"
-                  />
-                </div>
-                {/* Tone Dropdown */}
-                <div>
-                  <label className="block text-legal-600 font-medium mb-1">Tone/Style:</label>
-                  <select
-                    className="input-field"
-                    value={tone}
-                    onChange={e => setTone(e.target.value)}
-                  >
-                    <option value="Neutral">Neutral</option>
-                    <option value="Explainer">Explainer</option>
-                    <option value="Persuasive">Persuasive</option>
-                    <option value="For Laypeople">For Laypeople</option>
-                    <option value="For Lawyers">For Lawyers</option>
-                  </select>
-                </div>
-                {/* Custom Instructions */}
-                <div>
-                  <label className="block text-legal-600 font-medium mb-1">Custom Instructions:</label>
-                  <textarea
-                    className="input-field h-20"
-                    placeholder="e.g. Focus on the holding, use plain English, etc."
-                    value={customInstructions}
-                    onChange={e => setCustomInstructions(e.target.value)}
                   />
                 </div>
                 {/* Emojis Toggle */}
