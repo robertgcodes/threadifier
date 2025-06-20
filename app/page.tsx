@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
@@ -113,6 +113,8 @@ export default function HomePage() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  const [pageImages, setPageImages] = useState<string[]>([]);
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -243,12 +245,35 @@ export default function HomePage() {
     toast.success("Copied to clipboard!");
   };
 
+  // Extract PDF pages as images after upload
+  useEffect(() => {
+    if (!pdfFile) {
+      setPageImages([]);
+      return;
+    }
+    (async () => {
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const images: string[] = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 0.2 }); // thumbnail size
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext("2d");
+        await page.render({ canvasContext: context!, viewport }).promise;
+        images.push(canvas.toDataURL("image/png"));
+      }
+      setPageImages(images);
+    })();
+  }, [pdfFile]);
+
   return (
     <main className="min-h-screen bg-legal-50 p-4 sm:p-8">
-      <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Controls */}
-        <div className="card h-fit sticky top-8">
+        <div className="card h-fit sticky top-8 col-span-1">
           <h1 className="text-2xl font-bold mb-4 text-legal-800">Threadifier</h1>
           <div
             {...getRootProps()}
@@ -367,9 +392,8 @@ export default function HomePage() {
             </div>
           )}
         </div>
-
-        {/* Right Column: Results */}
-        <div className="space-y-8">
+        {/* Center Column: Thread Editor */}
+        <div className="col-span-1 lg:col-span-1 space-y-8">
           {/* Generated Thread Editor */}
           {generatedThread.length > 0 && (
             <DndContext 
@@ -420,6 +444,21 @@ export default function HomePage() {
               />
             </div>
           )}
+        </div>
+        {/* Right Column: PDF Page Thumbnails */}
+        <div className="col-span-1">
+          <div className="card">
+            <h2 className="text-lg font-semibold mb-4 text-legal-700">PDF Pages</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
+              {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
+              {pageImages.map((img, idx) => (
+                <div key={idx} className="border border-legal-200 rounded overflow-hidden">
+                  <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" />
+                  <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </main>
