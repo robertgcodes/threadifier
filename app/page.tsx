@@ -115,6 +115,8 @@ export default function HomePage() {
   );
 
   const [pageImages, setPageImages] = useState<string[]>([]);
+  const [postPageMap, setPostPageMap] = useState<{ [postId: number]: number | null }>({});
+  const [selectingForPost, setSelectingForPost] = useState<number | null>(null);
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -269,6 +271,12 @@ export default function HomePage() {
     })();
   }, [pdfFile]);
 
+  // Handler to select a page for a post
+  const handleSelectPage = (postId: number, pageIdx: number) => {
+    setPostPageMap((prev) => ({ ...prev, [postId]: pageIdx }));
+    setSelectingForPost(null);
+  };
+
   return (
     <main className="min-h-screen bg-legal-50 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -409,20 +417,56 @@ export default function HomePage() {
                   <h2 className="text-xl font-semibold mb-4 text-legal-700">Edit Your Thread</h2>
                   <div className="space-y-4">
                     {generatedThread.map((post, index) => (
-                      <SortablePostItem 
-                        key={post.id}
-                        post={post}
-                        index={index}
-                        generatedThread={generatedThread}
-                        startEditing={startEditing}
-                        deletePost={deletePost}
-                        editingPostId={editingPostId}
-                        editingText={editingText}
-                        setEditingText={setEditingText}
-                        saveEdit={saveEdit}
-                        cancelEdit={cancelEdit}
-                        handleCopy={handleCopy}
-                      />
+                      <div key={post.id} className="relative">
+                        <SortablePostItem 
+                          post={post}
+                          index={index}
+                          generatedThread={generatedThread}
+                          startEditing={startEditing}
+                          deletePost={deletePost}
+                          editingPostId={editingPostId}
+                          editingText={editingText}
+                          setEditingText={setEditingText}
+                          saveEdit={saveEdit}
+                          cancelEdit={cancelEdit}
+                          handleCopy={handleCopy}
+                        />
+                        {/* Manual Page Matching UI */}
+                        <div className="mt-2 flex items-center gap-2">
+                          <button
+                            className="btn-secondary text-xs px-2 py-1"
+                            onClick={() => setSelectingForPost(post.id)}
+                          >
+                            {postPageMap[post.id] !== undefined && postPageMap[post.id] !== null ? 'Change Page' : 'Select Page'}
+                          </button>
+                          {postPageMap[post.id] !== undefined && postPageMap[post.id] !== null && pageImages[postPageMap[post.id]!] && (
+                            <img
+                              src={pageImages[postPageMap[post.id]!]} 
+                              alt={`Page ${postPageMap[post.id]! + 1}`}
+                              className="h-16 w-auto border border-legal-200 rounded shadow-sm"
+                            />
+                          )}
+                        </div>
+                        {/* Page Picker Modal/Popover */}
+                        {selectingForPost === post.id && (
+                          <div className="absolute z-20 bg-white border border-legal-300 rounded shadow-lg p-2 mt-2 left-0 w-full max-w-xs">
+                            <div className="text-xs text-legal-700 mb-2">Select a page for this post:</div>
+                            <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+                              {pageImages.map((img, idx) => (
+                                <button
+                                  key={idx}
+                                  className="border border-legal-200 rounded focus:ring-2 focus:ring-primary-500"
+                                  onClick={() => handleSelectPage(post.id, idx)}
+                                >
+                                  <img src={img} alt={`Page ${idx + 1}`} className="h-12 w-auto" />
+                                  <div className="text-[10px] text-center text-legal-500">{idx + 1}</div>
+                                </button>
+                              ))}
+                            </div>
+                            <button className="btn-secondary mt-2 w-full text-xs" onClick={() => setSelectingForPost(null)}>Cancel</button>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                   <button onClick={addPost} className="btn-secondary mt-6 w-full flex items-center justify-center">
