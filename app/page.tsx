@@ -1080,6 +1080,127 @@ export default function HomePage() {
               </div>
             )}
           </div>
+
+          {/* Middle Column: PDF Page Thumbnails & Extracted Text */}
+          <div className="col-span-1 space-y-8">
+            <div className="card">
+              <h2 className="text-lg font-semibold mb-4 text-legal-700">PDF Pages</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
+                {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
+                {pageImages.map((img, idx) => (
+                  <DraggableImage key={`pdf-dnd-${idx}`} id={`image:pdf:${idx}`}>
+                    <button
+                      className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500"
+                      onClick={() => setMagnifyPageIdx(idx)}
+                      tabIndex={0}
+                      aria-label={`Magnify Page ${idx + 1}`}
+                    >
+                      <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" />
+                      <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
+                    </button>
+                  </DraggableImage>
+                ))}
+              </div>
+              {/* Marked-up Images Gallery */}
+              {markedUpImages.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold mb-2 text-legal-700">Marked-up Images</h3>
+                  <div className="flex flex-wrap gap-4">
+                    {markedUpImages.map((img) => (
+                       <DraggableImage key={`marked-dnd-${img.id}`} id={`image:marked:${img.id}`}>
+                        <div className="relative group border border-legal-200 rounded overflow-hidden shadow-lg" style={{ width: 120 }}>
+                          <button onClick={() => handleEditMarkedUpImage(img.id)} className="w-full h-full text-left">
+                            <img src={img.url} alt={`Page ${img.pageNumber} Edited`} className="h-28 w-full object-contain bg-white" />
+                            <div className="text-xs text-center text-legal-500 py-1 truncate">Page {img.pageNumber} Edited</div>
+                          </button>
+                          <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button title="Download" className="bg-green-500 text-white rounded-full p-1 shadow" onClick={() => { const a = document.createElement('a'); a.href = img.url; a.download = `Page_${img.pageNumber}_Edited.png`; a.click(); }}>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                            </button>
+                            <button title="Delete" className="bg-red-500 text-white rounded-full p-1 shadow" onClick={() => handleDeleteMarkedUpImage(img.id)}>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                        </div>
+                      </DraggableImage>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Extracted Text */}
+            {extractedText && (
+              <div className="card">
+                <h2 className="text-xl font-semibold mb-2 text-legal-700">Extracted Document Text</h2>
+                <textarea
+                  className="input-field h-96 text-sm bg-legal-50"
+                  value={extractedText}
+                  readOnly
+                />
+              </div>
+            )}
+            {/* Magnifier Modal with Annotation */}
+            <Dialog open={magnifyPageIdx !== null || editingMarkedUpId !== null} onClose={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }} className="fixed z-50 inset-0 flex items-center justify-center">
+              <Dialog.Overlay className="fixed inset-0 bg-black/40" />
+              <div className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                {/* Toolbar at the top */}
+                <div className={`w-full flex items-center gap-2 bg-white/95 border-b border-legal-200 px-4 py-2 sticky top-0 z-20 ${toolbarCollapsed ? 'h-8 min-h-8' : ''}`} style={{ minHeight: toolbarCollapsed ? 32 : 56, transition: 'min-height 0.2s' }}>
+                  <button onClick={() => setToolbarCollapsed(c => !c)} className="text-legal-500 hover:text-primary-600 focus:outline-none mr-2" title={toolbarCollapsed ? 'Show Tools' : 'Hide Tools'}>
+                    {toolbarCollapsed ? (
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 8v8m0 0l-4-4m4 4l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    ) : (
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 16V8m0 0l-4 4m4-4l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    )}
+                  </button>
+                  {!toolbarCollapsed && <>
+                    <span className="font-semibold text-legal-700 select-none">✥ Tools</span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <button className="btn-secondary px-2" onClick={handleZoomOut} title="Zoom Out">-</button>
+                      <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
+                      <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
+                      <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
+                      <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
+                    </div>
+                    <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (Hand Tool, disables drawing)">🖐️</button>
+                    <button className={`btn-secondary px-2 ${cropMode ? 'bg-blue-200' : ''}`} onClick={() => setCropMode(c => !c)} title="Crop Tool">
+                      <Crop className="w-4 h-4" />
+                    </button>
+                    <label className="text-sm text-legal-700">Pen Color:
+                      <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
+                    </label>
+                    <label className="text-sm text-legal-700">Pen Size:
+                      <input type="range" min={2} max={16} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="ml-2" />
+                      <span className="ml-2">{penSize}px</span>
+                    </label>
+                    <button className={`btn-secondary py-1 px-3 text-sm ${isErasing ? 'bg-red-200' : ''}`} onClick={() => setIsErasing(e => !e)}>{isErasing ? 'Eraser (On)' : 'Eraser'}</button>
+                    <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
+                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
+                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
+                    {cropRect && (
+                      <button className="btn-primary py-1 px-3 text-sm animate-pulse" onClick={handleApplyCrop}>Apply Crop</button>
+                    )}
+                  </>}
+                </div>
+                {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
+                <div ref={modalContentRef} style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+                  <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
+                </div>
+                {(magnifyImage || editingMarkedUpId) && (
+                  <div className="flex gap-2 items-center mt-2">
+                    {magnifyPageIdx !== null && (
+                      <>
+                        <button className="btn-secondary" disabled={magnifyPageIdx <= 0} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx > 0 ? idx - 1 : idx))}>Prev</button>
+                        <span className="text-xs text-legal-700">Page {magnifyPageIdx + 1}</span>
+                        <button className="btn-secondary" disabled={magnifyPageIdx >= pageImages.length - 1} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx < pageImages.length - 1 ? idx + 1 : idx))}>Next</button>
+                      </>
+                    )}
+                    <button className="btn-secondary" onClick={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }}>Close</button>
+                  </div>
+                )}
+              </div>
+            </Dialog>
+          </div>
+
           {/* THREAD EDITOR & IMAGE LANE (Combined for synced scroll) */}
           <div className="lg:col-span-2 space-y-4">
             {generatedThread.length > 0 && (
@@ -1116,7 +1237,7 @@ export default function HomePage() {
                 ))}
               </div>
             </SortableContext>
-             {generatedThread.length > 0 && (
+            {generatedThread.length > 0 && (
               <button onClick={addPost} className="btn-secondary mt-6 w-full flex items-center justify-center">
                 <PlusCircle className="w-5 h-5 mr-2" /> Add Post to Thread
               </button>
