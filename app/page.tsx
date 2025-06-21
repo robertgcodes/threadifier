@@ -57,6 +57,9 @@ interface MarkedUpImage {
 function DraggableImage({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
   const {attributes, listeners, setNodeRef} = useDraggable({
     id: id,
+    data: {
+      type: 'image',
+    }
   });
 
   return (
@@ -133,7 +136,13 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
     setNodeRef,
     transform,
     transition,
-  } = useSortable({id: post.id});
+  } = useSortable({
+    id: post.id,
+    data: {
+      type: 'post',
+      post: post,
+    }
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -248,12 +257,13 @@ export default function HomePage() {
   const [useNumbering, setUseNumbering] = useState(false);
   const [useHashtags, setUseHashtags] = useState(false);
 
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Define sensors with activation constraints to prevent clicks from starting a drag
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      // Require the mouse to move by 10 pixels before activating a drag.
-      // This allows for click events to be processed correctly.
       activationConstraint: {
-        distance: 10,
+        distance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -694,56 +704,37 @@ export default function HomePage() {
   };
 
   const addPost = () => {
-    const newPost: ThreadPost = {
-      id: Date.now(),
-      text: "New post..."
-    };
-    setGeneratedThread([...generatedThread, newPost]);
-    startEditing(newPost);
+    const newId = generatedThread.length > 0 ? Math.max(...generatedThread.map(p => p.id)) + 1 : 1;
+    setGeneratedThread(prev => [...prev, { id: newId, text: "" }]);
+    setPostPageMap(prev => ({...prev, [newId]: null}));
   };
-  
+
   function handleDragEnd(event: DragEndEvent) {
-    const {active, over} = event;
-    
+    const { active, over } = event;
     if (!over) return;
 
-    const activeId = active.id.toString();
-    const overId = over.id.toString();
-
-    // Case 1: An image from the sidebars is being dropped.
-    if (activeId.startsWith('image:')) {
-      // The drop target could be the drop zone itself ('droppable-X')
-      // or the sortable row container ('X'). We handle both.
-      const targetPostId = overId.startsWith('droppable-')
-        ? overId.split('-')[1]
-        : overId;
-
-      const post = generatedThread.find(p => p.id.toString() === targetPostId);
-
+    const activeType = active.data.current?.type;
+    
+    // Case 1: An image is dropped onto a drop zone
+    if (activeType === 'image' && over.id.toString().startsWith('droppable-')) {
+      const postId = over.id.toString().split('-')[1];
+      const post = generatedThread.find(p => p.id.toString() === postId);
+      
       if (post) {
-        const [, type, ...valueParts] = activeId.split(':');
+        const [, type, ...valueParts] = active.id.toString().split(':');
         const value = valueParts.join(':');
         const numericValue = type === 'pdf' ? Number(value) : value;
         handleSelectPage(post.id, type as 'pdf' | 'marked', numericValue);
       }
-      return; // End execution here for image drops.
+      return;
     }
 
-    // Case 2: A post is being sorted. This logic only runs if we are not dragging an image.
-    const isActivePost = generatedThread.some(p => p.id.toString() === activeId);
-    const isOverPostOrDropzone = generatedThread.some(p => p.id.toString() === overId) || overId.startsWith('droppable-');
-
-    if (isActivePost && isOverPostOrDropzone && active.id !== over.id) {
+    // Case 2: A post is sorted
+    const overType = over.data.current?.type;
+    if (activeType === 'post' && overType === 'post' && active.id !== over.id) {
       setGeneratedThread((items) => {
-        const oldIndex = items.findIndex((item) => item.id.toString() === activeId);
-
-        const newPostId = overId.startsWith('droppable-') ? overId.split('-')[1] : overId;
-        const newIndex = items.findIndex((item) => item.id.toString() === newPostId);
-
-        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
-            return items; // No change if indices are invalid or the same
-        }
-
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
         return arrayMove(items, oldIndex, newIndex);
       });
     }
