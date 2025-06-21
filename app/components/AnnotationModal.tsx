@@ -260,10 +260,11 @@ export default function AnnotationModal({
       
       case 'erase':
         canvas.isDrawingMode = true;
-        // Create eraser brush
-        const eraser = new fabric.EraserBrush(canvas);
-        eraser.width = penSize * 2;
-        canvas.freeDrawingBrush = eraser;
+        // Use white brush for erasing effect
+        canvas.freeDrawingBrush.color = '#ffffff';
+        canvas.freeDrawingBrush.width = penSize * 2;
+        canvas.freeDrawingBrush.strokeLineCap = 'round';
+        canvas.freeDrawingBrush.strokeLineJoin = 'round';
         break;
       
       case 'pan':
