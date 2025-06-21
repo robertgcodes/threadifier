@@ -164,7 +164,7 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
     transform,
     transition,
   } = useSortable({
-    id: post.id,
+    id: post.id.toString(),
     data: {
       type: 'post',
       post: post,
@@ -223,6 +223,8 @@ const AuthDisplay = () => {
 
 function Page() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pageImages, setPageImages] = useState<string[]>([]);
+  const [markedUpImages, setMarkedUpImages] = useState<MarkedUpImage[]>([]);
   const [extractedText, setExtractedText] = useState<string>("");
   const [isExtracting, setIsExtracting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -250,413 +252,126 @@ function Page() {
     })
   );
 
-  const [pageImages, setPageImages] = useState<string[]>([]);
-  const [postPageMap, setPostPageMap] = useState<{ [postId: number]: { type: 'pdf' | 'marked', value: number | string } | null }>({});
-  const [selectingForPost, setSelectingForPost] = useState<number | null>(null);
+  // --- State for Modals ---
   const [magnifyPageIdx, setMagnifyPageIdx] = useState<number | null>(null);
-  const [magnifyImage, setMagnifyImage] = useState<string | null>(null);
-  const [magnifyLoading, setMagnifyLoading] = useState(false);
-  const [markedUpImages, setMarkedUpImages] = useState<MarkedUpImage[]>([]);
-  const [penColor, setPenColor] = useState<string>("#e11d48");
-  const [penSize, setPenSize] = useState<number>(4);
-  const [isErasing, setIsErasing] = useState(false);
-  const pdfDocRef = useRef<any>(null);
-  const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
-  const fabricContainerRef = useRef<HTMLDivElement | null>(null);
-  const [editingMarkedUpId, setEditingMarkedUpId] = useState<string | null>(null);
+  const [editingMarkedUpImageId, setEditingMarkedUpImageId] = useState<string | null>(null);
+  const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
+  const [imagePickerPostId, setImagePickerPostId] = useState<number | null>(null);
 
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
-  const [cropMode, setCropMode] = useState(false);
-  const [cropRect, setCropRect] = useState<fabric.Object | null>(null);
-  const cropOverlayRef = useRef<fabric.Object[]>([]);
-
-  const [zoom, setZoom] = useState(1);
-  const minZoom = 0.25;
-  const maxZoom = 2;
-  const zoomStep = 0.1;
-  const [panMode, setPanMode] = useState(false);
-  const lastPan = useRef<{ x: number; y: number } | null>(null);
-
-  const [canvasNaturalSize, setCanvasNaturalSize] = useState<{ width: number, height: number } | null>(null);
-  const modalContentRef = useRef<HTMLDivElement | null>(null);
-
-  const activeRectRef = useRef<fabric.Rect | null>(null);
-
-  // Zoom handlers
-  const handleZoomIn = () => setZoom(z => Math.min(maxZoom, +(z + zoomStep).toFixed(2)));
-  const handleZoomOut = () => setZoom(z => Math.max(minZoom, +(z - zoomStep).toFixed(2)));
-  const handleZoomReset = () => setZoom(1);
-
-  // Apply zoom to fabric canvas
-  useEffect(() => {
-    if (fabricCanvasRef.current) {
-      fabricCanvasRef.current.setZoom(zoom);
-      // Optionally, center the canvas on zoom reset
-      if (zoom === 1) {
-        fabricCanvasRef.current.absolutePan({ x: 0, y: 0 });
-      }
-    }
-  }, [zoom, magnifyImage, editingMarkedUpId]);
-
-  // Pan support: hold spacebar or toggle pan mode
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-    let isPanning = false;
-    let lastPos = { x: 0, y: 0 };
-    const onMouseDown = (opt: any) => {
-      if (panMode || opt.e?.spaceKey) {
-        isPanning = true;
-        lastPos = { x: opt.e.clientX, y: opt.e.clientY };
-        canvas.setCursor('grab');
-        canvas.renderAll();
-      }
-    };
-    const onMouseMove = (opt: any) => {
-      if (isPanning) {
-        const dx = opt.e.clientX - lastPos.x;
-        const dy = opt.e.clientY - lastPos.y;
-        lastPos = { x: opt.e.clientX, y: opt.e.clientY };
-        const vp = canvas.viewportTransform;
-        if (vp) {
-          vp[4] += dx;
-          vp[5] += dy;
-          canvas.setViewportTransform(vp);
-        }
-      }
-    };
-    const onMouseUp = () => {
-      isPanning = false;
-      canvas.setCursor('default');
-      canvas.renderAll();
-    };
-    canvas.on('mouse:down', onMouseDown);
-    canvas.on('mouse:move', onMouseMove);
-    canvas.on('mouse:up', onMouseUp);
-    return () => {
-      canvas.off('mouse:down', onMouseDown);
-      canvas.off('mouse:move', onMouseMove);
-      canvas.off('mouse:up', onMouseUp);
-    };
-  }, [panMode, fabricCanvasRef.current]);
-
-  // Spacebar toggles pan mode
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space') setPanMode(true);
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') setPanMode(false);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
-
-  const updateCropOverlay = (canvas: fabric.Canvas, rect: fabric.Object | null) => {
-    // Clear previous overlay
-    cropOverlayRef.current.forEach(obj => canvas.remove(obj));
-    cropOverlayRef.current = [];
-
-    if (!rect) {
-      canvas.renderAll();
-      return;
-    }
-
-    const canvasWidth = canvas.getWidth();
-    const canvasHeight = canvas.getHeight();
-    const rectLeft = rect.left!;
-    const rectTop = rect.top!;
-    const rectWidth = rect.getScaledWidth();
-    const rectHeight = rect.getScaledHeight();
-
-    const overlayProps = {
-      fill: 'rgba(0,0,0,0.5)',
-      selectable: false,
-      evented: false,
-      excludeFromExport: true,
-    };
-
-    const overlays = [
-      // Top
-      new fabric.Rect({ left: 0, top: 0, width: canvasWidth, height: rectTop, ...overlayProps }),
-      // Bottom
-      new fabric.Rect({ left: 0, top: rectTop + rectHeight, width: canvasWidth, height: canvasHeight - (rectTop + rectHeight), ...overlayProps }),
-      // Left
-      new fabric.Rect({ left: 0, top: rectTop, width: rectLeft, height: rectHeight, ...overlayProps }),
-      // Right
-      new fabric.Rect({ left: rectLeft + rectWidth, top: rectTop, width: canvasWidth - (rectLeft + rectWidth), height: rectHeight, ...overlayProps }),
-    ];
-
-    overlays.forEach(obj => canvas.add(obj));
-    cropOverlayRef.current = overlays;
-    canvas.renderAll();
-  };
-
-  // Robust Crop Mode - FINAL, DEFINITIVE IMPLEMENTATION
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
-    // This ref holds the entire state of the cropping interaction
-    const cropState = {
-      isDrawing: false,
-      startPoint: { x: 0, y: 0 },
-      activeRect: null as fabric.Rect | null,
-    };
-
-    const cleanup = () => {
-      canvas.off('mouse:down');
-      canvas.off('mouse:move');
-      canvas.off('mouse:up');
-      canvas.off('object:modified');
-      canvas.defaultCursor = 'default';
-      canvas.selection = true;
-      canvas.isDrawingMode = false;
-      canvas.forEachObject(obj => obj.selectable = true); // Make all objects selectable again
-      if (cropState.activeRect) {
-        canvas.remove(cropState.activeRect);
-      }
-      updateCropOverlay(canvas, null);
-      setCropRect(null);
-      canvas.renderAll();
-    };
-
-    if (cropMode) {
-      canvas.isDrawingMode = false;
-      canvas.selection = false; // Disable normal selection
-      canvas.defaultCursor = 'crosshair';
-      canvas.forEachObject(obj => obj.selectable = false); // Nothing is selectable initially
-
-      const onMouseDown = (o: fabric.IEvent) => {
-        // If we are clicking on the adjustment controls of an existing rect, fabric.js will handle it.
-        // We only start a new drawing if the click is on the canvas itself.
-        if (o.target && o.target.type === 'rect' && o.target === cropState.activeRect) {
-          return;
-        }
-
-        // A new mousedown means we start a new rectangle.
-        if (cropState.activeRect) {
-          canvas.remove(cropState.activeRect);
-        }
-        
-        cropState.isDrawing = true;
-        const pointer = canvas.getPointer(o.e);
-        cropState.startPoint = pointer;
-
-        const newRect = new fabric.Rect({
-          left: pointer.x,
-          top: pointer.y,
-          width: 0,
-          height: 0,
-          stroke: '#4A90E2',
-          strokeWidth: 2 / canvas.getZoom(),
-          fill: 'rgba(74, 144, 226, 0.1)',
-          selectable: true,
-          hasControls: true,
-          lockRotation: true,
-          cornerColor: '#4A90E2',
-          cornerSize: 10,
-          transparentCorners: false,
-        });
-        
-        cropState.activeRect = newRect;
-        canvas.add(cropState.activeRect);
-        setCropRect(null); // Hide button while drawing
-        updateCropOverlay(canvas, null);
-      };
-
-      const onMouseMove = (o: fabric.IEvent) => {
-        if (!cropState.isDrawing || !cropState.activeRect) return;
-
-        const pointer = canvas.getPointer(o.e);
-        let left = cropState.startPoint.x;
-        let top = cropState.startPoint.y;
-        let width = pointer.x - cropState.startPoint.x;
-        let height = pointer.y - cropState.startPoint.y;
-
-        if (width < 0) {
-          left = pointer.x;
-          width = Math.abs(width);
-        }
-        if (height < 0) {
-          top = pointer.y;
-          height = Math.abs(height);
-        }
-        cropState.activeRect.set({ left, top, width, height });
-        canvas.renderAll();
-      };
-
-      const onMouseUp = () => {
-        cropState.isDrawing = false;
-        
-        if (!cropState.activeRect) return;
-
-        // If the box is too small, treat it as a click and remove it.
-        if (!cropState.activeRect.width || !cropState.activeRect.height || (cropState.activeRect.width < 5 && cropState.activeRect.height < 5)) {
-          canvas.remove(cropState.activeRect);
-          cropState.activeRect = null;
-          setCropRect(null);
-        } else {
-          // Finalize the rectangle, make it active and adjustable.
-          cropState.activeRect.setCoords(); // Important for future interactions
-          canvas.setActiveObject(cropState.activeRect);
-          setCropRect(cropState.activeRect);
-          updateCropOverlay(canvas, cropState.activeRect);
-        }
-        canvas.renderAll();
-      };
-      
-      const onObjectModified = (e: fabric.IEvent) => {
-          if (e.target === cropState.activeRect) {
-              updateCropOverlay(canvas, cropState.activeRect);
-          }
-      };
-
-      canvas.on('mouse:down', onMouseDown);
-      canvas.on('mouse:move', onMouseMove);
-      canvas.on('mouse:up', onMouseUp);
-      canvas.on('object:modified', onObjectModified); // For scaling/moving
-
-      return cleanup;
-    } else {
-      cleanup();
-    }
-
-  }, [cropMode]);
-
-  const handleApplyCrop = () => {
-    const canvas = fabricCanvasRef.current;
-    if (!cropRect || !canvas) return;
+  const [postPageMap, setPostPageMap] = useState<Record<number, {type: 'pdf' | 'marked', value: number | string}>>({});
   
-    // Temporarily hide the crop rectangle's fill and stroke for the export
-    cropRect.set({
-      fill: 'transparent',
-      stroke: 'transparent',
-    });
-    canvas.renderAll(); // Ensure the changes are rendered before exporting
-  
-    // Create the cropped image data URL
-    const croppedImageDataUrl = canvas.toDataURL({
-      left: cropRect.left,
-      top: cropRect.top,
-      width: cropRect.width,
-      height: cropRect.height,
-      format: 'png',
-    });
-  
-    let sourcePageNumber : number | null = null;
-    if(editingMarkedUpId){
-      sourcePageNumber = markedUpImages.find(img => img.id === editingMarkedUpId)?.pageNumber ?? null;
-    } else if (magnifyPageIdx !== null) {
-      sourcePageNumber = magnifyPageIdx + 1;
-    }
-
-    if (sourcePageNumber === null) {
-      toast.error("Could not determine source page for cropped image.");
-      return;
-    }
-  
-    // Add the new cropped image to the gallery
-    const newId = `marked-up-${Date.now()}`;
-    const newMarkedUpImage: MarkedUpImage = {
-      id: newId,
-      pageNumber: sourcePageNumber,
-      url: croppedImageDataUrl,
-      json: null, // Cropped images are flat, no fabric data
-    };
-    setMarkedUpImages(prev => [...prev, newMarkedUpImage]);
-  
-    // ** KEY CHANGE: Update modal to show the newly cropped image **
-    // Exit crop mode first to trigger cleanup
-    setCropMode(false);
-    
-    // Clear any previous annotations
-    setEditingMarkedUpId(null);
-    
-    // Set the new cropped image as the active image in the modal
-    setMagnifyImage(croppedImageDataUrl);
-  };
-
   const onDrop = (acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      setPdfFile(acceptedFiles[0]);
+    const file = acceptedFiles[0];
+    if (file && file.type === "application/pdf") {
+      setPdfFile(file);
       setExtractedText("");
       setGeneratedThread([]);
+      setMarkedUpImages([]);
+      setPostPageMap({});
+      toast.success("PDF loaded successfully!");
+      extractTextFromPDF(file);
+    } else {
+      toast.error("Please upload a valid PDF file.");
     }
   };
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: { "application/pdf": [".pdf"] },
-    multiple: false,
-  });
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
   async function extractTextFromPDF(file: File) {
     setIsExtracting(true);
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      let text = "";
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const pageText = content.items.map((item: any) => item.str).join(" ");
-        text += pageText + "\n\n";
-      }
-      setExtractedText(text);
-      toast.success("Text extracted! Ready for analysis.");
-    } catch (err) {
-      console.error("Error extracting PDF text:", err);
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const arrayBuffer = e.target?.result as ArrayBuffer;
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = "";
+        const images: string[] = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 0.2 }); // thumbnail size
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const context = canvas.getContext("2d");
+          await page.render({ canvasContext: context!, viewport }).promise;
+          images.push(canvas.toDataURL("image/png"));
+          const pageText = await page.getTextContent();
+          fullText += pageText.items.map((item: any) => item.str).join(" ") + "\n\n";
+        }
+        setPageImages(images);
+        setExtractedText(fullText);
+        setIsExtracting(false);
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error("Error extracting PDF text:", error);
       toast.error("Failed to extract text from PDF.");
-    } finally {
       setIsExtracting(false);
     }
   }
 
   async function handleAnalyze() {
     if (!extractedText) {
-      toast.error("Please extract text from a PDF first.");
+      toast.error("No text extracted from PDF. Please upload a PDF first.");
       return;
     }
     setIsAnalyzing(true);
-    setGeneratedThread([]);
     try {
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify({ 
           text: extractedText,
-          charLimit,
-          numPosts,
+          postCount: numPosts,
+          characterLimit: charLimit,
           customInstructions,
           useEmojis,
-          useNumbering,
           useHashtags,
+          useNumbering
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      const threadWithIds = data.thread.map((text: string, index: number) => ({ id: Date.now() + index, text }));
-      setGeneratedThread(threadWithIds);
-      toast.success("AI analysis complete!");
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Failed to get response reader");
+      }
 
+      let receivedLength = 0;
+      let chunks = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        receivedLength += value.length;
+      }
+
+      let chunksAll = new Uint8Array(receivedLength);
+      let position = 0;
+      for (let chunk of chunks) {
+        chunksAll.set(chunk, position);
+        position += chunk.length;
+      }
+
+      const resultText = new TextDecoder("utf-8").decode(chunksAll);
+      const posts = JSON.parse(resultText);
+
+      setGeneratedThread(
+        posts.map((post: any, index: number) => ({
+          id: index + 1,
+          text: post.tweet,
+        }))
+      );
+      toast.success("Thread analyzed and generated successfully!");
     } catch (error) {
-      console.error("Failed to analyze text:", error);
-      toast.error("AI analysis failed. Check the console for details.");
+      console.error("Analysis failed:", error);
+      toast.error("Failed to analyze the document.");
     } finally {
       setIsAnalyzing(false);
     }
   }
-  
-  // --- Editing Functions ---
 
   const startEditing = (post: ThreadPost) => {
     setEditingPostId(post.id);
@@ -664,9 +379,11 @@ function Page() {
   };
 
   const saveEdit = () => {
-    setGeneratedThread(generatedThread.map(post => 
-      post.id === editingPostId ? { ...post, text: editingText } : post
-    ));
+    setGeneratedThread(
+      generatedThread.map((p) =>
+        p.id === editingPostId ? { ...p, text: editingText } : p
+      )
+    );
     setEditingPostId(null);
     setEditingText("");
     toast.success("Post updated!");
@@ -678,511 +395,315 @@ function Page() {
   };
 
   const deletePost = (postId: number) => {
-    setGeneratedThread(generatedThread.filter(post => post.id !== postId));
-    toast.error("Post deleted.");
+    setGeneratedThread(generatedThread.filter((p) => p.id !== postId));
   };
 
   const addPost = () => {
     const newId = generatedThread.length > 0 ? Math.max(...generatedThread.map(p => p.id)) + 1 : 1;
-    setGeneratedThread(prev => [...prev, { id: newId, text: "" }]);
-    setPostPageMap(prev => ({...prev, [newId]: null}));
+    const newPost = { id: newId, text: "" };
+    setGeneratedThread([...generatedThread, newPost]);
+    startEditing(newPost);
   };
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
-    const type = active.data.current?.type;
-    setActiveId(active.id.toString());
-
-    if (type === 'post') {
-      const post = generatedThread.find(p => p.id === active.id);
-      setActiveItem(post);
+    setActiveId(active.id as string);
+    if (active.data.current?.type === 'post') {
+      setActiveItem(active.data.current.post);
     }
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over) return;
 
-    const activeType = active.data.current?.type;
-    
-    // Case 2: A post is sorted
-    const overType = over.data.current?.type;
-    if (activeType === 'post' && overType === 'post' && active.id !== over.id) {
-      console.log('Post sort detected!');
-      setGeneratedThread((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
+    if (over && active.id !== over.id) {
+       if (active.data.current?.type === 'post') {
+        setGeneratedThread((items) => {
+          const oldIndex = items.findIndex(item => item.id === Number(active.id));
+          const newIndex = items.findIndex(item => item.id === Number(over.id));
+          if (oldIndex === -1 || newIndex === -1) {
+            return items;
+          }
+          return arrayMove(items, oldIndex, newIndex);
+        });
+      }
     }
+    setActiveId(null);
+    setActiveItem(null);
   }
 
-  // Copy to clipboard handler
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard!");
+    toast.success("Post content copied to clipboard!");
   };
 
-  // Extract PDF pages as images after upload
-  useEffect(() => {
-    if (!pdfFile) {
-      setPageImages([]);
-      return;
-    }
-    (async () => {
-      const arrayBuffer = await pdfFile.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const images: string[] = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 0.2 }); // thumbnail size
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const context = canvas.getContext("2d");
-        await page.render({ canvasContext: context!, viewport }).promise;
-        images.push(canvas.toDataURL("image/png"));
-      }
-      setPageImages(images);
-    })();
-  }, [pdfFile]);
+  const handleCopyAll = () => {
+    const allTweets = generatedThread.map((post, index) => `Tweet ${index + 1}/${generatedThread.length}\n${post.text}`).join('\n\n');
+    navigator.clipboard.writeText(allTweets);
+    toast.success("Entire thread copied to clipboard!");
+  };
 
-  // Store the loaded PDF document for high-res rendering
-  useEffect(() => {
-    if (!pdfFile) {
-      pdfDocRef.current = null;
-      return;
-    }
-    (async () => {
-      const arrayBuffer = await pdfFile.arrayBuffer();
-      pdfDocRef.current = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    })();
-  }, [pdfFile]);
+  // --- Modal Handlers ---
 
-  // Render high-res image for magnifier modal
-  useEffect(() => {
-    if (magnifyPageIdx === null || !pdfDocRef.current) {
-      setMagnifyImage(null);
-      setMagnifyLoading(false);
-      return;
-    }
-    setMagnifyLoading(true);
-    (async () => {
-      const page = await pdfDocRef.current.getPage(magnifyPageIdx + 1);
-      const viewport = page.getViewport({ scale: 1.5 }); // high-res
-      const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const context = canvas.getContext("2d");
-      await page.render({ canvasContext: context!, viewport }).promise;
-      setMagnifyImage(canvas.toDataURL("image/png"));
-      setMagnifyLoading(false);
-    })();
-  }, [magnifyPageIdx]);
-
-  // Setup fabric.js canvas when magnifier modal opens
-  useEffect(() => {
-    if (!magnifyImage || !fabricContainerRef.current) return;
-    // Clean up previous canvas
-    if (fabricCanvasRef.current) {
-      fabricCanvasRef.current.dispose();
-      fabricCanvasRef.current = null;
-    }
-    // Create new canvas
-    const img = new window.Image();
-    img.onload = () => {
-      const width = img.naturalWidth;
-      const height = img.naturalHeight;
-      setCanvasNaturalSize({ width, height });
-      const canvasEl = document.createElement("canvas");
-      canvasEl.width = width;
-      canvasEl.height = height;
-      fabricContainerRef.current!.innerHTML = "";
-      fabricContainerRef.current!.appendChild(canvasEl);
-      const canvas = new fabric.Canvas(canvasEl, {
-        isDrawingMode: true,
-        selection: false,
-        width,
-        height,
-      });
-      fabric.Image.fromURL(magnifyImage, (bgImg: any) => {
-        bgImg.selectable = false;
-        canvas.setBackgroundImage(bgImg, canvas.renderAll.bind(canvas), {
-          left: 0,
-          top: 0,
-          scaleX: width / bgImg.width!,
-          scaleY: height / bgImg.height!,
-          originX: 'left',
-          originY: 'top',
-        });
-      });
-      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-      canvas.freeDrawingBrush.color = penColor;
-      canvas.freeDrawingBrush.width = penSize;
-      fabricCanvasRef.current = canvas;
-    };
-    img.src = magnifyImage;
-  }, [magnifyImage]);
-
-  // Update pen color/size/eraser
-  useEffect(() => {
-    if (fabricCanvasRef.current) {
-      if (isErasing) {
-        fabricCanvasRef.current.isDrawingMode = true;
-        fabricCanvasRef.current.freeDrawingBrush = new fabric.PencilBrush(fabricCanvasRef.current);
-        fabricCanvasRef.current.freeDrawingBrush.color = "#ffffff";
-        fabricCanvasRef.current.freeDrawingBrush.width = penSize * 2;
-      } else {
-        fabricCanvasRef.current.isDrawingMode = true;
-        fabricCanvasRef.current.freeDrawingBrush = new fabric.PencilBrush(fabricCanvasRef.current);
-        fabricCanvasRef.current.freeDrawingBrush.color = penColor;
-        fabricCanvasRef.current.freeDrawingBrush.width = penSize;
-      }
-    }
-  }, [penColor, penSize, isErasing, magnifyImage]);
-
-  // Open modal for editing a marked-up image
   const handleEditMarkedUpImage = (id: string) => {
-    setEditingMarkedUpId(id);
-    const markedImg = markedUpImages.find(m => m.id === id);
-    if (markedImg) {
-      setMagnifyPageIdx(markedImg.pageNumber - 1);
-    }
+    setEditingMarkedUpImageId(id);
+    setMagnifyPageIdx(null); // Ensure we're not trying to edit a page and a markup at the same time
   };
 
   const closeMagnify = () => {
     setMagnifyPageIdx(null);
-    setEditingMarkedUpId(null);
+    setEditingMarkedUpImageId(null);
   };
 
   const handleSaveMarkedUpImage = (url: string, json: any) => {
-    let sourcePageNumber : number | null = null;
-    if(editingMarkedUpId){
-      sourcePageNumber = markedUpImages.find(img => img.id === editingMarkedUpId)?.pageNumber ?? null;
+    if (editingMarkedUpImageId) {
+      // Update existing marked up image
+      setMarkedUpImages(
+        markedUpImages.map((img) =>
+          img.id === editingMarkedUpImageId ? { ...img, url, json } : img
+        )
+      );
+      toast.success("Changes saved!");
     } else if (magnifyPageIdx !== null) {
-      sourcePageNumber = magnifyPageIdx + 1;
+      // Create new marked up image from a PDF page
+      const newMarkedUpImage: MarkedUpImage = {
+        id: uuidv4(),
+        pageNumber: magnifyPageIdx + 1,
+        url,
+        json,
+      };
+      setMarkedUpImages([...markedUpImages, newMarkedUpImage]);
+      toast.success("New markup created!");
     }
-     if (sourcePageNumber === null) {
-      toast.error("Could not determine source page number.");
+    closeMagnify();
+  };
+  
+  const handleCrop = (croppedImageUrl: string) => {
+    let pageNumber: number | null = null;
+    
+    if (editingMarkedUpImageId) {
+      const existing = markedUpImages.find(m => m.id === editingMarkedUpImageId);
+      if (existing) {
+        pageNumber = existing.pageNumber;
+      }
+    } else if (magnifyPageIdx !== null) {
+      pageNumber = magnifyPageIdx + 1;
+    }
+  
+    if (pageNumber === null) {
+      toast.error("Could not determine page number for crop.");
       return;
     }
-
-    if (editingMarkedUpId) {
-      setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, pageNumber: sourcePageNumber as number, url, json } : m));
-    } else {
-      setMarkedUpImages(prev => [...prev, { id: uuidv4(), pageNumber: sourcePageNumber as number, url, json }]);
-    }
+  
+    const newMarkedUpImage: MarkedUpImage = {
+      id: uuidv4(),
+      pageNumber: pageNumber,
+      url: croppedImageUrl,
+      json: null, // Cropped images are new base layers, no annotations yet.
+    };
+  
+    setMarkedUpImages(prev => [...prev, newMarkedUpImage]);
+    toast.success('Cropped image saved as a new exhibit!');
+    closeMagnify();
   };
 
-  // Delete marked-up image with confirmation
   const handleDeleteMarkedUpImage = (id: string) => {
-    if (window.confirm('Delete this marked-up image?')) {
-      setMarkedUpImages(prev => prev.filter(m => m.id !== id));
-    }
-  };
-
-  // When opening modal for editing a marked-up image, load its fabric JSON
-  useEffect(() => {
-    if (editingMarkedUpId && fabricContainerRef.current) {
-      const img = markedUpImages.find(m => m.id === editingMarkedUpId);
-      if (img && fabricContainerRef.current) {
-        if (fabricCanvasRef.current) {
-          fabricCanvasRef.current.dispose();
-          fabricCanvasRef.current = null;
-        }
-        const canvasEl = document.createElement("canvas");
-        canvasEl.width = 1000;
-        canvasEl.height = 1400;
-        fabricContainerRef.current.innerHTML = "";
-        fabricContainerRef.current.appendChild(canvasEl);
-        const canvas = new fabric.Canvas(canvasEl, {
-          isDrawingMode: true,
-          selection: false,
-        });
-        canvas.loadFromJSON(img.json, () => {
-          canvas.renderAll();
-        });
-        fabricCanvasRef.current = canvas;
-      }
-    }
-  }, [editingMarkedUpId]);
-
-  // Reset/clear annotation
-  const handleResetAnnotation = () => {
-    if (fabricCanvasRef.current) {
-      fabricCanvasRef.current.getObjects().forEach((obj: any) => {
-        if (obj !== fabricCanvasRef.current!.backgroundImage) {
-          fabricCanvasRef.current!.remove(obj);
+    setMarkedUpImages(markedUpImages.filter((img) => img.id !== id));
+    // Also remove from any posts that were using it
+    setPostPageMap(currentMap => {
+      const newMap = {...currentMap};
+      Object.entries(newMap).forEach(([postId, imageInfo]) => {
+        if (imageInfo.type === 'marked' && imageInfo.value === id) {
+          delete newMap[Number(postId)];
         }
       });
-      fabricCanvasRef.current.renderAll();
-    }
+      return newMap;
+    })
+    toast.success("Markup deleted.");
   };
 
-  // State and handler for the new image picker modal
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
-
   const handleOpenImagePicker = (postId: number) => {
-    setSelectingForPost(postId);
-    setIsPickerOpen(true);
+    setImagePickerPostId(postId);
+    setIsImagePickerOpen(true);
   };
 
   const handleCloseImagePicker = () => {
-    setIsPickerOpen(false);
-    setSelectingForPost(null);
+    setIsImagePickerOpen(false);
+    setImagePickerPostId(null);
   };
 
   const handleSelectPage = (type: 'pdf' | 'marked', value: number | string) => {
-    if (selectingForPost !== null) {
-      setPostPageMap((prev) => ({ ...prev, [selectingForPost]: { type, value } }));
+    if (imagePickerPostId !== null) {
+      setPostPageMap({ ...postPageMap, [imagePickerPostId]: { type, value } });
     }
     handleCloseImagePicker();
   };
 
   const handleClearImage = (postId: number) => {
-    setPostPageMap(prev => {
-      const newMap = { ...prev };
-      delete newMap[postId];
-      return newMap;
-    });
+    const newMap = { ...postPageMap };
+    delete newMap[postId];
+    setPostPageMap(newMap);
   };
 
+  const editingMarkedUpImage = editingMarkedUpImageId ? markedUpImages.find(m => m.id === editingMarkedUpImageId) : undefined;
+  const isAnnotationModalOpen = magnifyPageIdx !== null || !!editingMarkedUpImageId;
+
   return (
-    <>
-      <ImagePickerModal
-        isOpen={isPickerOpen}
-        onClose={handleCloseImagePicker}
-        pageImages={pageImages}
-        markedUpImages={markedUpImages}
-        onSelect={handleSelectPage}
-      />
-      <AnnotationModal
-        isOpen={magnifyPageIdx !== null}
-        onClose={closeMagnify}
-        pageImages={pageImages}
-        initialPage={magnifyPageIdx}
-        onSave={handleSaveMarkedUpImage}
-        editingMarkedUpImage={editingMarkedUpId ? markedUpImages.find(m => m.id === editingMarkedUpId) : undefined}
-      />
-      <header className="bg-white p-4 border-b">
-        <div className="max-w-screen-xl mx-auto flex justify-between items-center">
+    <div className="bg-legal-100 min-h-screen">
+      <header className="bg-white shadow-sm p-4 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="Threadifier Logo" className="h-10"/>
           <h1 className="text-2xl font-bold text-legal-800">Threadifier</h1>
-          <AuthDisplay />
         </div>
+        <AuthDisplay />
       </header>
-      <main className="min-h-screen bg-legal-50 p-4 sm:p-8">
-        <div className="max-w-screen-xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Left Column: Controls */}
-          <div className="card h-fit sticky top-8 col-span-1">
-            <h1 className="text-2xl font-bold mb-4 text-legal-800">Threadifier Controls</h1>
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                isDragActive ? "border-primary-500 bg-primary-50" : "border-legal-300 hover:border-primary-400"
-              }`}
+      
+      <main className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* --- Left Column: PDF & Controls --- */}
+        <div className="lg:col-span-4 space-y-6">
+          <div
+            {...getRootProps()}
+            className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors ${
+              isDragActive ? "border-primary-600 bg-primary-50" : "border-legal-300 bg-white hover:bg-legal-50"
+            }`}
+          >
+            <input {...getInputProps()} />
+            {isExtracting ? (
+              <div className="flex items-center justify-center text-legal-600">
+                <Loader2 className="animate-spin mr-2" />
+                <p>Analyzing PDF...</p>
+              </div>
+            ) : pdfFile ? (
+              <p className="text-legal-700">Loaded: <span className="font-semibold">{pdfFile.name}</span></p>
+            ) : (
+              <p className="text-legal-600">Drop a PDF here, or click to select a file</p>
+            )}
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-legal-200">
+            <h2 className="text-xl font-bold text-legal-800 mb-4">Customize Thread</h2>
+            
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label htmlFor="charLimit" className="block text-sm font-medium text-legal-700">Char Limit</label>
+                <input id="charLimit" type="number" value={charLimit} onChange={e => setCharLimit(Number(e.target.value))} className="input-field mt-1" />
+              </div>
+              <div>
+                <label htmlFor="numPosts" className="block text-sm font-medium text-legal-700">Number of Posts</label>
+                <input id="numPosts" type="number" value={numPosts} onChange={e => setNumPosts(Number(e.target.value))} className="input-field mt-1" />
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="customInstructions" className="block text-sm font-medium text-legal-700">Custom Instructions</label>
+              <textarea 
+                id="customInstructions"
+                value={customInstructions}
+                onChange={e => setCustomInstructions(e.target.value)}
+                placeholder="e.g., 'Act as a legal expert explaining this case to a layman...'"
+                className="input-field mt-1 w-full"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm font-medium text-legal-700">Use Emojis</span>
+              <Switch checked={useEmojis} onChange={setUseEmojis} className={`${useEmojis ? 'bg-primary-600' : 'bg-gray-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}>
+                <span className={`${useEmojis ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}/>
+              </Switch>
+            </div>
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm font-medium text-legal-700">Use Hashtags</span>
+              <Switch checked={useHashtags} onChange={setUseHashtags} className={`${useHashtags ? 'bg-primary-600' : 'bg-gray-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}>
+                <span className={`${useHashtags ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}/>
+              </Switch>
+            </div>
+             <div className="flex justify-between items-center mb-4">
+              <span className="text-sm font-medium text-legal-700">Use Numbering</span>
+              <Switch checked={useNumbering} onChange={setUseNumbering} className={`${useNumbering ? 'bg-primary-600' : 'bg-gray-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}>
+                <span className={`${useNumbering ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}/>
+              </Switch>
+            </div>
+
+            <button
+              onClick={handleAnalyze}
+              disabled={isAnalyzing || isExtracting || !pdfFile}
+              className="btn-primary w-full disabled:bg-opacity-50"
             >
-              <input {...getInputProps()} />
-              {pdfFile ? (
-                <span className="text-legal-700 font-medium">{pdfFile.name}</span>
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="animate-spin mr-2" />
+                  Generating...
+                </>
               ) : (
-                <span className="text-legal-500">Drag & drop a PDF, or click to select</span>
+                "Generate Thread"
               )}
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 mt-4">
-              <button
-                className="btn-secondary w-full"
-                disabled={!pdfFile || isExtracting}
-                onClick={() => pdfFile && extractTextFromPDF(pdfFile)}
-              >
-                {isExtracting ? <Loader2 className="animate-spin mx-auto" /> : "1. Extract Text"}
-              </button>
-              <button
-                className="btn-primary w-full"
-                disabled={!extractedText || isAnalyzing}
-                onClick={handleAnalyze}
-              >
-                {isAnalyzing ? <Loader2 className="animate-spin mx-auto" /> : "2. Generate Thread"}
-              </button>
-            </div>
-
-            {/* Prompt Customization Panel */}
-            {extractedText && (
-              <div className="mt-8 border-t pt-6">
-                <h3 className="text-lg font-semibold mb-4 text-legal-700">Customize AI Thread Generation</h3>
-                <div className="space-y-4">
-                  {/* Custom Instructions (now primary) */}
-                  <div>
-                    <label className="block text-legal-600 font-medium mb-1">Custom Instructions (style, tone, perspective, etc.):</label>
-                    <textarea
-                      className="input-field h-32"
-                      placeholder="e.g. Write from a conservative perspective, use plain English, focus on the holding, etc."
-                      value={customInstructions}
-                      onChange={e => setCustomInstructions(e.target.value)}
-                    />
-                  </div>
-                  {/* Character Limit Slider */}
-                  <div>
-                    <label className="block text-legal-600 font-medium mb-1">Character Limit per Post: <span className="font-bold text-legal-800">{charLimit}</span></label>
-                    <input
-                      type="range"
-                      min={100}
-                      max={500}
-                      step={10}
-                      value={charLimit}
-                      onChange={e => setCharLimit(Number(e.target.value))}
-                      className="w-full accent-primary-600"
-                    />
-                  </div>
-                  {/* Number of Posts Slider */}
-                  <div>
-                    <label className="block text-legal-600 font-medium mb-1">Number of Posts: <span className="font-bold text-legal-800">{numPosts}</span></label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={20}
-                      step={1}
-                      value={numPosts}
-                      onChange={e => setNumPosts(Number(e.target.value))}
-                      className="w-full accent-primary-600"
-                    />
-                  </div>
-                  {/* Emojis Toggle */}
-                  <div className="flex items-center gap-3">
-                    <Switch
-                      checked={useEmojis}
-                      onChange={setUseEmojis}
-                      className={`${useEmojis ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
-                    >
-                      <span className="sr-only">Use Emojis</span>
-                      <span
-                        className={`${useEmojis ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-                      />
-                    </Switch>
-                    <span className="text-legal-700">Use Emojis</span>
-                  </div>
-                  {/* Number Sequencing Toggle */}
-                  <div className="flex items-center gap-3">
-                    <Switch
-                      checked={useNumbering}
-                      onChange={setUseNumbering}
-                      className={`${useNumbering ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
-                    >
-                      <span className="sr-only">Number Sequencing</span>
-                      <span
-                        className={`${useNumbering ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-                      />
-                    </Switch>
-                    <span className="text-legal-700">Number Sequencing (1/3, 2/3, ...)</span>
-                  </div>
-                  {/* Hashtags Toggle */}
-                  <div className="flex items-center gap-3">
-                    <Switch
-                      checked={useHashtags}
-                      onChange={setUseHashtags}
-                      className={`${useHashtags ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
-                    >
-                      <span className="sr-only">Include Hashtags</span>
-                      <span
-                        className={`${useHashtags ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-                      />
-                    </Switch>
-                    <span className="text-legal-700">Include Hashtags</span>
-                  </div>
-                </div>
-              </div>
-            )}
+            </button>
           </div>
 
-          {/* Middle Column: PDF Page Thumbnails & Extracted Text */}
-          <div className="col-span-1 space-y-8">
-            <div className="card">
-              <h2 className="text-lg font-semibold mb-4 text-legal-700">PDF Pages</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
-                {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
-                {pageImages.map((img, idx) => (
-                  <div
-                    key={`pdf-page-${idx}`}
-                    role="button"
-                    tabIndex={0}
-                    className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-pointer"
-                    onClick={() => setMagnifyPageIdx(idx)}
-                    onKeyDown={(e) => e.key === 'Enter' && setMagnifyPageIdx(idx)}
-                    aria-label={`Magnify Page ${idx + 1}`}
-                  >
-                    <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" />
-                    <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
-                  </div>
-                ))}
-              </div>
-              {/* Marked-up Images Gallery */}
-              {markedUpImages.length > 0 && (
-                <div className="mt-6">
-                  <h2 className="text-lg font-semibold mb-4 text-legal-700">Marked-up Images</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
-                    {markedUpImages.map((img) => (
-                      <div key={`marked-img-${img.id}`} className="relative group">
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          className="w-full border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-pointer"
-                          onClick={() => handleEditMarkedUpImage(img.id)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleEditMarkedUpImage(img.id)}
-                          aria-label={`Edit marked-up page ${img.pageNumber}`}
-                        >
-                          <img src={img.url} alt={`Marked-up page ${img.pageNumber}`} className="w-full h-auto" />
-                          <div className="text-xs text-center text-legal-500 py-1">Page {img.pageNumber} Edited</div>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteMarkedUpImage(img.id);
-                          }}
-                          className="absolute top-1 right-1 bg-white/70 backdrop-blur-sm rounded-full p-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                          aria-label="Delete marked-up image"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-legal-200">
+            <h2 className="text-xl font-bold text-legal-800 mb-4">Source Document Pages</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+              {pageImages.map((img, index) => (
+                <div key={`page-${index}`} className="group relative border border-legal-200 rounded-lg overflow-hidden">
+                  <img src={img} alt={`Page ${index + 1}`} className="w-full h-auto object-contain" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                     <button onClick={() => setMagnifyPageIdx(index)} className="p-2 bg-white/80 rounded-full text-legal-700 hover:bg-white hover:text-primary-600 backdrop-blur-sm" title="Edit Page">
+                       <Edit className="w-5 h-5" />
+                     </button>
                   </div>
                 </div>
-              )}
+              ))}
             </div>
-
-            {/* Extracted Text */}
-            {extractedText && (
-              <div className="card">
-                <h2 className="text-xl font-semibold mb-2 text-legal-700">Extracted Document Text</h2>
-                <textarea
-                  className="input-field h-96 text-sm bg-legal-50"
-                  value={extractedText}
-                  readOnly
-                />
-              </div>
+          </div>
+          
+           <div className="bg-white p-6 rounded-lg shadow-sm border border-legal-200">
+            <h2 className="text-xl font-bold text-legal-800 mb-4">Marked-up Exhibits</h2>
+             {markedUpImages.length === 0 ? (
+              <p className="text-legal-500 text-sm text-center py-4">No exhibits created yet. Edit a page to create a markup or crop.</p>
+            ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+              {markedUpImages.map((img) => (
+                <div key={img.id} className="group relative border border-legal-200 rounded-lg overflow-hidden">
+                  <img src={img.url} alt={`Markup ${img.id}`} className="w-full h-auto object-contain" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                     <button onClick={() => handleEditMarkedUpImage(img.id)} className="p-2 bg-white/80 rounded-full text-legal-700 hover:bg-white hover:text-primary-600 backdrop-blur-sm" title="Edit Markup">
+                       <Edit className="w-5 h-5" />
+                     </button>
+                      <button onClick={() => handleDeleteMarkedUpImage(img.id)} className="p-2 bg-white/80 rounded-full text-red-500 hover:bg-white backdrop-blur-sm" title="Delete Markup">
+                       <Trash2 className="w-5 h-5" />
+                     </button>
+                  </div>
+                </div>
+              ))}
+            </div>
             )}
           </div>
+        </div>
 
-          {/* THREAD EDITOR & IMAGE LANE (Combined for synced scroll) */}
+        {/* --- Right Column: Thread Editor --- */}
+        <div className="lg:col-span-8">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="lg:col-span-2 space-y-4">
-              {generatedThread.length > 0 && (
-                <div className="sticky top-8 z-10 bg-legal-50/95 backdrop-blur-sm py-2 rounded-lg border border-legal-200">
-                  <div className="grid grid-cols-2 gap-4">
-                    <h2 className="text-xl font-semibold text-legal-700 px-4">Edit Your Thread</h2>
-                    <h2 className="text-xl font-semibold text-legal-700 px-4">Image Lane</h2>
-                  </div>
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-legal-200">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-legal-800">Generated Thread</h2>
+                <div className="flex gap-2">
+                  <button onClick={addPost} className="btn-secondary flex items-center"><PlusCircle className="w-4 h-4 mr-1"/>Add Post</button>
+                  <button onClick={handleCopyAll} className="btn-secondary flex items-center"><CopyIcon className="w-4 h-4 mr-1"/>Copy All</button>
                 </div>
-              )}
-              <SortableContext 
-                items={generatedThread.map(p => p.id)}
+              </div>
+            
+              <SortableContext
+                items={generatedThread.map(p => p.id.toString())}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-4" style={{ opacity: activeId && activeId.startsWith('post-') ? 0.5 : 1 }}>
+                <div className="space-y-4">
                   {generatedThread.map((post, index) => (
                     <SortableThreadRow
                       key={post.id}
@@ -1206,38 +727,51 @@ function Page() {
                   ))}
                 </div>
               </SortableContext>
-              <DragOverlay>
-                {activeItem?.type === 'post' && (
-                  <SortableThreadRow
-                    post={activeItem}
-                    index={generatedThread.findIndex(p => p.id === activeItem.id)}
-                    generatedThread={generatedThread}
-                    startEditing={startEditing}
-                    deletePost={deletePost}
-                    editingPostId={editingPostId}
-                    editingText={editingText}
-                    setEditingText={setEditingText}
-                    saveEdit={saveEdit}
-                    cancelEdit={cancelEdit}
-                    handleCopy={handleCopy}
-                    pageImages={pageImages}
-                    markedUpImages={markedUpImages}
-                    postPageMap={postPageMap}
-                    handleClearImage={handleClearImage}
-                    onAddImage={handleOpenImagePicker}
-                  />
-                )}
-              </DragOverlay>
-              {generatedThread.length > 0 && (
-                <button onClick={addPost} className="btn-secondary mt-6 w-full flex items-center justify-center">
-                  <PlusCircle className="w-5 h-5 mr-2" /> Add Post to Thread
-                </button>
-              )}
             </div>
+            
+            <DragOverlay>
+              {activeId && activeItem?.type === 'post' ? (
+                 <div className="grid grid-cols-2 gap-4 items-start">
+                    <div className="bg-white p-4 rounded-lg shadow-lg border border-legal-200 h-full">
+                       <SortablePostItem 
+                        post={activeItem} 
+                        index={generatedThread.findIndex(p => p.id === Number(activeId))} 
+                        generatedThread={generatedThread}
+                        dragHandleListeners={{}}
+                        setDragHandleRef={() => {}}
+                        startEditing={() => {}} deletePost={() => {}} editingPostId={null} editingText="" setEditingText={() => {}} saveEdit={() => {}} cancelEdit={() => {}} handleCopy={() => {}}
+                      />
+                    </div>
+                    <div className="bg-legal-50/50 p-4 rounded-lg flex items-center justify-center text-legal-500 h-full border-2 border-dashed border-legal-300">
+                      <ImageIcon className="w-8 h-8 mx-auto text-legal-400" />
+                    </div>
+                </div>
+              ) : null}
+            </DragOverlay>
+
           </DndContext>
         </div>
       </main>
-    </>
+
+      <ImagePickerModal
+        isOpen={isImagePickerOpen}
+        onClose={handleCloseImagePicker}
+        onSelect={handleSelectPage}
+        pageImages={pageImages}
+        markedUpImages={markedUpImages}
+      />
+      
+      <AnnotationModal
+        isOpen={isAnnotationModalOpen}
+        onClose={closeMagnify}
+        onSave={handleSaveMarkedUpImage}
+        onCrop={handleCrop}
+        pageImages={pageImages}
+        initialPage={magnifyPageIdx}
+        editingMarkedUpImage={editingMarkedUpImage}
+      />
+
+    </div>
   );
 }
 
