@@ -399,6 +399,13 @@ export default function HomePage() {
     const canvas = fabricCanvasRef.current;
     if (!cropRect || !canvas) return;
   
+    // Temporarily hide the crop rectangle's fill and stroke for the export
+    cropRect.set({
+      fill: 'transparent',
+      stroke: 'transparent',
+    });
+    canvas.renderAll(); // Ensure the changes are rendered before exporting
+  
     // Create the cropped image data URL
     const croppedImageDataUrl = canvas.toDataURL({
       left: cropRect.left,
