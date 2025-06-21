@@ -243,6 +243,9 @@ function Page() {
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<any>(null); // For DragOverlay
+  const [isAnnotationModalOpen, setIsAnnotationModalOpen] = useState(false);
+  const [editingMarkedUpImage, setEditingMarkedUpImage] = useState<MarkedUpImage | undefined>(undefined);
+  const [magnifyInitialPage, setMagnifyInitialPage] = useState<number | null>(null);
 
   // Define sensors. We're going back to a simpler config as we are
   // separating click and drag targets.
@@ -453,70 +456,67 @@ function Page() {
   // --- Modal Handlers ---
 
   const handleEditMarkedUpImage = (id: string) => {
-    setEditingMarkedUpImageId(id);
-    setMagnifyPageIdx(null); // Ensure we're not trying to edit a page and a markup at the same time
+    const imageToEdit = markedUpImages.find(img => img.id === id);
+    if (imageToEdit) {
+      setEditingMarkedUpImage(imageToEdit);
+      setMagnifyInitialPage(imageToEdit.pageNumber - 1);
+      setIsAnnotationModalOpen(true);
+    }
   };
 
   const closeMagnify = () => {
-    setMagnifyPageIdx(null);
-    setEditingMarkedUpImageId(null);
+    setIsAnnotationModalOpen(false);
+    setEditingMarkedUpImage(undefined);
+    setMagnifyInitialPage(null);
   };
 
   const handleSaveMarkedUpImage = (url: string, json: any) => {
-    if (editingMarkedUpImageId) {
-      // Update existing marked up image
-      setMarkedUpImages(
-        markedUpImages.map((img) =>
-          img.id === editingMarkedUpImageId ? { ...img, url, json } : img
-        )
-      );
-      toast.success("Changes saved!");
-    } else if (magnifyPageIdx !== null) {
-      // Create new marked up image from a PDF page
-      const newMarkedUpImage: MarkedUpImage = {
-        id: uuidv4(),
-        pageNumber: magnifyPageIdx + 1,
+    if (editingMarkedUpImage) {
+      // Update existing marked-up image
+      setMarkedUpImages(prev => prev.map(img => 
+        img.id === editingMarkedUpImage.id ? { ...img, url, json } : img
+      ));
+    } else if (magnifyInitialPage !== null) {
+      // Create new marked-up image from a page
+      const newId = uuidv4();
+      const newImage: MarkedUpImage = {
+        id: newId,
+        pageNumber: magnifyInitialPage + 1,
         url,
         json,
       };
-      setMarkedUpImages([...markedUpImages, newMarkedUpImage]);
-      toast.success("New markup created!");
+      setMarkedUpImages(prev => [...prev, newImage]);
     }
     closeMagnify();
   };
   
   const handleCrop = (croppedImageUrl: string) => {
-    let pageNumber: number | null = null;
-    
-    if (editingMarkedUpImageId) {
-      const existing = markedUpImages.find(m => m.id === editingMarkedUpImageId);
-      if (existing) {
-        pageNumber = existing.pageNumber;
-      }
-    } else if (magnifyPageIdx !== null) {
-      pageNumber = magnifyPageIdx + 1;
+    if (magnifyInitialPage !== null) {
+      const newId = uuidv4();
+      const newImage: MarkedUpImage = {
+        id: newId,
+        pageNumber: magnifyInitialPage + 1,
+        url: croppedImageUrl,
+        json: null, // Cropped images don't have fabric.js data
+      };
+      setMarkedUpImages(prev => [...prev, newImage]);
+    } else if (editingMarkedUpImage) {
+        // If cropping an existing markup, we create a new one based on it
+        const newId = uuidv4();
+        const newImage: MarkedUpImage = {
+          id: newId,
+          pageNumber: editingMarkedUpImage.pageNumber,
+          url: croppedImageUrl,
+          json: null,
+        };
+        setMarkedUpImages(prev => [...prev, newImage]);
     }
-  
-    if (pageNumber === null) {
-      toast.error("Could not determine page number for crop.");
-      return;
-    }
-  
-    const newMarkedUpImage: MarkedUpImage = {
-      id: uuidv4(),
-      pageNumber: pageNumber,
-      url: croppedImageUrl,
-      json: null, // Cropped images are new base layers, no annotations yet.
-    };
-  
-    setMarkedUpImages(prev => [...prev, newMarkedUpImage]);
-    toast.success('Cropped image saved as a new exhibit!');
     closeMagnify();
   };
 
   const handleDeleteMarkedUpImage = (id: string) => {
-    setMarkedUpImages(markedUpImages.filter((img) => img.id !== id));
-    // Also remove from any posts that were using it
+    setMarkedUpImages(prev => prev.filter(img => img.id !== id));
+    // Also remove from any posts that might be using it
     setPostPageMap(currentMap => {
       const newMap = {...currentMap};
       Object.entries(newMap).forEach(([postId, imageInfo]) => {
@@ -551,9 +551,6 @@ function Page() {
     delete newMap[postId];
     setPostPageMap(newMap);
   };
-
-  const editingMarkedUpImage = editingMarkedUpImageId ? markedUpImages.find(m => m.id === editingMarkedUpImageId) : undefined;
-  const isAnnotationModalOpen = magnifyPageIdx !== null || !!editingMarkedUpImageId;
 
   return (
     <div className="bg-legal-100 min-h-screen">
@@ -807,23 +804,27 @@ function Page() {
         </div>
       </main>
 
-      <ImagePickerModal
-        isOpen={isImagePickerOpen}
-        onClose={handleCloseImagePicker}
-        onSelect={handleSelectPage}
-        pageImages={pageImages}
-        markedUpImages={markedUpImages}
-      />
-      
-      <AnnotationModal
-        isOpen={isAnnotationModalOpen}
-        onClose={closeMagnify}
-        onSave={handleSaveMarkedUpImage}
-        onCrop={handleCrop}
-        pageImages={pageImages}
-        initialPage={magnifyPageIdx}
-        editingMarkedUpImage={editingMarkedUpImage}
-      />
+      {isImagePickerOpen && (
+        <ImagePickerModal
+          isOpen={isImagePickerOpen}
+          onClose={handleCloseImagePicker}
+          onSelect={handleSelectPage}
+          pageImages={pageImages}
+          markedUpImages={markedUpImages}
+        />
+      )}
+
+      {isAnnotationModalOpen && (
+          <AnnotationModal
+            isOpen={isAnnotationModalOpen}
+            onClose={closeMagnify}
+            onSave={handleSaveMarkedUpImage}
+            onCrop={handleCrop}
+            pageImages={pageImages}
+            initialPage={magnifyInitialPage}
+            editingMarkedUpImage={editingMarkedUpImage}
+          />
+      )}
 
     </div>
   );
