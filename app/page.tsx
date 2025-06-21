@@ -35,6 +35,8 @@ import { signOut } from './lib/auth';
 import Link from 'next/link';
 import { AuthProvider } from '@/app/context/AuthContext';
 import ThreadEditor from './components/ThreadEditor';
+import ImagePickerModal from './components/ImagePickerModal';
+import AnnotationModal from './components/AnnotationModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,8 +57,8 @@ interface MarkedUpImage {
 }
 
 // --- Droppable Zone for Images ---
-function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap, handleClearImage }: { id: string, post: ThreadPost, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any, handleClearImage: (postId: number) => void }) {
-  const {isOver, setNodeRef} = useDroppable({ id });
+function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap, handleClearImage, onAddImage }: { id: string, post: ThreadPost, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any, handleClearImage: (postId: number) => void, onAddImage: (postId: number) => void }) {
+  const {setNodeRef} = useDroppable({ id, disabled: true });
 
   const imageInfo = postPageMap[post.id];
   let imageUrl: string | null = null;
@@ -79,7 +81,7 @@ function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap, hand
     <div
       ref={setNodeRef}
       style={{
-        border: isOver ? '2px solid #2563eb' : '2px dashed #d1d5db',
+        border: imageUrl ? '2px solid #2563eb' : '2px dashed #d1d5db',
         transition: 'border-color 0.2s',
       }}
       className="bg-legal-50/50 p-4 rounded-lg flex items-center justify-center text-legal-500 h-full relative"
@@ -96,10 +98,10 @@ function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap, hand
           </button>
         </>
       ) : (
-        <div className="text-center">
-          <ImageIcon className="w-8 h-8 mx-auto text-legal-400" />
-          <p>Drop Image Here</p>
-        </div>
+        <button onClick={() => onAddImage(post.id)} className="w-full h-full flex flex-col items-center justify-center text-center text-legal-500 hover:bg-legal-100 transition-colors rounded-lg">
+          <ImageIcon className="w-8 h-8 mx-auto text-legal-400 mb-2" />
+          <p>Add Image</p>
+        </button>
       )}
     </div>
   );
@@ -153,7 +155,7 @@ function SortablePostItem({ post, index, generatedThread, startEditing, deletePo
 }
 
 // --- Sortable Thread Row ---
-function SortableThreadRow({ post, index, generatedThread, ...props }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any, handleClearImage: (postId: number) => void }) {
+function SortableThreadRow({ post, index, generatedThread, ...props }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any, handleClearImage: (postId: number) => void, onAddImage: (postId: number) => void }) {
   const {
     attributes,
     listeners,
@@ -195,79 +197,8 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
         markedUpImages={props.markedUpImages}
         postPageMap={props.postPageMap}
         handleClearImage={props.handleClearImage}
+        onAddImage={props.onAddImage}
       />
-    </div>
-  );
-}
-
-// --- Draggable PDF Page Thumbnail ---
-function DraggablePDFPage({ idx, img, onMagnify }: { idx: number, img: string, onMagnify: (idx: number) => void }) {
-  const {attributes, listeners, setNodeRef, isDragging} = useDraggable({
-    id: `image:pdf:${idx}`,
-    data: { type: 'image' }
-  });
-
-  return (
-    <div className="relative group" ref={setNodeRef} {...attributes}>
-      <div
-        role="button"
-        tabIndex={0}
-        className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500"
-        onClick={() => onMagnify(idx)}
-        onKeyDown={(e) => e.key === 'Enter' && onMagnify(idx)}
-        aria-label={`Magnify Page ${idx + 1}`}
-      >
-        <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" draggable="false" />
-        <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
-      </div>
-      <div 
-        {...listeners} 
-        className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1.5 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity"
-        aria-label="Drag this image"
-      >
-        <GripVertical size={16} />
-      </div>
-    </div>
-  );
-}
-
-// --- Draggable Marked-Up Image Thumbnail ---
-function DraggableMarkedUpImage({ img, onEdit, onDelete }: { img: MarkedUpImage, onEdit: (id: string) => void, onDelete: (id: string) => void }) {
-  const {attributes, listeners, setNodeRef, isDragging} = useDraggable({
-    id: `image:marked:${img.id}`,
-    data: { type: 'image' }
-  });
-
-  return (
-    <div className="relative group" ref={setNodeRef} {...attributes}>
-       <div
-        role="button"
-        tabIndex={0}
-        className="w-full border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500"
-        onClick={() => onEdit(img.id)}
-        onKeyDown={(e) => e.key === 'Enter' && onEdit(img.id)}
-        aria-label={`Edit marked-up page ${img.pageNumber}`}
-      >
-        <img src={img.url} alt={`Marked-up page ${img.pageNumber}`} className="w-full h-auto" draggable="false" />
-        <div className="text-xs text-center text-legal-500 py-1">Page {img.pageNumber} Edited</div>
-      </div>
-      <div 
-        {...listeners}
-        className="absolute top-1 right-8 bg-black/50 text-white rounded-full p-1.5 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity"
-        aria-label="Drag this image"
-      >
-        <GripVertical size={16} />
-      </div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(img.id);
-        }}
-        className="absolute top-1 right-1 bg-white/70 backdrop-blur-sm rounded-full p-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
-        aria-label="Delete marked-up image"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
     </div>
   );
 }
@@ -762,25 +693,9 @@ export default function HomePage() {
     const type = active.data.current?.type;
     setActiveId(active.id.toString());
 
-    console.log('DragStart - Active:', active.id, 'Type:', type);
-
     if (type === 'post') {
       const post = generatedThread.find(p => p.id === active.id);
       setActiveItem(post);
-      console.log('Post drag started:', post);
-    } else if (type === 'image') {
-      const [, imageType, ...valueParts] = active.id.toString().split(':');
-      const value = valueParts.join(':');
-      
-      let imageUrl = '';
-      if (imageType === 'pdf') {
-        imageUrl = pageImages[Number(value)];
-      } else {
-        const markedImg = markedUpImages.find(m => m.id === value);
-        imageUrl = markedImg?.url || '';
-      }
-      setActiveItem({ id: active.id, type: 'image', url: imageUrl });
-      console.log('Image drag started:', { id: active.id, type: 'image', url: imageUrl });
     }
   }
 
@@ -790,25 +705,6 @@ export default function HomePage() {
 
     const activeType = active.data.current?.type;
     
-    console.log('DragEnd - Active:', active.id, 'Type:', activeType, 'Over:', over.id);
-    
-    // Case 1: An image is dropped onto a drop zone
-    if (activeType === 'image' && over.id.toString().startsWith('droppable-')) {
-      console.log('Image drop detected!');
-      const postId = over.id.toString().split('-')[1];
-      const post = generatedThread.find(p => p.id.toString() === postId);
-      
-      if (post) {
-        const [, type, ...valueParts] = active.id.toString().split(':');
-        const value = valueParts.join(':');
-        const numericValue = type === 'pdf' ? Number(value) : value;
-        console.log('Calling handleSelectPage with:', post.id, type, numericValue);
-        handleSelectPage(post.id, type as 'pdf' | 'marked', numericValue);
-        toast.success(`Image added to post ${post.id}!`);
-      }
-      return;
-    }
-
     // Case 2: A post is sorted
     const overType = over.data.current?.type;
     if (activeType === 'post' && overType === 'post' && active.id !== over.id) {
@@ -947,42 +843,30 @@ export default function HomePage() {
 
   // Open modal for editing a marked-up image
   const handleEditMarkedUpImage = (id: string) => {
-    const img = markedUpImages.find(m => m.id === id);
-    if (img) {
-      setEditingMarkedUpId(id);
-      setMagnifyImage(img.url); // will be replaced by fabric load
-      setMagnifyPageIdx(null); // not a PDF page
+    setEditingMarkedUpId(id);
+    const markedImg = markedUpImages.find(m => m.id === id);
+    if (markedImg) {
+      setMagnifyPageIdx(markedImg.pageNumber - 1);
     }
   };
 
   // Save/download marked-up image (now also saves fabric JSON)
-  const handleSaveMarkedUpImage = () => {
-    if (fabricCanvasRef.current) {
-      const url = fabricCanvasRef.current.toDataURL({ format: "png", multiplier: 1 });
-      const json = fabricCanvasRef.current.toJSON();
-      
-      let sourcePageNumber : number | null = null;
-      if(editingMarkedUpId){
-        sourcePageNumber = markedUpImages.find(img => img.id === editingMarkedUpId)?.pageNumber ?? null;
-      } else if (magnifyPageIdx !== null) {
-        sourcePageNumber = magnifyPageIdx + 1;
-      }
-      if (sourcePageNumber === null) {
-        toast.error("Could not determine source page number.");
-        return;
-      }
+  const handleSaveMarkedUpImage = (url: string, json: any) => {
+    let sourcePageNumber : number | null = null;
+    if(editingMarkedUpId){
+      sourcePageNumber = markedUpImages.find(img => img.id === editingMarkedUpId)?.pageNumber ?? null;
+    } else if (magnifyPageIdx !== null) {
+      sourcePageNumber = magnifyPageIdx + 1;
+    }
+     if (sourcePageNumber === null) {
+      toast.error("Could not determine source page number.");
+      return;
+    }
 
-      if (editingMarkedUpId) {
-        setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, pageNumber: sourcePageNumber as number, url, json } : m));
-        setEditingMarkedUpId(null);
-      } else {
-        setMarkedUpImages(prev => [...prev, { id: uuidv4(), pageNumber: sourcePageNumber as number, url, json }]);
-      }
-      // Download
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Page_${sourcePageNumber}_Edited.png`;
-      a.click();
+    if (editingMarkedUpId) {
+      setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, pageNumber: sourcePageNumber as number, url, json } : m));
+    } else {
+      setMarkedUpImages(prev => [...prev, { id: uuidv4(), pageNumber: sourcePageNumber as number, url, json }]);
     }
   };
 
@@ -1031,55 +915,56 @@ export default function HomePage() {
     }
   };
 
-  // Handler to select a page or marked-up image for a post
-  const handleSelectPage = (postId: number, type: 'pdf' | 'marked', value: number | string) => {
-    setPostPageMap((prev) => ({ ...prev, [postId]: { type, value } }));
+  // State and handler for the new image picker modal
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  const handleOpenImagePicker = (postId: number) => {
+    setSelectingForPost(postId);
+    setIsPickerOpen(true);
+  };
+
+  const handleCloseImagePicker = () => {
+    setIsPickerOpen(false);
     setSelectingForPost(null);
   };
 
-  // Fit to window handler
-  const handleFitToWindow = () => {
-    if (!canvasNaturalSize || !modalContentRef.current) return;
-    const { width: imgW, height: imgH } = canvasNaturalSize;
-    const container = modalContentRef.current;
-    const containerW = container.clientWidth;
-    const containerH = container.clientHeight;
-    const scale = Math.min(containerW / imgW, containerH / imgH, 1);
-    setZoom(+scale.toFixed(2));
-  };
-
-  // Save only (no download)
-  const handleSaveOnlyMarkedUpImage = () => {
-    if (fabricCanvasRef.current) {
-      const url = fabricCanvasRef.current.toDataURL({ format: "png", multiplier: 1 });
-      const json = fabricCanvasRef.current.toJSON();
-
-      let sourcePageNumber : number | null = null;
-      if(editingMarkedUpId){
-        sourcePageNumber = markedUpImages.find(img => img.id === editingMarkedUpId)?.pageNumber ?? null;
-      } else if (magnifyPageIdx !== null) {
-        sourcePageNumber = magnifyPageIdx + 1;
-      }
-       if (sourcePageNumber === null) {
-        toast.error("Could not determine source page number.");
-        return;
-      }
-
-      if (editingMarkedUpId) {
-        setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, pageNumber: sourcePageNumber as number, url, json } : m));
-        setEditingMarkedUpId(null);
-      } else {
-        setMarkedUpImages(prev => [...prev, { id: uuidv4(), pageNumber: sourcePageNumber as number, url, json }]);
-      }
+  const handleSelectPage = (type: 'pdf' | 'marked', value: number | string) => {
+    if (selectingForPost !== null) {
+      setPostPageMap((prev) => ({ ...prev, [selectingForPost]: { type, value } }));
     }
+    handleCloseImagePicker();
   };
 
   const handleClearImage = (postId: number) => {
-    setPostPageMap(prev => ({ ...prev, [postId]: null }));
+    setPostPageMap(prev => {
+      const newMap = { ...prev };
+      delete newMap[postId];
+      return newMap;
+    });
+  };
+
+  const closeMagnify = () => {
+    setMagnifyPageIdx(null);
+    setEditingMarkedUpId(null);
   };
 
   return (
     <>
+      <ImagePickerModal
+        isOpen={isPickerOpen}
+        onClose={handleCloseImagePicker}
+        pageImages={pageImages}
+        markedUpImages={markedUpImages}
+        onSelect={handleSelectPage}
+      />
+      <AnnotationModal
+        isOpen={magnifyPageIdx !== null}
+        onClose={closeMagnify}
+        pageImages={pageImages}
+        initialPage={magnifyPageIdx}
+        onSave={handleSaveMarkedUpImage}
+        editingMarkedUpImage={editingMarkedUpId ? markedUpImages.find(m => m.id === editingMarkedUpId) : undefined}
+      />
       <header className="bg-white p-4 border-b">
         <div className="max-w-screen-xl mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold text-legal-800">Threadifier</h1>
@@ -1216,7 +1101,18 @@ export default function HomePage() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
                 {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
                 {pageImages.map((img, idx) => (
-                  <DraggablePDFPage key={`pdf-dnd-${idx}`} idx={idx} img={img} onMagnify={setMagnifyPageIdx} />
+                  <div
+                    key={`pdf-page-${idx}`}
+                    role="button"
+                    tabIndex={0}
+                    className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                    onClick={() => setMagnifyPageIdx(idx)}
+                    onKeyDown={(e) => e.key === 'Enter' && setMagnifyPageIdx(idx)}
+                    aria-label={`Magnify Page ${idx + 1}`}
+                  >
+                    <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" />
+                    <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
+                  </div>
                 ))}
               </div>
               {/* Marked-up Images Gallery */}
@@ -1225,7 +1121,29 @@ export default function HomePage() {
                   <h2 className="text-lg font-semibold mb-4 text-legal-700">Marked-up Images</h2>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
                     {markedUpImages.map((img) => (
-                      <DraggableMarkedUpImage key={`marked-dnd-${img.id}`} img={img} onEdit={handleEditMarkedUpImage} onDelete={handleDeleteMarkedUpImage} />
+                      <div key={`marked-img-${img.id}`} className="relative group">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className="w-full border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                          onClick={() => handleEditMarkedUpImage(img.id)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleEditMarkedUpImage(img.id)}
+                          aria-label={`Edit marked-up page ${img.pageNumber}`}
+                        >
+                          <img src={img.url} alt={`Marked-up page ${img.pageNumber}`} className="w-full h-auto" />
+                          <div className="text-xs text-center text-legal-500 py-1">Page {img.pageNumber} Edited</div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteMarkedUpImage(img.id);
+                          }}
+                          className="absolute top-1 right-1 bg-white/70 backdrop-blur-sm rounded-full p-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                          aria-label="Delete marked-up image"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1242,66 +1160,6 @@ export default function HomePage() {
                 />
               </div>
             )}
-            {/* Magnifier Modal with Annotation */}
-            <Dialog open={magnifyPageIdx !== null || editingMarkedUpId !== null} onClose={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }} className="fixed z-50 inset-0 flex items-center justify-center">
-              <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-              <div className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                {/* Toolbar at the top */}
-                <div className={`w-full flex items-center gap-2 bg-white/95 border-b border-legal-200 px-4 py-2 sticky top-0 z-20 ${toolbarCollapsed ? 'h-8 min-h-8' : ''}`} style={{ minHeight: toolbarCollapsed ? 32 : 56, transition: 'min-height 0.2s' }}>
-                  <button onClick={() => setToolbarCollapsed(c => !c)} className="text-legal-500 hover:text-primary-600 focus:outline-none mr-2" title={toolbarCollapsed ? 'Show Tools' : 'Hide Tools'}>
-                    {toolbarCollapsed ? (
-                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 8v8m0 0l-4-4m4 4l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    ) : (
-                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 16V8m0 0l-4 4m4-4l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    )}
-                  </button>
-                  {!toolbarCollapsed && <>
-                    <span className="font-semibold text-legal-700 select-none">✥ Tools</span>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <button className="btn-secondary px-2" onClick={handleZoomOut} title="Zoom Out">-</button>
-                      <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
-                      <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
-                      <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
-                      <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
-                    </div>
-                    <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (Hand Tool, disables drawing)">🖐️</button>
-                    <button className={`btn-secondary px-2 ${cropMode ? 'bg-blue-200' : ''}`} onClick={() => setCropMode(c => !c)} title="Crop Tool">
-                      <Crop className="w-4 h-4" />
-                    </button>
-                    <label className="text-sm text-legal-700">Pen Color:
-                      <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
-                    </label>
-                    <label className="text-sm text-legal-700">Pen Size:
-                      <input type="range" min={2} max={16} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="ml-2" />
-                      <span className="ml-2">{penSize}px</span>
-                    </label>
-                    <button className={`btn-secondary py-1 px-3 text-sm ${isErasing ? 'bg-red-200' : ''}`} onClick={() => setIsErasing(e => !e)}>{isErasing ? 'Eraser (On)' : 'Eraser'}</button>
-                    <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
-                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
-                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
-                    {cropRect && (
-                      <button className="btn-primary py-1 px-3 text-sm animate-pulse" onClick={handleApplyCrop}>Apply Crop</button>
-                    )}
-                  </>}
-                </div>
-                {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
-                <div ref={modalContentRef} style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-                  <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
-                </div>
-                {(magnifyImage || editingMarkedUpId) && (
-                  <div className="flex gap-2 items-center mt-2">
-                    {magnifyPageIdx !== null && (
-                      <>
-                        <button className="btn-secondary" disabled={magnifyPageIdx <= 0} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx > 0 ? idx - 1 : idx))}>Prev</button>
-                        <span className="text-xs text-legal-700">Page {magnifyPageIdx + 1}</span>
-                        <button className="btn-secondary" disabled={magnifyPageIdx >= pageImages.length - 1} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx < pageImages.length - 1 ? idx + 1 : idx))}>Next</button>
-                      </>
-                    )}
-                    <button className="btn-secondary" onClick={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }}>Close</button>
-                  </div>
-                )}
-              </div>
-            </Dialog>
           </div>
 
           {/* THREAD EDITOR & IMAGE LANE (Combined for synced scroll) */}
@@ -1343,6 +1201,7 @@ export default function HomePage() {
                       markedUpImages={markedUpImages}
                       postPageMap={postPageMap}
                       handleClearImage={handleClearImage}
+                      onAddImage={handleOpenImagePicker}
                     />
                   ))}
                 </div>
@@ -1365,12 +1224,8 @@ export default function HomePage() {
                     markedUpImages={markedUpImages}
                     postPageMap={postPageMap}
                     handleClearImage={handleClearImage}
+                    onAddImage={handleOpenImagePicker}
                   />
-                )}
-                {activeItem?.type === 'image' && (
-                  <div className="bg-white p-2 rounded-lg shadow-xl">
-                    <img src={activeItem.url} alt="dragged item" className="max-w-xs max-h-48" />
-                  </div>
                 )}
               </DragOverlay>
               {generatedThread.length > 0 && (
@@ -1385,3 +1240,13 @@ export default function HomePage() {
     </>
   );
 }
+
+function PageClientWrapper() {
+  return (
+    <AuthProvider>
+      <Page />
+    </AuthProvider>
+  );
+}
+
+export default PageClientWrapper;
