@@ -305,12 +305,14 @@ export default function HomePage() {
     useSensor(PointerSensor, {
       // This is the key change to fix the click vs. drag conflict.
       // It inspects the initial event and prevents drag from starting
-      // if the user is clicking on an interactive element.
+      // if the user is clicking on a true interactive element.
       onActivation: ({ event }) => {
         const target = event.target as HTMLElement;
-        // Check for common interactive elements and divs with role="button"
+        // Check for common interactive elements, but NOT for [role="button"]
+        // This allows our draggable divs to work, while still blocking
+        // real buttons like the "delete" button.
         if (
-          target.closest('button, a, input, textarea, select, [role="button"]')
+          target.closest('button, a, input, textarea, select')
         ) {
           return false; // Prevent drag from starting
         }
