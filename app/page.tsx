@@ -212,12 +212,8 @@ function DraggablePDFPage({ idx, img, onMagnify }: { idx: number, img: string, o
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      role="button"
-      tabIndex={0}
       className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-grab"
-      onClick={() => onMagnify(idx)}
-      onKeyDown={(e) => e.key === 'Enter' && onMagnify(idx)}
-      aria-label={`Magnify Page ${idx + 1}`}
+      aria-label={`Draggable Page ${idx + 1}`}
     >
       <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" draggable="false" />
       <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
