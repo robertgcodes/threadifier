@@ -274,13 +274,20 @@ export default function HomePage() {
 
       let isDrawingRect = false;
       let startPoint = { x: 0, y: 0 };
-      let activeRect: fabric.Rect | null = null;
+      let activeRect: fabric.Rect | null = cropRect as fabric.Rect;
 
       const onMouseDown = (o: fabric.IEvent) => {
-        // Clear previous rect if exists
-        if (cropRect) {
-          canvas.remove(cropRect);
+        // Don't draw new rect if one already exists and we are clicking on it
+        if (activeRect && o.target === activeRect) return;
+
+        // If we click outside an existing rect, clear it and start a new one
+        if (activeRect) {
+          canvas.remove(activeRect);
+          activeRect = null;
+          setCropRect(null);
+          updateCropOverlay(canvas, null);
         }
+        
         isDrawingRect = true;
         const pointer = canvas.getPointer(o.e);
         startPoint = pointer;
@@ -345,7 +352,7 @@ export default function HomePage() {
       updateCropOverlay(canvas, null);
     }
 
-  }, [cropMode]);
+  }, [cropMode, cropRect]);
 
   const handleApplyCrop = () => {
     const canvas = fabricCanvasRef.current;
