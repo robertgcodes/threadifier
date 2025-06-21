@@ -135,6 +135,7 @@ export default function HomePage() {
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
   const [cropMode, setCropMode] = useState(false);
   const [cropRect, setCropRect] = useState<fabric.Object | null>(null);
+  const cropOverlayRef = useRef<fabric.Object[]>([]);
 
   const [zoom, setZoom] = useState(1);
   const minZoom = 0.25;
@@ -220,46 +221,104 @@ export default function HomePage() {
     };
   }, []);
 
+  const updateCropOverlay = (canvas: fabric.Canvas, rect: fabric.Object | null) => {
+    // Clear previous overlay
+    cropOverlayRef.current.forEach(obj => canvas.remove(obj));
+    cropOverlayRef.current = [];
+
+    if (!rect) {
+      canvas.renderAll();
+      return;
+    }
+
+    const canvasWidth = canvas.getWidth();
+    const canvasHeight = canvas.getHeight();
+    const rectLeft = rect.left!;
+    const rectTop = rect.top!;
+    const rectWidth = rect.getScaledWidth();
+    const rectHeight = rect.getScaledHeight();
+
+    const overlayProps = {
+      fill: 'rgba(0,0,0,0.5)',
+      selectable: false,
+      evented: false,
+    };
+
+    const overlays = [
+      // Top
+      new fabric.Rect({ left: 0, top: 0, width: canvasWidth, height: rectTop, ...overlayProps }),
+      // Bottom
+      new fabric.Rect({ left: 0, top: rectTop + rectHeight, width: canvasWidth, height: canvasHeight - (rectTop + rectHeight), ...overlayProps }),
+      // Left
+      new fabric.Rect({ left: 0, top: rectTop, width: rectLeft, height: rectHeight, ...overlayProps }),
+      // Right
+      new fabric.Rect({ left: rectLeft + rectWidth, top: rectTop, width: canvasWidth - (rectLeft + rectWidth), height: rectHeight, ...overlayProps }),
+    ];
+
+    overlays.forEach(obj => canvas.add(obj));
+    cropOverlayRef.current = overlays;
+    canvas.renderAll();
+  };
+
   // Crop mode disables drawing and pan modes
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
+
+    const onSelectionCreated = (e: any) => {
+      setCropRect(e.target);
+      updateCropOverlay(canvas, e.target);
+    };
+    const onSelectionCleared = () => {
+      setCropRect(null);
+      updateCropOverlay(canvas, null);
+    };
+    const onSelectionUpdated = (e: any) => {
+      setCropRect(e.target);
+      updateCropOverlay(canvas, e.target);
+    };
     
     if (cropMode) {
       canvas.isDrawingMode = false;
       canvas.selection = true;
       canvas.defaultCursor = 'crosshair';
       canvas.forEachObject(obj => { obj.selectable = false; });
+      // Attach listeners only in crop mode
+      canvas.on('selection:created', onSelectionCreated);
+      canvas.on('selection:cleared', onSelectionCleared);
+      canvas.on('selection:updated', onSelectionUpdated);
     } else {
       canvas.selection = false;
       canvas.defaultCursor = 'default';
-      canvas.discardActiveObject();
-      canvas.renderAll();
-    }
-  }, [cropMode]);
-
-  // Track crop selection
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-    const onSelectionCreated = (e: any) => setCropRect(e.target);
-    const onSelectionCleared = () => setCropRect(null);
-    const onSelectionUpdated = (e: any) => setCropRect(e.target);
-
-    canvas.on('selection:created', onSelectionCreated);
-    canvas.on('selection:cleared', onSelectionCleared);
-    canvas.on('selection:updated', onSelectionUpdated);
-
-    return () => {
+      if (canvas.getActiveObject()) {
+        canvas.discardActiveObject();
+      }
+      updateCropOverlay(canvas, null);
+      setCropRect(null);
+      // Detach listeners when not in crop mode
       canvas.off('selection:created', onSelectionCreated);
       canvas.off('selection:cleared', onSelectionCleared);
       canvas.off('selection:updated', onSelectionUpdated);
-    };
-  }, [fabricCanvasRef.current]);
+    }
+
+    canvas.renderAll();
+
+    return () => {
+      if (canvas) {
+        canvas.off('selection:created', onSelectionCreated);
+        canvas.off('selection:cleared', onSelectionCleared);
+        canvas.off('selection:updated', onSelectionUpdated);
+        updateCropOverlay(canvas, null);
+      }
+    }
+  }, [cropMode, fabricCanvasRef.current]);
 
   const handleApplyCrop = () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !cropRect) return;
+
+    // Temporarily remove overlay for clean capture
+    updateCropOverlay(canvas, null);
 
     const croppedDataUrl = canvas.toDataURL({
       format: 'png',
