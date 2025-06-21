@@ -300,23 +300,12 @@ export default function HomePage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<any>(null); // For DragOverlay
 
-  // Define sensors with a custom activation handler
+  // Define sensors with a time-based activation constraint
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      // This is the key change to fix the click vs. drag conflict.
-      // It inspects the initial event and prevents drag from starting
-      // if the user is clicking on an interactive element.
-      onActivation: ({ event }) => {
-        const target = event.target as HTMLElement;
-        if (
-          target.closest('button') ||
-          target.closest('a') ||
-          target.closest('input') ||
-          target.closest('textarea')
-        ) {
-          return false;
-        }
-        return true;
+      activationConstraint: {
+        delay: 250, // User must hold for 250ms to start a drag
+        tolerance: 5, // User can move 5px before the drag is cancelled
       },
     }),
     useSensor(KeyboardSensor, {
