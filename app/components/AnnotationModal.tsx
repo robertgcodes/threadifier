@@ -1,195 +1,187 @@
 "use client";
 import React, { useRef, useEffect, useState } from 'react';
 import { fabric } from 'fabric';
-import { XCircle, Save } from 'lucide-react';
+import { Dialog } from '@headlessui/react';
+import { Crop, Loader2, Minus, Plus, RefreshCw, Maximize } from 'lucide-react';
 import { MarkedUpImage } from '../types';
 
 interface AnnotationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  image: { url: string; pageNumber: number; id?: string; json?: any; } | null;
-  onSave: (imageData: { id: string; url: string; pageNumber: number; json: any; }) => void;
+  onSave: (url: string, json: any) => void;
+  pageImages: string[];
+  initialPage: number | null;
+  editingMarkedUpImage?: MarkedUpImage;
 }
 
-const AnnotationModal: React.FC<AnnotationModalProps> = ({ isOpen, onClose, image, onSave }) => {
-  const canvasRef = useRef<fabric.Canvas | null>(null);
-  const imageRef = useRef<fabric.Image | null>(null);
-  const [isCropping, setIsCropping] = useState(false);
-  const cropRectRef = useRef<fabric.Rect | null>(null);
-  const startPointRef = useRef<{ x: number, y: number } | null>(null);
+export default function AnnotationModal({
+  isOpen,
+  onClose,
+  onSave,
+  pageImages,
+  initialPage,
+  editingMarkedUpImage
+}: AnnotationModalProps) {
+  const [magnifyPageIdx, setMagnifyPageIdx] = useState(initialPage);
+  const [magnifyImage, setMagnifyImage] = useState<string | null>(null);
+  const [magnifyLoading, setMagnifyLoading] = useState(false);
+  const pdfDocRef = useRef<any>(null);
+
+  const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
+  const fabricContainerRef = useRef<HTMLDivElement | null>(null);
+  const modalContentRef = useRef<HTMLDivElement | null>(null);
+
+  const [zoom, setZoom] = useState(1);
+  const [panMode, setPanMode] = useState(false);
+  const [penColor, setPenColor] = useState<string>("#e11d48");
+  const [penSize, setPenSize] = useState<number>(4);
+  const [isErasing, setIsErasing] = useState(false);
+  const [cropMode, setCropMode] = useState(false);
+  const [cropRect, setCropRect] = useState<fabric.Object | null>(null);
+  const [canvasNaturalSize, setCanvasNaturalSize] = useState<{ width: number, height: number } | null>(null);
+
+  // Load high-res image for the current page
+  useEffect(() => {
+    if (initialPage === null) return;
+    setMagnifyPageIdx(initialPage);
+  }, [initialPage]);
 
   useEffect(() => {
-    if (isOpen && image) {
-      const canvas = new fabric.Canvas('annotation-canvas', {
-        backgroundColor: '#f0f0f0',
-      });
-      canvasRef.current = canvas;
-
-      fabric.Image.fromURL(image.url, (img) => {
-        const modal = document.querySelector('.annotation-modal-content');
-        const modalWidth = modal ? modal.clientWidth - 40 : 800;
-        const scale = modalWidth / img.width!;
-        
-        img.scale(scale);
-        canvas.setDimensions({ width: img.getScaledWidth(), height: img.getScaledHeight() });
-        canvas.add(img);
-        img.center();
-        imageRef.current = img;
-
-        if (image.json) {
-          canvas.loadFromJSON(image.json, () => {
-             const loadedImg = canvas.getObjects('image')[0] as fabric.Image;
-             loadedImg.scale(scale).center();
-             imageRef.current = loadedImg;
-             canvas.renderAll();
-          });
-        }
-      });
-
-      return () => {
-        canvas.dispose();
-        canvasRef.current = null;
-      };
+    if (magnifyPageIdx === null) {
+      setMagnifyImage(null);
+      return;
+    };
+    
+    // If we're editing a marked up image, use its data URL directly
+    if (editingMarkedUpImage) {
+        setMagnifyImage(editingMarkedUpImage.url);
+        return;
     }
-  }, [isOpen, image]);
 
+    // Otherwise, render from the PDF
+    if (!pageImages[magnifyPageIdx]) return;
+    setMagnifyLoading(true);
+    // This is a simplified stand-in for PDF rendering. 
+    // In a real scenario, we'd use pdf.js to get a high-res page image.
+    // For now, we'll just use the thumbnail URL.
+    setMagnifyImage(pageImages[magnifyPageIdx]);
+    setMagnifyLoading(false);
+
+  }, [magnifyPageIdx, pageImages, editingMarkedUpImage]);
+
+  // Initialize Fabric.js canvas
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !isCropping) return;
+    if (!isOpen || !magnifyImage || !fabricContainerRef.current) return;
 
-    const handleMouseDown = (o: fabric.IEvent) => {
-      if (cropRectRef.current) {
-        canvas.remove(cropRectRef.current);
-        cropRectRef.current = null;
+    const container = fabricContainerRef.current;
+    container.innerHTML = '';
+    const canvasEl = document.createElement("canvas");
+    container.appendChild(canvasEl);
+
+    const canvas = new fabric.Canvas(canvasEl);
+    fabricCanvasRef.current = canvas;
+
+    fabric.Image.fromURL(magnifyImage, (img) => {
+      setCanvasNaturalSize({ width: img.width!, height: img.height! });
+      canvas.setWidth(img.width!);
+      canvas.setHeight(img.height!);
+      
+      // Load existing JSON if available
+      if (editingMarkedUpImage?.json) {
+        canvas.loadFromJSON(editingMarkedUpImage.json, () => {
+          canvas.renderAll();
+        });
+      } else {
+        canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+          scaleX: 1,
+          scaleY: 1
+        });
       }
-      const pointer = canvas.getPointer(o.e);
-      startPointRef.current = { x: pointer.x, y: pointer.y };
-
-      const rect = new fabric.Rect({
-        left: pointer.x,
-        top: pointer.y,
-        width: 0,
-        height: 0,
-        fill: 'rgba(0, 102, 255, 0.2)',
-        stroke: '#0066ff',
-        strokeWidth: 2,
-        selectable: true,
-        lockScalingX: false,
-        lockScalingY: false,
-      });
-      cropRectRef.current = rect;
-      canvas.add(rect);
-    };
-
-    const handleMouseMove = (o: fabric.IEvent) => {
-      if (!startPointRef.current || !cropRectRef.current) return;
-      const pointer = canvas.getPointer(o.e);
-      let { x, y } = pointer;
-
-      let left = startPointRef.current.x;
-      let top = startPointRef.current.y;
-      let width = x - left;
-      let height = y - top;
-
-      if (width < 0) {
-        left = x;
-        width = -width;
-      }
-      if (height < 0) {
-        top = y;
-        height = -height;
-      }
-
-      cropRectRef.current.set({ left, top, width, height });
-      canvas.renderAll();
-    };
-
-    const handleMouseUp = () => {
-      startPointRef.current = null;
-      if (cropRectRef.current && (cropRectRef.current.width === 0 || cropRectRef.current.height === 0)) {
-        canvas.remove(cropRectRef.current);
-        cropRectRef.current = null;
-      }
-    };
-
-    canvas.on('mouse:down', handleMouseDown);
-    canvas.on('mouse:move', handleMouseMove);
-    canvas.on('mouse:up', handleMouseUp);
+    });
 
     return () => {
-      canvas.off('mouse:down', handleMouseDown);
-      canvas.off('mouse:move', handleMouseMove);
-      canvas.off('mouse:up', handleMouseUp);
+      canvas.dispose();
+      fabricCanvasRef.current = null;
     };
-  }, [isCropping]);
+  }, [magnifyImage, isOpen, editingMarkedUpImage]);
 
+  // Update brush
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    canvas.freeDrawingBrush.color = isErasing ? '#ffffff' : penColor;
+    canvas.freeDrawingBrush.width = isErasing ? penSize * 2 : penSize;
+  }, [penColor, penSize, isErasing]);
 
-  const handleSave = () => {
-    const canvas = canvasRef.current;
-    const cropRect = cropRectRef.current;
+  // Handlers
+  const handleZoomIn = () => setZoom(z => Math.min(3, z + 0.1));
+  const handleZoomOut = () => setZoom(z => Math.max(0.2, z - 0.1));
+  const handleZoomReset = () => setZoom(1);
+  const handleFitToWindow = () => {
+     if (!canvasNaturalSize || !modalContentRef.current) return;
+     const { width: imgW, height: imgH } = canvasNaturalSize;
+     const container = modalContentRef.current;
+     const containerW = container.clientWidth - 40; // padding
+     const containerH = container.clientHeight - 100; // toolbar and other elements
+     const scale = Math.min(containerW / imgW, containerH / imgH);
+     setZoom(scale);
+   };
 
-    if (!canvas || !imageRef.current) return;
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    canvas.setZoom(zoom);
+    canvas.renderAll();
+  }, [zoom]);
 
-    let dataUrl;
-    if (cropRect && isCropping) {
-        // Temporarily make the rectangle invisible for the export
-        cropRect.set({ opacity: 0 });
-        canvas.renderAll();
-
-        dataUrl = canvas.toDataURL({
-            format: 'png',
-            left: cropRect.left,
-            top: cropRect.top,
-            width: cropRect.width,
-            height: cropRect.height,
-        });
-        
-        // Restore rectangle visibility
-        cropRect.set({ opacity: 1 });
-        canvas.renderAll();
-    } else {
-        dataUrl = canvas.toDataURL({ format: 'png' });
-    }
-
-    const newJson = canvas.toJSON();
-    onSave({
-      id: image?.id || '',
-      url: dataUrl,
-      pageNumber: image!.pageNumber,
-      json: newJson,
-    });
+  const handleSaveAndClose = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const url = canvas.toDataURL({ format: 'png' });
+    const json = canvas.toJSON();
+    onSave(url, json);
     onClose();
-  };
-  
-  if (!isOpen) return null;
+  }
+
+  if (!isOpen) {
+    return null;
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 z-40 flex justify-center items-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col annotation-modal-content">
-        <div className="flex justify-between items-center p-4 border-b border-legal-200">
-          <h2 className="text-xl font-bold text-legal-800">Edit Page {image?.pageNumber}</h2>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsCropping(!isCropping)}
-              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${isCropping ? 'bg-primary-600 text-white' : 'bg-legal-200 text-legal-700 hover:bg-legal-300'}`}
-            >
-              {isCropping ? 'Stop Cropping' : 'Crop Image'}
-            </button>
-            <button onClick={handleSave} className="btn-primary flex items-center gap-2">
-              <Save size={18} />
-              Save Annotation
-            </button>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-legal-100">
-              <XCircle className="text-legal-500" />
-            </button>
+    <Dialog open={isOpen} onClose={onClose} className="fixed z-50 inset-0">
+      <Dialog.Overlay className="fixed inset-0 bg-black/50" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <Dialog.Panel ref={modalContentRef} className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-[90vh] flex flex-col">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between p-2 border-b gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold px-2">Zoom:</span>
+              <button onClick={handleZoomOut} className="btn-secondary p-2"><Minus size={16} /></button>
+              <button onClick={handleZoomReset} className="btn-secondary p-2"><RefreshCw size={16} /></button>
+              <button onClick={handleZoomIn} className="btn-secondary p-2"><Plus size={16} /></button>
+              <button onClick={handleFitToWindow} className="btn-secondary p-2"><Maximize size={16} /></button>
+              <span className="text-sm">{(zoom * 100).toFixed(0)}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold px-2">Drawing:</span>
+              <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="w-8 h-8" />
+              <input type="range" min="1" max="50" value={penSize} onChange={e => setPenSize(Number(e.target.value))} />
+              <button onClick={() => setIsErasing(!isErasing)} className={`btn-secondary p-2 ${isErasing ? 'bg-red-200' : ''}`}>Eraser</button>
+            </div>
+            <div className="flex items-center gap-2">
+               <button onClick={handleSaveAndClose} className="btn-primary">Save & Close</button>
+            </div>
           </div>
-        </div>
-        <div className="flex-grow p-4 overflow-auto flex items-center justify-center">
-          <canvas id="annotation-canvas" />
-        </div>
-      </div>
-    </div>
-  );
-};
 
-export default AnnotationModal; 
+          {/* Canvas */}
+          <div className="flex-grow overflow-auto bg-gray-200 p-4">
+            <div ref={fabricContainerRef} className="mx-auto" style={{ width: canvasNaturalSize?.width, height: canvasNaturalSize?.height }}>
+              {magnifyLoading && <Loader2 className="animate-spin" />}
+            </div>
+          </div>
+
+        </Dialog.Panel>
+      </div>
+    </Dialog>
+  );
+} 

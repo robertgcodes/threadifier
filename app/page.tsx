@@ -850,14 +850,27 @@ function Page() {
     }
   };
 
-  // Save/download marked-up image (now also saves fabric JSON)
-  const handleSaveMarkedUpImage = (imageData: { id: string; url: string; pageNumber: number; json: any; }) => {
-    const { url, json, pageNumber } = imageData;
-    
+  const closeMagnify = () => {
+    setMagnifyPageIdx(null);
+    setEditingMarkedUpId(null);
+  };
+
+  const handleSaveMarkedUpImage = (url: string, json: any) => {
+    let sourcePageNumber : number | null = null;
+    if(editingMarkedUpId){
+      sourcePageNumber = markedUpImages.find(img => img.id === editingMarkedUpId)?.pageNumber ?? null;
+    } else if (magnifyPageIdx !== null) {
+      sourcePageNumber = magnifyPageIdx + 1;
+    }
+     if (sourcePageNumber === null) {
+      toast.error("Could not determine source page number.");
+      return;
+    }
+
     if (editingMarkedUpId) {
-      setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, pageNumber, url, json } : m));
+      setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, pageNumber: sourcePageNumber as number, url, json } : m));
     } else {
-      setMarkedUpImages(prev => [...prev, { id: uuidv4(), pageNumber, url, json }]);
+      setMarkedUpImages(prev => [...prev, { id: uuidv4(), pageNumber: sourcePageNumber as number, url, json }]);
     }
   };
 
@@ -934,11 +947,6 @@ function Page() {
     });
   };
 
-  const closeMagnify = () => {
-    setMagnifyPageIdx(null);
-    setEditingMarkedUpId(null);
-  };
-
   return (
     <>
       <ImagePickerModal
@@ -951,13 +959,10 @@ function Page() {
       <AnnotationModal
         isOpen={magnifyPageIdx !== null}
         onClose={closeMagnify}
-        image={magnifyPageIdx !== null ? {
-          url: pageImages[magnifyPageIdx],
-          pageNumber: magnifyPageIdx + 1,
-          id: editingMarkedUpId || undefined,
-          json: editingMarkedUpId ? markedUpImages.find(m => m.id === editingMarkedUpId)?.json : undefined
-        } : null}
+        pageImages={pageImages}
+        initialPage={magnifyPageIdx}
         onSave={handleSaveMarkedUpImage}
+        editingMarkedUpImage={editingMarkedUpId ? markedUpImages.find(m => m.id === editingMarkedUpId) : undefined}
       />
       <header className="bg-white p-4 border-b">
         <div className="max-w-screen-xl mx-auto flex justify-between items-center">
