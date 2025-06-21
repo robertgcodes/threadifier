@@ -358,7 +358,10 @@ export default function HomePage() {
         if (!activeRectRef.current) return;
 
         const pointer = canvas.getPointer(o.e);
-        const isClick = startPoint.x === pointer.x && startPoint.y === pointer.y;
+        const dx = Math.abs(startPoint.x - pointer.x);
+        const dy = Math.abs(startPoint.y - pointer.y);
+        const clickTolerance = 5; // Pixels
+        const isClick = dx < clickTolerance && dy < clickTolerance;
 
         if (isClick || activeRectRef.current.width === 0 || activeRectRef.current.height === 0) {
           // This was a click or a zero-size drag, so remove the drawn rectangle.
