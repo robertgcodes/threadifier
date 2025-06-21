@@ -710,34 +710,39 @@ export default function HomePage() {
     const activeId = active.id.toString();
     const overId = over.id.toString();
 
-    // Case 1: An image from the sidebars is dropped onto a post's drop zone.
-    if (activeId.startsWith('image:') && overId.startsWith('droppable-')) {
-      const postId = overId.split('-')[1];
-      const post = generatedThread.find(p => p.id.toString() === postId);
-      
+    // Case 1: An image from the sidebars is being dropped.
+    if (activeId.startsWith('image:')) {
+      // The drop target could be the drop zone itself ('droppable-X')
+      // or the sortable row container ('X'). We handle both.
+      const targetPostId = overId.startsWith('droppable-')
+        ? overId.split('-')[1]
+        : overId;
+
+      const post = generatedThread.find(p => p.id.toString() === targetPostId);
+
       if (post) {
         const [, type, ...valueParts] = activeId.split(':');
-        const value = valueParts.join(':'); // Robustly handle IDs with special chars
+        const value = valueParts.join(':');
         const numericValue = type === 'pdf' ? Number(value) : value;
         handleSelectPage(post.id, type as 'pdf' | 'marked', numericValue);
       }
-      return;
+      return; // End execution here for image drops.
     }
 
-    // Case 2: A post is being sorted.
+    // Case 2: A post is being sorted. This logic only runs if we are not dragging an image.
     const isActivePost = generatedThread.some(p => p.id.toString() === activeId);
-    const isOverPost = generatedThread.some(p => p.id.toString() === overId) || overId.startsWith('droppable-');
+    const isOverPostOrDropzone = generatedThread.some(p => p.id.toString() === overId) || overId.startsWith('droppable-');
 
-    if (isActivePost && isOverPost && active.id !== over.id) {
+    if (isActivePost && isOverPostOrDropzone && active.id !== over.id) {
       setGeneratedThread((items) => {
         const oldIndex = items.findIndex((item) => item.id.toString() === activeId);
-        // If dropping over a dropzone, we need to find the associated post's index.
-        const newIndex = items.findIndex((item) => {
-            const currentOverId = overId.startsWith('droppable-') ? overId.split('-')[1] : overId;
-            return item.id.toString() === currentOverId;
-        });
-        
-        if (oldIndex === -1 || newIndex === -1) return items;
+
+        const newPostId = overId.startsWith('droppable-') ? overId.split('-')[1] : overId;
+        const newIndex = items.findIndex((item) => item.id.toString() === newPostId);
+
+        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+            return items; // No change if indices are invalid or the same
+        }
 
         return arrayMove(items, oldIndex, newIndex);
       });
