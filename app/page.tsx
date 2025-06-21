@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
-import { Loader2, Twitter, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon } from "lucide-react";
+import { Loader2, Twitter, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon, Crop } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -133,6 +133,8 @@ export default function HomePage() {
   const [editingMarkedUpId, setEditingMarkedUpId] = useState<string | null>(null);
 
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
+  const [cropMode, setCropMode] = useState(false);
+  const [cropRect, setCropRect] = useState<fabric.Object | null>(null);
 
   const [zoom, setZoom] = useState(1);
   const minZoom = 0.25;
@@ -217,6 +219,68 @@ export default function HomePage() {
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
+
+  // Crop mode disables drawing and pan modes
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    
+    if (cropMode) {
+      canvas.isDrawingMode = false;
+      canvas.selection = true;
+      canvas.defaultCursor = 'crosshair';
+      canvas.forEachObject(obj => { obj.selectable = false; });
+    } else {
+      canvas.selection = false;
+      canvas.defaultCursor = 'default';
+      canvas.discardActiveObject();
+      canvas.renderAll();
+    }
+  }, [cropMode]);
+
+  // Track crop selection
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const onSelectionCreated = (e: any) => setCropRect(e.target);
+    const onSelectionCleared = () => setCropRect(null);
+    const onSelectionUpdated = (e: any) => setCropRect(e.target);
+
+    canvas.on('selection:created', onSelectionCreated);
+    canvas.on('selection:cleared', onSelectionCleared);
+    canvas.on('selection:updated', onSelectionUpdated);
+
+    return () => {
+      canvas.off('selection:created', onSelectionCreated);
+      canvas.off('selection:cleared', onSelectionCleared);
+      canvas.off('selection:updated', onSelectionUpdated);
+    };
+  }, [fabricCanvasRef.current]);
+
+  const handleApplyCrop = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !cropRect) return;
+
+    const croppedDataUrl = canvas.toDataURL({
+      format: 'png',
+      left: cropRect.left,
+      top: cropRect.top,
+      width: cropRect.getScaledWidth(),
+      height: cropRect.getScaledHeight(),
+    });
+
+    // Create a new fabric canvas just to generate JSON for the cropped image
+    const tempCanvas = new fabric.Canvas(null, { width: cropRect.getScaledWidth(), height: cropRect.getScaledHeight() });
+    fabric.Image.fromURL(croppedDataUrl, (img) => {
+      tempCanvas.setBackgroundImage(img, tempCanvas.renderAll.bind(tempCanvas));
+      const newJson = tempCanvas.toJSON();
+      setMarkedUpImages(prev => [...prev, { id: uuidv4(), url: croppedDataUrl, label: 'Cropped Image', json: newJson }]);
+      toast.success("Image cropped and saved!");
+    });
+
+    // Exit crop mode
+    setCropMode(false);
+  };
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -763,6 +827,9 @@ export default function HomePage() {
                     <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
                   </div>
                   <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (Hand Tool, disables drawing)">🖐️</button>
+                  <button className={`btn-secondary px-2 ${cropMode ? 'bg-blue-200' : ''}`} onClick={() => setCropMode(c => !c)} title="Crop Tool">
+                    <Crop className="w-4 h-4" />
+                  </button>
                   <label className="text-sm text-legal-700">Pen Color:
                     <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
                   </label>
@@ -774,6 +841,9 @@ export default function HomePage() {
                   <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
                   <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
                   <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
+                  {cropRect && (
+                    <button className="btn-primary py-1 px-3 text-sm animate-pulse" onClick={handleApplyCrop}>Apply Crop</button>
+                  )}
                 </>}
               </div>
               {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
