@@ -147,6 +147,8 @@ export default function HomePage() {
   const [canvasNaturalSize, setCanvasNaturalSize] = useState<{ width: number, height: number } | null>(null);
   const modalContentRef = useRef<HTMLDivElement | null>(null);
 
+  const activeRectRef = useRef<fabric.Rect | null>(null);
+
   // Zoom handlers
   const handleZoomIn = () => setZoom(z => Math.min(maxZoom, +(z + zoomStep).toFixed(2)));
   const handleZoomOut = () => setZoom(z => Math.max(minZoom, +(z - zoomStep).toFixed(2)));
@@ -261,10 +263,24 @@ export default function HomePage() {
     canvas.renderAll();
   };
 
-  // Robust Crop Mode with manual rectangle drawing
+  // Robust Crop Mode with manual rectangle drawing - FINAL version
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
+
+    const cleanup = () => {
+      canvas.off('mouse:down');
+      canvas.off('mouse:move');
+      canvas.off('mouse:up');
+      canvas.defaultCursor = 'default';
+      if (activeRectRef.current) {
+        canvas.remove(activeRectRef.current);
+        activeRectRef.current = null;
+      }
+      setCropRect(null);
+      updateCropOverlay(canvas, null);
+      canvas.renderAll();
+    };
 
     if (cropMode) {
       canvas.isDrawingMode = false;
@@ -272,32 +288,25 @@ export default function HomePage() {
       canvas.defaultCursor = 'crosshair';
       canvas.forEachObject(obj => { obj.selectable = false; });
 
-      let isDrawingRect = false;
+      let isDrawing = false;
       let startPoint = { x: 0, y: 0 };
-      let activeRect: fabric.Rect | null = cropRect as fabric.Rect;
 
       const onMouseDown = (o: fabric.IEvent) => {
-        // Don't draw new rect if one already exists and we are clicking on it
-        if (activeRect && o.target === activeRect) return;
-
-        // If we click outside an existing rect, clear it and start a new one
-        if (activeRect) {
-          canvas.remove(activeRect);
-          activeRect = null;
-          setCropRect(null);
-          updateCropOverlay(canvas, null);
+        // Clear previous rect
+        if (activeRectRef.current) {
+          canvas.remove(activeRectRef.current);
         }
-        
-        isDrawingRect = true;
+        isDrawing = true;
         const pointer = canvas.getPointer(o.e);
         startPoint = pointer;
-        activeRect = new fabric.Rect({
+
+        const rect = new fabric.Rect({
           left: startPoint.x,
           top: startPoint.y,
           width: 0,
           height: 0,
           stroke: '#4A90E2',
-          strokeWidth: 2,
+          strokeWidth: 2 / canvas.getZoom(),
           fill: 'rgba(74, 144, 226, 0.1)',
           selectable: true,
           hasControls: true,
@@ -306,53 +315,52 @@ export default function HomePage() {
           cornerSize: 10,
           transparentCorners: false,
         });
-        canvas.add(activeRect);
+        activeRectRef.current = rect;
+        canvas.add(activeRectRef.current);
       };
 
       const onMouseMove = (o: fabric.IEvent) => {
-        if (!isDrawingRect || !activeRect) return;
+        if (!isDrawing || !activeRectRef.current) return;
         const pointer = canvas.getPointer(o.e);
-        activeRect.set({
-          width: Math.abs(pointer.x - startPoint.x),
-          height: Math.abs(pointer.y - startPoint.y),
-        });
-        if (pointer.x < startPoint.x) activeRect.set({ left: pointer.x });
-        if (pointer.y < startPoint.y) activeRect.set({ top: pointer.y });
+        let left = startPoint.x;
+        let top = startPoint.y;
+        let width = pointer.x - startPoint.x;
+        let height = pointer.y - startPoint.y;
+
+        if (width < 0) {
+          left = pointer.x;
+          width = Math.abs(width);
+        }
+        if (height < 0) {
+          top = pointer.y;
+          height = Math.abs(height);
+        }
+        activeRectRef.current.set({ left, top, width, height });
         canvas.renderAll();
       };
 
       const onMouseUp = () => {
-        isDrawingRect = false;
-        if (activeRect) {
-          canvas.setActiveObject(activeRect);
-          setCropRect(activeRect);
-          updateCropOverlay(canvas, activeRect);
+        isDrawing = false;
+        if (activeRectRef.current) {
+          canvas.setActiveObject(activeRectRef.current);
+          setCropRect(activeRectRef.current); // Show "Apply Crop" button
           
-          activeRect.on('scaling', () => updateCropOverlay(canvas, activeRect));
-          activeRect.on('moving', () => updateCropOverlay(canvas, activeRect));
+          activeRectRef.current.on('moving', () => updateCropOverlay(canvas, activeRectRef.current));
+          activeRectRef.current.on('scaling', () => updateCropOverlay(canvas, activeRectRef.current));
+          updateCropOverlay(canvas, activeRectRef.current);
         }
       };
-
+      
       canvas.on('mouse:down', onMouseDown);
       canvas.on('mouse:move', onMouseMove);
       canvas.on('mouse:up', onMouseUp);
-      
-      return () => { // Cleanup
-        canvas.off('mouse:down', onMouseDown);
-        canvas.off('mouse:move', onMouseMove);
-        canvas.off('mouse:up', onMouseUp);
-        canvas.defaultCursor = 'default';
-        if (activeRect) canvas.remove(activeRect);
-        updateCropOverlay(canvas, null);
-      };
+
+      return cleanup;
     } else {
-      // Cleanup when exiting crop mode
-      if(cropRect) canvas.remove(cropRect);
-      setCropRect(null);
-      updateCropOverlay(canvas, null);
+      cleanup();
     }
 
-  }, [cropMode, cropRect]);
+  }, [cropMode]);
 
   const handleApplyCrop = () => {
     const canvas = fabricCanvasRef.current;
