@@ -352,9 +352,22 @@ export default function HomePage() {
         canvas.renderAll();
       };
 
-      const onMouseUp = () => {
+      const onMouseUp = (o: fabric.IEvent) => {
         isDrawing = false;
-        if (activeRectRef.current && activeRectRef.current.width && activeRectRef.current.height && activeRectRef.current.width > 0 && activeRectRef.current.height > 0) {
+        
+        if (!activeRectRef.current) return;
+
+        const pointer = canvas.getPointer(o.e);
+        const isClick = startPoint.x === pointer.x && startPoint.y === pointer.y;
+
+        if (isClick || activeRectRef.current.width === 0 || activeRectRef.current.height === 0) {
+          // This was a click or a zero-size drag, so remove the drawn rectangle.
+          canvas.remove(activeRectRef.current);
+          activeRectRef.current = null;
+          setCropRect(null);
+          updateCropOverlay(canvas, null);
+        } else {
+          // This was a drag, so finalize the rectangle.
           canvas.setActiveObject(activeRectRef.current);
           setCropRect(activeRectRef.current); // Show "Apply Crop" button
           
@@ -367,12 +380,6 @@ export default function HomePage() {
           activeRectRef.current.on('scaling', updateOverlayOnModify);
 
           updateCropOverlay(canvas, activeRectRef.current);
-        } else if (activeRectRef.current) {
-          // If the box has no size, remove it.
-          canvas.remove(activeRectRef.current);
-          activeRectRef.current = null;
-          setCropRect(null);
-          updateCropOverlay(canvas, null);
         }
       };
       
