@@ -134,6 +134,7 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
   } = useSortable({
@@ -150,7 +151,7 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="grid grid-cols-2 gap-4 items-start">
+    <div ref={setNodeRef} style={style} {...attributes} className="grid grid-cols-2 gap-4 items-start">
       {/* Post Item Column */}
       <div className="bg-white p-4 rounded-lg shadow-sm border border-legal-200 h-full">
         <SortablePostItem 
@@ -158,7 +159,7 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
           index={index} 
           generatedThread={generatedThread}
           dragHandleListeners={listeners}
-          dragHandleAttributes={attributes}
+          setDragHandleRef={setActivatorNodeRef}
           {...props} 
         />
       </div>
@@ -176,12 +177,12 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
 }
 
 // --- Sortable Post Item Component ---
-function SortablePostItem({ post, index, generatedThread, startEditing, deletePost, editingPostId, editingText, setEditingText, saveEdit, cancelEdit, handleCopy, dragHandleListeners, dragHandleAttributes }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void, dragHandleListeners: any, dragHandleAttributes: any }) {
+function SortablePostItem({ post, index, generatedThread, startEditing, deletePost, editingPostId, editingText, setEditingText, saveEdit, cancelEdit, handleCopy, dragHandleListeners, setDragHandleRef }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void, dragHandleListeners: any, setDragHandleRef: (element: HTMLElement | null) => void }) {
   
   return (
     <div className="flex gap-2 items-start h-full group">
       {/* Drag Handle */}
-      <div {...dragHandleAttributes} {...dragHandleListeners} className="flex-shrink-0 touch-none cursor-grab text-legal-400 hover:text-legal-600 pt-3">
+      <div ref={setDragHandleRef} {...dragHandleListeners} className="flex-shrink-0 touch-none cursor-grab text-legal-400 hover:text-legal-600 pt-3">
         <GripVertical size={20} />
       </div>
       <div className="flex-grow flex flex-col">
