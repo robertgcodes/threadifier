@@ -202,45 +202,49 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
 
 // --- Draggable PDF Page Thumbnail ---
 function DraggablePDFPage({ idx, img, onMagnify }: { idx: number, img: string, onMagnify: (idx: number) => void }) {
-  const {attributes, listeners, setNodeRef} = useDraggable({
+  const {attributes, listeners, setNodeRef, isDragging} = useDraggable({
     id: `image:pdf:${idx}`,
     data: { type: 'image' }
   });
 
   return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      role="button"
-      tabIndex={0}
-      className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-grab"
-      onClick={() => onMagnify(idx)}
-      onKeyDown={(e) => e.key === 'Enter' && onMagnify(idx)}
-      aria-label={`Magnify Page ${idx + 1}`}
-    >
-      <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" draggable="false" />
-      <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
+    <div className="relative group" ref={setNodeRef}>
+      <div
+        role="button"
+        tabIndex={0}
+        className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500"
+        onClick={() => onMagnify(idx)}
+        onKeyDown={(e) => e.key === 'Enter' && onMagnify(idx)}
+        aria-label={`Magnify Page ${idx + 1}`}
+      >
+        <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" draggable="false" />
+        <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
+      </div>
+      <div 
+        {...listeners} 
+        {...attributes}
+        className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1.5 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity"
+        aria-label="Drag this image"
+      >
+        <GripVertical size={16} />
+      </div>
     </div>
   );
 }
 
 // --- Draggable Marked-Up Image Thumbnail ---
 function DraggableMarkedUpImage({ img, onEdit, onDelete }: { img: MarkedUpImage, onEdit: (id: string) => void, onDelete: (id: string) => void }) {
-  const {attributes, listeners, setNodeRef} = useDraggable({
+  const {attributes, listeners, setNodeRef, isDragging} = useDraggable({
     id: `image:marked:${img.id}`,
     data: { type: 'image' }
   });
 
   return (
-    <div className="relative group">
-      <div
-        ref={setNodeRef}
-        {...listeners}
-        {...attributes}
+    <div className="relative group" ref={setNodeRef}>
+       <div
         role="button"
         tabIndex={0}
-        className="w-full border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-grab"
+        className="w-full border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500"
         onClick={() => onEdit(img.id)}
         onKeyDown={(e) => e.key === 'Enter' && onEdit(img.id)}
         aria-label={`Edit marked-up page ${img.pageNumber}`}
@@ -248,9 +252,17 @@ function DraggableMarkedUpImage({ img, onEdit, onDelete }: { img: MarkedUpImage,
         <img src={img.url} alt={`Marked-up page ${img.pageNumber}`} className="w-full h-auto" draggable="false" />
         <div className="text-xs text-center text-legal-500 py-1">Page {img.pageNumber} Edited</div>
       </div>
+      <div 
+        {...listeners}
+        {...attributes}
+        className="absolute top-1 right-8 bg-black/50 text-white rounded-full p-1.5 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity"
+        aria-label="Drag this image"
+      >
+        <GripVertical size={16} />
+      </div>
       <button
         onClick={(e) => {
-          e.stopPropagation(); // Prevent the div's onClick from firing
+          e.stopPropagation();
           onDelete(img.id);
         }}
         className="absolute top-1 right-1 bg-white/70 backdrop-blur-sm rounded-full p-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -300,25 +312,10 @@ export default function HomePage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<any>(null); // For DragOverlay
 
-  // Define sensors with a smarter activation handler
+  // Define sensors. We're going back to a simpler config as we are
+  // separating click and drag targets.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      // This is the key change to fix the click vs. drag conflict.
-      // It inspects the initial event and prevents drag from starting
-      // if the user is clicking on a true interactive element.
-      onActivation: ({ event }) => {
-        const target = event.target as HTMLElement;
-        // Check for common interactive elements, but NOT for [role="button"]
-        // This allows our draggable divs to work, while still blocking
-        // real buttons like the "delete" button.
-        if (
-          target.closest('button, a, input, textarea, select')
-        ) {
-          return false; // Prevent drag from starting
-        }
-        return true; // Allow drag to start
-      },
-    }),
+    useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
