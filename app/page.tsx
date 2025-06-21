@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
-import { Loader2, Twitter, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon, Crop } from "lucide-react";
+import { Loader2, Twitter, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon, Crop, Image as ImageIcon } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -13,6 +13,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
   useDraggable,
   useDroppable,
 } from '@dnd-kit/core';
@@ -59,7 +61,7 @@ function DraggableImage({ id, children, className }: { id: string, children: Rea
 }
 
 // --- Droppable Zone for Images ---
-function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap }: { id: string, post: ThreadPost, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any }) {
+function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap, handleClearImage }: { id: string, post: ThreadPost, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any, handleClearImage: (postId: number) => void }) {
   const {isOver, setNodeRef} = useDroppable({ id });
   
   const style = {
@@ -86,11 +88,30 @@ function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap }: { 
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-legal-400 text-sm p-2">
+    <div
+      ref={setNodeRef}
+      style={{
+        border: isOver ? '2px solid #2563eb' : '2px dashed #d1d5db',
+        transition: 'border-color 0.2s',
+      }}
+      className="bg-legal-50/50 p-4 rounded-lg flex items-center justify-center text-legal-500 h-full relative"
+    >
       {imageUrl ? (
-        <img src={imageUrl} alt={imageAlt} className="max-h-full max-w-full object-contain rounded" />
+        <>
+          <img src={imageUrl} alt={`Page for post ${post.id}`} className="max-h-48 object-contain rounded-md" />
+          <button 
+            onClick={() => handleClearImage(post.id)} 
+            className="absolute top-2 right-2 bg-white/50 backdrop-blur-sm rounded-full p-1 text-legal-600 hover:text-red-500 hover:bg-white"
+            aria-label="Clear image"
+          >
+            <XCircle className="w-5 h-5" />
+          </button>
+        </>
       ) : (
-        <span>Drop Image Here</span>
+        <div className="text-center">
+          <ImageIcon className="w-8 h-8 mx-auto text-legal-400" />
+          <p>Drop Image Here</p>
+        </div>
       )}
     </div>
   );
@@ -99,7 +120,7 @@ function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap }: { 
 // --- Sortable Thread Row ---
 // This component represents a full row in the editor, containing the text and the image drop zone.
 // The useSortable hook is applied here to make the entire row draggable.
-function SortableThreadRow({ post, index, generatedThread, ...props }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any }) {
+function SortableThreadRow({ post, index, generatedThread, ...props }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any, handleClearImage: (postId: number) => void }) {
   const {
     attributes,
     listeners,
@@ -128,11 +149,12 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
       </div>
       {/* Image Drop Zone Column */}
       <ImageDropZone
-        id={`drop-zone:${post.id}`}
+        id={`droppable-${post.id}`}
         post={post}
         pageImages={props.pageImages}
         markedUpImages={props.markedUpImages}
         postPageMap={props.postPageMap}
+        handleClearImage={props.handleClearImage}
       />
     </div>
   );
@@ -142,10 +164,10 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
 function SortablePostItem({ post, index, generatedThread, startEditing, deletePost, editingPostId, editingText, setEditingText, saveEdit, cancelEdit, handleCopy, dragHandleListeners, dragHandleAttributes }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void, dragHandleListeners: any, dragHandleAttributes: any }) {
   
   return (
-    <div className="flex gap-2 items-start h-full">
+    <div className="flex gap-2 items-start h-full group">
       {/* Drag Handle */}
       <div {...dragHandleAttributes} {...dragHandleListeners} className="flex-shrink-0 touch-none cursor-grab text-legal-400 hover:text-legal-600 pt-3">
-        <GripVertical className="h-5 w-5" />
+        <GripVertical size={20} />
       </div>
       <div className="flex-grow flex flex-col">
         <div className="flex items-center mb-2">
@@ -667,8 +689,8 @@ export default function HomePage() {
     // Case 1: Dragging an image over a post's text or its new drop zone
     if (activeId.startsWith('image:')) {
       let postId: string | null = null;
-      if (overId.startsWith('drop-zone:')) {
-        postId = overId.split(':')[1];
+      if (overId.startsWith('droppable-')) {
+        postId = overId.split('-')[1];
       } else if (generatedThread.some(p => p.id.toString() === overId)) {
         postId = overId;
       }
@@ -952,6 +974,10 @@ export default function HomePage() {
     }
   };
 
+  const handleClearImage = (postId: number) => {
+    setPostPageMap(prev => ({ ...prev, [postId]: null }));
+  };
+
   return (
     <DndContext 
       sensors={sensors}
@@ -1204,7 +1230,7 @@ export default function HomePage() {
           {/* THREAD EDITOR & IMAGE LANE (Combined for synced scroll) */}
           <div className="lg:col-span-2 space-y-4">
             {generatedThread.length > 0 && (
-              <div className="sticky top-8 z-10 bg-legal-50/80 backdrop-blur-sm py-2">
+              <div className="sticky top-8 z-10 bg-legal-50/95 backdrop-blur-sm py-2 rounded-lg border border-legal-200">
                 <div className="grid grid-cols-2 gap-4">
                   <h2 className="text-xl font-semibold text-legal-700 px-4">Edit Your Thread</h2>
                   <h2 className="text-xl font-semibold text-legal-700 px-4">Image Lane</h2>
@@ -1212,7 +1238,7 @@ export default function HomePage() {
               </div>
             )}
             <SortableContext 
-              items={generatedThread}
+              items={generatedThread.map(p => p.id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-4">
@@ -1233,6 +1259,7 @@ export default function HomePage() {
                     pageImages={pageImages}
                     markedUpImages={markedUpImages}
                     postPageMap={postPageMap}
+                    handleClearImage={handleClearImage}
                   />
                 ))}
               </div>
