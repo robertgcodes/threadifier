@@ -710,36 +710,35 @@ export default function HomePage() {
     const activeId = active.id.toString();
     const overId = over.id.toString();
 
-    // Case 1: Dragging an image over a post's text or its new drop zone
-    if (activeId.startsWith('image:')) {
-      let postId: string | null = null;
-      if (overId.startsWith('droppable-')) {
-        postId = overId.split('-')[1];
-      } else if (generatedThread.some(p => p.id.toString() === overId)) {
-        postId = overId;
+    // Case 1: An image from the sidebars is dropped onto a post's drop zone.
+    if (activeId.startsWith('image:') && overId.startsWith('droppable-')) {
+      const postId = overId.split('-')[1];
+      const post = generatedThread.find(p => p.id.toString() === postId);
+      
+      if (post) {
+        const [, type, ...valueParts] = activeId.split(':');
+        const value = valueParts.join(':'); // Robustly handle IDs with special chars
+        const numericValue = type === 'pdf' ? Number(value) : value;
+        handleSelectPage(post.id, type as 'pdf' | 'marked', numericValue);
       }
-
-      if (postId) {
-        const post = generatedThread.find(p => p.id.toString() === postId);
-        if (post) {
-            const [, type, ...valueParts] = activeId.split(':');
-            const value = valueParts.join(':'); // Robustly handle IDs with special chars
-            const numericValue = type === 'pdf' ? Number(value) : value;
-            handleSelectPage(post.id, type as 'pdf' | 'marked', numericValue);
-        }
-        return;
-      }
+      return;
     }
 
-    // Case 2: Sorting posts (original logic)
+    // Case 2: A post is being sorted.
     const isActivePost = generatedThread.some(p => p.id.toString() === activeId);
-    const isOverPost = generatedThread.some(p => p.id.toString() === overId);
+    const isOverPost = generatedThread.some(p => p.id.toString() === overId) || overId.startsWith('droppable-');
 
     if (isActivePost && isOverPost && active.id !== over.id) {
       setGeneratedThread((items) => {
         const oldIndex = items.findIndex((item) => item.id.toString() === activeId);
-        const newIndex = items.findIndex((item) => item.id.toString() === overId);
+        // If dropping over a dropzone, we need to find the associated post's index.
+        const newIndex = items.findIndex((item) => {
+            const currentOverId = overId.startsWith('droppable-') ? overId.split('-')[1] : overId;
+            return item.id.toString() === currentOverId;
+        });
         
+        if (oldIndex === -1 || newIndex === -1) return items;
+
         return arrayMove(items, oldIndex, newIndex);
       });
     }
