@@ -5,7 +5,7 @@ import { Dialog } from '@headlessui/react';
 import { 
   Crop, Loader2, Minus, Plus, RefreshCw, Hand, Trash2, 
   Square, Circle, ArrowRight, Type, Download, Save,
-  RotateCcw, Palette, PenTool, Eraser, Upload
+  RotateCcw, PenTool, Eraser
 } from 'lucide-react';
 import { MarkedUpImage } from '../types';
 
@@ -288,7 +288,7 @@ export default function AnnotationModal({
     let lastPosY = 0;
 
     const onMouseDown = (opt: fabric.IEvent) => {
-      const evt = opt.e;
+      const evt = opt.e as MouseEvent;
       isDragging = true;
       canvas.selection = false;
       lastPosX = evt.clientX;
@@ -298,7 +298,7 @@ export default function AnnotationModal({
 
     const onMouseMove = (opt: fabric.IEvent) => {
       if (isDragging) {
-        const evt = opt.e;
+        const evt = opt.e as MouseEvent;
         const vpt = canvas.viewportTransform!;
         vpt[4] += evt.clientX - lastPosX;
         vpt[5] += evt.clientY - lastPosY;
@@ -433,20 +433,20 @@ export default function AnnotationModal({
         break;
       
       case 'arrow':
-        const arrowPoints = [0, 0, 80, 0, 70, -10, 80, 0, 70, 10];
-        shape = new fabric.Polyline(
-          arrowPoints.reduce((acc, val, i) => {
-            if (i % 2 === 0) acc.push({ x: val, y: arrowPoints[i + 1] });
-            return acc;
-          }, [] as fabric.Point[]),
-          {
-            left: centerX - 40,
-            top: centerY - 5,
-            fill: penColor,
-            stroke: penColor,
-            strokeWidth: 2
-          }
-        );
+        const arrowPoints = [
+          new fabric.Point(0, 0),
+          new fabric.Point(80, 0),
+          new fabric.Point(70, -10),
+          new fabric.Point(80, 0),
+          new fabric.Point(70, 10)
+        ];
+        shape = new fabric.Polyline(arrowPoints, {
+          left: centerX - 40,
+          top: centerY - 5,
+          fill: penColor,
+          stroke: penColor,
+          strokeWidth: 2
+        });
         break;
       
       case 'text':
