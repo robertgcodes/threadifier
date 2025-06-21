@@ -13,6 +13,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  useDraggable,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -34,6 +35,30 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.j
 interface ThreadPost {
   id: number;
   text: string;
+}
+
+interface MarkedUpImage {
+  id: string;
+  pageNumber: number;
+  url: string;
+  json: any;
+}
+
+// --- Draggable Image Item ---
+function DraggableImage({ id, children }: { id: string, children: React.ReactNode }) {
+  const {attributes, listeners, setNodeRef, transform} = useDraggable({
+    id: id,
+  });
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    zIndex: 9999, // Ensure it's on top while dragging
+  } : undefined;
+
+  return (
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      {children}
+    </div>
+  );
 }
 
 // --- Sortable Post Item Component ---
@@ -123,7 +148,7 @@ export default function HomePage() {
   const [magnifyPageIdx, setMagnifyPageIdx] = useState<number | null>(null);
   const [magnifyImage, setMagnifyImage] = useState<string | null>(null);
   const [magnifyLoading, setMagnifyLoading] = useState(false);
-  const [markedUpImages, setMarkedUpImages] = useState<{ id: string, url: string, label: string, json: any }[]>([]);
+  const [markedUpImages, setMarkedUpImages] = useState<MarkedUpImage[]>([]);
   const [penColor, setPenColor] = useState<string>("#e11d48");
   const [penSize, setPenSize] = useState<number>(4);
   const [isErasing, setIsErasing] = useState(false);
@@ -415,12 +440,24 @@ export default function HomePage() {
       format: 'png',
     });
   
+    let sourcePageNumber : number | null = null;
+    if(editingMarkedUpId){
+      sourcePageNumber = markedUpImages.find(img => img.id === editingMarkedUpId)?.pageNumber ?? null;
+    } else if (magnifyPageIdx !== null) {
+      sourcePageNumber = magnifyPageIdx + 1;
+    }
+
+    if (sourcePageNumber === null) {
+      toast.error("Could not determine source page for cropped image.");
+      return;
+    }
+  
     // Add the new cropped image to the gallery
     const newId = `marked-up-${Date.now()}`;
-    const newMarkedUpImage: { id: string, url: string, label: string, json: any } = {
+    const newMarkedUpImage: MarkedUpImage = {
       id: newId,
+      pageNumber: sourcePageNumber,
       url: croppedImageDataUrl,
-      label: 'Cropped Image',
       json: null, // Cropped images are flat, no fabric data
     };
     setMarkedUpImages(prev => [...prev, newMarkedUpImage]);
@@ -549,7 +586,27 @@ export default function HomePage() {
   function handleDragEnd(event: DragEndEvent) {
     const {active, over} = event;
     
-    if (over && active.id !== over.id) {
+    if (!over) return;
+
+    const activeId = active.id.toString();
+    const overId = over.id.toString();
+
+    // Case 1: Dragging an image over a post
+    if (activeId.startsWith('image-') && generatedThread.some(p => p.id.toString() === overId)) {
+        const post = generatedThread.find(p => p.id.toString() === overId);
+        if (post) {
+            const [, type, value] = activeId.split('-');
+            const numericValue = type === 'pdf' ? Number(value) : value;
+            handleSelectPage(post.id, type as 'pdf' | 'marked', numericValue);
+        }
+        return; // End of this drag operation
+    }
+
+    // Case 2: Sorting posts (original logic)
+    const isActivePost = generatedThread.some(p => p.id.toString() === activeId);
+    const isOverPost = generatedThread.some(p => p.id.toString() === overId);
+
+    if (isActivePost && isOverPost && active.id !== over.id) {
       setGeneratedThread((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
@@ -698,17 +755,28 @@ export default function HomePage() {
     if (fabricCanvasRef.current) {
       const url = fabricCanvasRef.current.toDataURL({ format: "png", multiplier: 1 });
       const json = fabricCanvasRef.current.toJSON();
-      const label = magnifyPageIdx !== null ? `Page ${magnifyPageIdx + 1} (Marked)` : `Marked Image`;
+      
+      let sourcePageNumber : number | null = null;
+      if(editingMarkedUpId){
+        sourcePageNumber = markedUpImages.find(img => img.id === editingMarkedUpId)?.pageNumber ?? null;
+      } else if (magnifyPageIdx !== null) {
+        sourcePageNumber = magnifyPageIdx + 1;
+      }
+      if (sourcePageNumber === null) {
+        toast.error("Could not determine source page number.");
+        return;
+      }
+
       if (editingMarkedUpId) {
-        setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, url, label, json } : m));
+        setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, pageNumber: sourcePageNumber as number, url, json } : m));
         setEditingMarkedUpId(null);
       } else {
-        setMarkedUpImages(prev => [...prev, { id: uuidv4(), url, label, json }]);
+        setMarkedUpImages(prev => [...prev, { id: uuidv4(), pageNumber: sourcePageNumber as number, url, json }]);
       }
       // Download
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${label.replace(/\s+/g, '_')}.png`;
+      a.download = `Page_${sourcePageNumber}_Edited.png`;
       a.click();
     }
   };
@@ -780,254 +848,280 @@ export default function HomePage() {
     if (fabricCanvasRef.current) {
       const url = fabricCanvasRef.current.toDataURL({ format: "png", multiplier: 1 });
       const json = fabricCanvasRef.current.toJSON();
-      const label = magnifyPageIdx !== null ? `Page ${magnifyPageIdx + 1} (Marked)` : `Marked Image`;
+
+      let sourcePageNumber : number | null = null;
+      if(editingMarkedUpId){
+        sourcePageNumber = markedUpImages.find(img => img.id === editingMarkedUpId)?.pageNumber ?? null;
+      } else if (magnifyPageIdx !== null) {
+        sourcePageNumber = magnifyPageIdx + 1;
+      }
+       if (sourcePageNumber === null) {
+        toast.error("Could not determine source page number.");
+        return;
+      }
+
       if (editingMarkedUpId) {
-        setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, url, label, json } : m));
+        setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, pageNumber: sourcePageNumber as number, url, json } : m));
         setEditingMarkedUpId(null);
       } else {
-        setMarkedUpImages(prev => [...prev, { id: uuidv4(), url, label, json }]);
+        setMarkedUpImages(prev => [...prev, { id: uuidv4(), pageNumber: sourcePageNumber as number, url, json }]);
       }
     }
   };
 
   return (
-    <main className="min-h-screen bg-legal-50 p-4 sm:p-8">
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Controls */}
-        <div className="card h-fit sticky top-8 col-span-1">
-          <h1 className="text-2xl font-bold mb-4 text-legal-800">Threadifier</h1>
-          <div
-            {...getRootProps()}
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-              isDragActive ? "border-primary-500 bg-primary-50" : "border-legal-300 hover:border-primary-400"
-            }`}
-          >
-            <input {...getInputProps()} />
-            {pdfFile ? (
-              <span className="text-legal-700 font-medium">{pdfFile.name}</span>
-            ) : (
-              <span className="text-legal-500">Drag & drop a PDF, or click to select</span>
-            )}
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4 mt-4">
-            <button
-              className="btn-secondary w-full"
-              disabled={!pdfFile || isExtracting}
-              onClick={() => pdfFile && extractTextFromPDF(pdfFile)}
+    <DndContext 
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <main className="min-h-screen bg-legal-50 p-4 sm:p-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column: Controls */}
+          <div className="card h-fit sticky top-8 col-span-1">
+            <h1 className="text-2xl font-bold mb-4 text-legal-800">Threadifier</h1>
+            <div
+              {...getRootProps()}
+              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                isDragActive ? "border-primary-500 bg-primary-50" : "border-legal-300 hover:border-primary-400"
+              }`}
             >
-              {isExtracting ? <Loader2 className="animate-spin mx-auto" /> : "1. Extract Text"}
-            </button>
-            <button
-              className="btn-primary w-full"
-              disabled={!extractedText || isAnalyzing}
-              onClick={handleAnalyze}
-            >
-              {isAnalyzing ? <Loader2 className="animate-spin mx-auto" /> : "2. Generate Thread"}
-            </button>
-          </div>
+              <input {...getInputProps()} />
+              {pdfFile ? (
+                <span className="text-legal-700 font-medium">{pdfFile.name}</span>
+              ) : (
+                <span className="text-legal-500">Drag & drop a PDF, or click to select</span>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 mt-4">
+              <button
+                className="btn-secondary w-full"
+                disabled={!pdfFile || isExtracting}
+                onClick={() => pdfFile && extractTextFromPDF(pdfFile)}
+              >
+                {isExtracting ? <Loader2 className="animate-spin mx-auto" /> : "1. Extract Text"}
+              </button>
+              <button
+                className="btn-primary w-full"
+                disabled={!extractedText || isAnalyzing}
+                onClick={handleAnalyze}
+              >
+                {isAnalyzing ? <Loader2 className="animate-spin mx-auto" /> : "2. Generate Thread"}
+              </button>
+            </div>
 
-          {/* Prompt Customization Panel */}
-          {extractedText && (
-            <div className="mt-8 border-t pt-6">
-              <h3 className="text-lg font-semibold mb-4 text-legal-700">Customize AI Thread Generation</h3>
-              <div className="space-y-4">
-                {/* Custom Instructions (now primary) */}
-                <div>
-                  <label className="block text-legal-600 font-medium mb-1">Custom Instructions (style, tone, perspective, etc.):</label>
-                  <textarea
-                    className="input-field h-32"
-                    placeholder="e.g. Write from a conservative perspective, use plain English, focus on the holding, etc."
-                    value={customInstructions}
-                    onChange={e => setCustomInstructions(e.target.value)}
-                  />
-                </div>
-                {/* Character Limit Slider */}
-                <div>
-                  <label className="block text-legal-600 font-medium mb-1">Character Limit per Post: <span className="font-bold text-legal-800">{charLimit}</span></label>
-                  <input
-                    type="range"
-                    min={100}
-                    max={500}
-                    step={10}
-                    value={charLimit}
-                    onChange={e => setCharLimit(Number(e.target.value))}
-                    className="w-full accent-primary-600"
-                  />
-                </div>
-                {/* Number of Posts Slider */}
-                <div>
-                  <label className="block text-legal-600 font-medium mb-1">Number of Posts: <span className="font-bold text-legal-800">{numPosts}</span></label>
-                  <input
-                    type="range"
-                    min={1}
-                    max={20}
-                    step={1}
-                    value={numPosts}
-                    onChange={e => setNumPosts(Number(e.target.value))}
-                    className="w-full accent-primary-600"
-                  />
-                </div>
-                {/* Emojis Toggle */}
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={useEmojis}
-                    onChange={setUseEmojis}
-                    className={`${useEmojis ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
-                  >
-                    <span className="sr-only">Use Emojis</span>
-                    <span
-                      className={`${useEmojis ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+            {/* Prompt Customization Panel */}
+            {extractedText && (
+              <div className="mt-8 border-t pt-6">
+                <h3 className="text-lg font-semibold mb-4 text-legal-700">Customize AI Thread Generation</h3>
+                <div className="space-y-4">
+                  {/* Custom Instructions (now primary) */}
+                  <div>
+                    <label className="block text-legal-600 font-medium mb-1">Custom Instructions (style, tone, perspective, etc.):</label>
+                    <textarea
+                      className="input-field h-32"
+                      placeholder="e.g. Write from a conservative perspective, use plain English, focus on the holding, etc."
+                      value={customInstructions}
+                      onChange={e => setCustomInstructions(e.target.value)}
                     />
-                  </Switch>
-                  <span className="text-legal-700">Use Emojis</span>
-                </div>
-                {/* Number Sequencing Toggle */}
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={useNumbering}
-                    onChange={setUseNumbering}
-                    className={`${useNumbering ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
-                  >
-                    <span className="sr-only">Number Sequencing</span>
-                    <span
-                      className={`${useNumbering ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                  </div>
+                  {/* Character Limit Slider */}
+                  <div>
+                    <label className="block text-legal-600 font-medium mb-1">Character Limit per Post: <span className="font-bold text-legal-800">{charLimit}</span></label>
+                    <input
+                      type="range"
+                      min={100}
+                      max={500}
+                      step={10}
+                      value={charLimit}
+                      onChange={e => setCharLimit(Number(e.target.value))}
+                      className="w-full accent-primary-600"
                     />
-                  </Switch>
-                  <span className="text-legal-700">Number Sequencing (1/3, 2/3, ...)</span>
-                </div>
-                {/* Hashtags Toggle */}
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={useHashtags}
-                    onChange={setUseHashtags}
-                    className={`${useHashtags ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
-                  >
-                    <span className="sr-only">Include Hashtags</span>
-                    <span
-                      className={`${useHashtags ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                  </div>
+                  {/* Number of Posts Slider */}
+                  <div>
+                    <label className="block text-legal-600 font-medium mb-1">Number of Posts: <span className="font-bold text-legal-800">{numPosts}</span></label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={20}
+                      step={1}
+                      value={numPosts}
+                      onChange={e => setNumPosts(Number(e.target.value))}
+                      className="w-full accent-primary-600"
                     />
-                  </Switch>
-                  <span className="text-legal-700">Include Hashtags</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        {/* Middle Column: PDF Page Thumbnails */}
-        <div className="col-span-1">
-          <div className="card">
-            <h2 className="text-lg font-semibold mb-4 text-legal-700">PDF Pages</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
-              {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
-              {pageImages.map((img, idx) => (
-                <button
-                  key={idx}
-                  className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500"
-                  onClick={() => setMagnifyPageIdx(idx)}
-                  tabIndex={0}
-                  aria-label={`Magnify Page ${idx + 1}`}
-                >
-                  <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" />
-                  <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
-                </button>
-              ))}
-            </div>
-            {/* Marked-up Images Gallery */}
-            {markedUpImages.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-sm font-semibold mb-2 text-legal-700">Marked-up Images</h3>
-                <div className="flex flex-wrap gap-4">
-                  {markedUpImages.map((img) => (
-                    <div key={img.id} className="relative group border border-legal-200 rounded overflow-hidden shadow-lg" style={{ width: 120 }}>
-                      <img src={img.url} alt={img.label} className="h-28 w-full object-contain bg-white" />
-                      <div className="text-xs text-center text-legal-500 py-1 truncate">{img.label}</div>
-                      <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button title="Edit" className="bg-blue-500 text-white rounded-full p-1 shadow" onClick={() => handleEditMarkedUpImage(img.id)}>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2l-6 6m-2 2h6" /></svg>
-                        </button>
-                        <button title="Download" className="bg-green-500 text-white rounded-full p-1 shadow" onClick={() => { const a = document.createElement('a'); a.href = img.url; a.download = `${img.label.replace(/\s+/g, '_')}.png`; a.click(); }}>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
-                        </button>
-                        <button title="Delete" className="bg-red-500 text-white rounded-full p-1 shadow" onClick={() => handleDeleteMarkedUpImage(img.id)}>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                  </div>
+                  {/* Emojis Toggle */}
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      checked={useEmojis}
+                      onChange={setUseEmojis}
+                      className={`${useEmojis ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                    >
+                      <span className="sr-only">Use Emojis</span>
+                      <span
+                        className={`${useEmojis ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                      />
+                    </Switch>
+                    <span className="text-legal-700">Use Emojis</span>
+                  </div>
+                  {/* Number Sequencing Toggle */}
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      checked={useNumbering}
+                      onChange={setUseNumbering}
+                      className={`${useNumbering ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                    >
+                      <span className="sr-only">Number Sequencing</span>
+                      <span
+                        className={`${useNumbering ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                      />
+                    </Switch>
+                    <span className="text-legal-700">Number Sequencing (1/3, 2/3, ...)</span>
+                  </div>
+                  {/* Hashtags Toggle */}
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      checked={useHashtags}
+                      onChange={setUseHashtags}
+                      className={`${useHashtags ? 'bg-primary-600' : 'bg-legal-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                    >
+                      <span className="sr-only">Include Hashtags</span>
+                      <span
+                        className={`${useHashtags ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                      />
+                    </Switch>
+                    <span className="text-legal-700">Include Hashtags</span>
+                  </div>
                 </div>
               </div>
             )}
           </div>
-          {/* Magnifier Modal with Annotation */}
-          <Dialog open={magnifyPageIdx !== null || editingMarkedUpId !== null} onClose={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }} className="fixed z-50 inset-0 flex items-center justify-center">
-            <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-            <div className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {/* Toolbar at the top */}
-              <div className={`w-full flex items-center gap-2 bg-white/95 border-b border-legal-200 px-4 py-2 sticky top-0 z-20 ${toolbarCollapsed ? 'h-8 min-h-8' : ''}`} style={{ minHeight: toolbarCollapsed ? 32 : 56, transition: 'min-height 0.2s' }}>
-                <button onClick={() => setToolbarCollapsed(c => !c)} className="text-legal-500 hover:text-primary-600 focus:outline-none mr-2" title={toolbarCollapsed ? 'Show Tools' : 'Hide Tools'}>
-                  {toolbarCollapsed ? (
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 8v8m0 0l-4-4m4 4l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  ) : (
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 16V8m0 0l-4 4m4-4l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  )}
-                </button>
-                {!toolbarCollapsed && <>
-                  <span className="font-semibold text-legal-700 select-none">✥ Tools</span>
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <button className="btn-secondary px-2" onClick={handleZoomOut} title="Zoom Out">-</button>
-                    <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
-                    <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
-                    <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
-                    <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
+          {/* Middle Column: PDF Page Thumbnails & Extracted Text */}
+          <div className="col-span-1 space-y-8">
+            <div className="card">
+              <h2 className="text-lg font-semibold mb-4 text-legal-700">PDF Pages</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
+                {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
+                {pageImages.map((img, idx) => (
+                  <DraggableImage key={`pdf-dnd-${idx}`} id={`image-pdf-${idx}`}>
+                    <button
+                      key={idx}
+                      className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500"
+                      onClick={() => setMagnifyPageIdx(idx)}
+                      tabIndex={0}
+                      aria-label={`Magnify Page ${idx + 1}`}
+                    >
+                      <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" />
+                      <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
+                    </button>
+                  </DraggableImage>
+                ))}
+              </div>
+              {/* Marked-up Images Gallery */}
+              {markedUpImages.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold mb-2 text-legal-700">Marked-up Images</h3>
+                  <div className="flex flex-wrap gap-4">
+                    {markedUpImages.map((img) => (
+                       <DraggableImage key={`marked-dnd-${img.id}`} id={`image-marked-${img.id}`}>
+                        <div key={img.id} className="relative group border border-legal-200 rounded overflow-hidden shadow-lg" style={{ width: 120 }}>
+                          <img src={img.url} alt={`Page ${img.pageNumber} Edited`} className="h-28 w-full object-contain bg-white" />
+                          <div className="text-xs text-center text-legal-500 py-1 truncate">Page {img.pageNumber} Edited</div>
+                          <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button title="Edit" className="bg-blue-500 text-white rounded-full p-1 shadow" onClick={() => handleEditMarkedUpImage(img.id)}>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2l-6 6m-2 2h6" /></svg>
+                            </button>
+                            <button title="Download" className="bg-green-500 text-white rounded-full p-1 shadow" onClick={() => { const a = document.createElement('a'); a.href = img.url; a.download = `Page_${img.pageNumber}_Edited.png`; a.click(); }}>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                            </button>
+                            <button title="Delete" className="bg-red-500 text-white rounded-full p-1 shadow" onClick={() => handleDeleteMarkedUpImage(img.id)}>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                        </div>
+                      </DraggableImage>
+                    ))}
                   </div>
-                  <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (Hand Tool, disables drawing)">🖐️</button>
-                  <button className={`btn-secondary px-2 ${cropMode ? 'bg-blue-200' : ''}`} onClick={() => setCropMode(c => !c)} title="Crop Tool">
-                    <Crop className="w-4 h-4" />
-                  </button>
-                  <label className="text-sm text-legal-700">Pen Color:
-                    <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
-                  </label>
-                  <label className="text-sm text-legal-700">Pen Size:
-                    <input type="range" min={2} max={16} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="ml-2" />
-                    <span className="ml-2">{penSize}px</span>
-                  </label>
-                  <button className={`btn-secondary py-1 px-3 text-sm ${isErasing ? 'bg-red-200' : ''}`} onClick={() => setIsErasing(e => !e)}>{isErasing ? 'Eraser (On)' : 'Eraser'}</button>
-                  <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
-                  <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
-                  <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
-                  {cropRect && (
-                    <button className="btn-primary py-1 px-3 text-sm animate-pulse" onClick={handleApplyCrop}>Apply Crop</button>
-                  )}
-                </>}
-              </div>
-              {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
-              <div ref={modalContentRef} style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-                <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
-              </div>
-              {(magnifyImage || editingMarkedUpId) && (
-                <div className="flex gap-2 items-center mt-2">
-                  {magnifyPageIdx !== null && (
-                    <>
-                      <button className="btn-secondary" disabled={magnifyPageIdx <= 0} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx > 0 ? idx - 1 : idx))}>Prev</button>
-                      <span className="text-xs text-legal-700">Page {magnifyPageIdx + 1}</span>
-                      <button className="btn-secondary" disabled={magnifyPageIdx >= pageImages.length - 1} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx < pageImages.length - 1 ? idx + 1 : idx))}>Next</button>
-                    </>
-                  )}
-                  <button className="btn-secondary" onClick={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }}>Close</button>
                 </div>
               )}
             </div>
-          </Dialog>
-        </div>
-        {/* Right Column: Thread Editor */}
-        <div className="col-span-1 lg:col-span-1 space-y-8">
-          {/* Generated Thread Editor */}
-          {generatedThread.length > 0 && (
-            <DndContext 
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
+            {/* Extracted Text */}
+            {extractedText && (
+              <div className="card">
+                <h2 className="text-xl font-semibold mb-2 text-legal-700">Extracted Document Text</h2>
+                <textarea
+                  className="input-field h-96 text-sm bg-legal-50"
+                  value={extractedText}
+                  readOnly
+                />
+              </div>
+            )}
+            {/* Magnifier Modal with Annotation */}
+            <Dialog open={magnifyPageIdx !== null || editingMarkedUpId !== null} onClose={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }} className="fixed z-50 inset-0 flex items-center justify-center">
+              <Dialog.Overlay className="fixed inset-0 bg-black/40" />
+              <div className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                {/* Toolbar at the top */}
+                <div className={`w-full flex items-center gap-2 bg-white/95 border-b border-legal-200 px-4 py-2 sticky top-0 z-20 ${toolbarCollapsed ? 'h-8 min-h-8' : ''}`} style={{ minHeight: toolbarCollapsed ? 32 : 56, transition: 'min-height 0.2s' }}>
+                  <button onClick={() => setToolbarCollapsed(c => !c)} className="text-legal-500 hover:text-primary-600 focus:outline-none mr-2" title={toolbarCollapsed ? 'Show Tools' : 'Hide Tools'}>
+                    {toolbarCollapsed ? (
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 8v8m0 0l-4-4m4 4l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    ) : (
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 16V8m0 0l-4 4m4-4l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    )}
+                  </button>
+                  {!toolbarCollapsed && <>
+                    <span className="font-semibold text-legal-700 select-none">✥ Tools</span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <button className="btn-secondary px-2" onClick={handleZoomOut} title="Zoom Out">-</button>
+                      <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
+                      <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
+                      <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
+                      <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
+                    </div>
+                    <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (Hand Tool, disables drawing)">🖐️</button>
+                    <button className={`btn-secondary px-2 ${cropMode ? 'bg-blue-200' : ''}`} onClick={() => setCropMode(c => !c)} title="Crop Tool">
+                      <Crop className="w-4 h-4" />
+                    </button>
+                    <label className="text-sm text-legal-700">Pen Color:
+                      <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
+                    </label>
+                    <label className="text-sm text-legal-700">Pen Size:
+                      <input type="range" min={2} max={16} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="ml-2" />
+                      <span className="ml-2">{penSize}px</span>
+                    </label>
+                    <button className={`btn-secondary py-1 px-3 text-sm ${isErasing ? 'bg-red-200' : ''}`} onClick={() => setIsErasing(e => !e)}>{isErasing ? 'Eraser (On)' : 'Eraser'}</button>
+                    <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
+                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
+                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
+                    {cropRect && (
+                      <button className="btn-primary py-1 px-3 text-sm animate-pulse" onClick={handleApplyCrop}>Apply Crop</button>
+                    )}
+                  </>}
+                </div>
+                {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
+                <div ref={modalContentRef} style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+                  <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
+                </div>
+                {(magnifyImage || editingMarkedUpId) && (
+                  <div className="flex gap-2 items-center mt-2">
+                    {magnifyPageIdx !== null && (
+                      <>
+                        <button className="btn-secondary" disabled={magnifyPageIdx <= 0} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx > 0 ? idx - 1 : idx))}>Prev</button>
+                        <span className="text-xs text-legal-700">Page {magnifyPageIdx + 1}</span>
+                        <button className="btn-secondary" disabled={magnifyPageIdx >= pageImages.length - 1} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx < pageImages.length - 1 ? idx + 1 : idx))}>Next</button>
+                      </>
+                    )}
+                    <button className="btn-secondary" onClick={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }}>Close</button>
+                  </div>
+                )}
+              </div>
+            </Dialog>
+          </div>
+          {/* Right Column: Thread Editor */}
+          <div className="col-span-1 lg:col-span-1 space-y-8">
+            {/* Generated Thread Editor */}
+            {generatedThread.length > 0 && (
               <SortableContext 
                 items={generatedThread}
                 strategy={verticalListSortingStrategy}
@@ -1066,7 +1160,7 @@ export default function HomePage() {
                               }
                               if (mapping?.type === 'marked' && typeof mapping.value === 'string') {
                                 const img = markedUpImages.find(m => m.id === mapping.value);
-                                if (img) return <img src={img.url} alt={img.label} className="h-16 w-auto border border-legal-200 rounded shadow-sm" />;
+                                if (img) return <img src={img.url} alt={`Page ${img.pageNumber} Edited`} className="h-16 w-auto border border-legal-200 rounded shadow-sm" />;
                               }
                               return null;
                             })()
@@ -1094,7 +1188,7 @@ export default function HomePage() {
                                   className="border border-legal-200 rounded focus:ring-2 focus:ring-primary-500"
                                   onClick={() => handleSelectPage(post.id, 'marked', img.id)}
                                 >
-                                  <img src={img.url} alt={img.label} />
+                                  <img src={img.url} alt={`Page ${img.pageNumber} Edited`} />
                                 </button>
                               ))}
                             </div>
@@ -1108,22 +1202,10 @@ export default function HomePage() {
                   </button>
                 </div>
               </SortableContext>
-            </DndContext>
-          )}
-
-          {/* Extracted Text */}
-          {extractedText && (
-            <div className="card">
-              <h2 className="text-xl font-semibold mb-2 text-legal-700">Extracted Document Text</h2>
-              <textarea
-                className="input-field h-96 text-sm bg-legal-50"
-                value={extractedText}
-                readOnly
-              />
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </DndContext>
   );
 }
