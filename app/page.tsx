@@ -54,22 +54,6 @@ interface MarkedUpImage {
   json: any;
 }
 
-// --- Draggable Image Item ---
-function DraggableImage({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
-  const {attributes, listeners, setNodeRef} = useDraggable({
-    id: id,
-    data: {
-      type: 'image',
-    }
-  });
-
-  return (
-    <div ref={setNodeRef} {...listeners} {...attributes} className={className}>
-      {children}
-    </div>
-  );
-}
-
 // --- Droppable Zone for Images ---
 function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap, handleClearImage }: { id: string, post: ThreadPost, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any, handleClearImage: (postId: number) => void }) {
   const {isOver, setNodeRef} = useDroppable({ id });
@@ -212,6 +196,68 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
         postPageMap={props.postPageMap}
         handleClearImage={props.handleClearImage}
       />
+    </div>
+  );
+}
+
+// --- Draggable PDF Page Thumbnail ---
+function DraggablePDFPage({ idx, img, onMagnify }: { idx: number, img: string, onMagnify: (idx: number) => void }) {
+  const {attributes, listeners, setNodeRef} = useDraggable({
+    id: `image:pdf:${idx}`,
+    data: { type: 'image' }
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      role="button"
+      tabIndex={0}
+      className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-grab"
+      onClick={() => onMagnify(idx)}
+      onKeyDown={(e) => e.key === 'Enter' && onMagnify(idx)}
+      aria-label={`Magnify Page ${idx + 1}`}
+    >
+      <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" draggable="false" />
+      <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
+    </div>
+  );
+}
+
+// --- Draggable Marked-Up Image Thumbnail ---
+function DraggableMarkedUpImage({ img, onEdit, onDelete }: { img: MarkedUpImage, onEdit: (id: string) => void, onDelete: (id: string) => void }) {
+  const {attributes, listeners, setNodeRef} = useDraggable({
+    id: `image:marked:${img.id}`,
+    data: { type: 'image' }
+  });
+
+  return (
+    <div className="relative group">
+      <div
+        ref={setNodeRef}
+        {...listeners}
+        {...attributes}
+        role="button"
+        tabIndex={0}
+        className="w-full border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-grab"
+        onClick={() => onEdit(img.id)}
+        onKeyDown={(e) => e.key === 'Enter' && onEdit(img.id)}
+        aria-label={`Edit marked-up page ${img.pageNumber}`}
+      >
+        <img src={img.url} alt={`Marked-up page ${img.pageNumber}`} className="w-full h-auto" draggable="false" />
+        <div className="text-xs text-center text-legal-500 py-1">Page {img.pageNumber} Edited</div>
+      </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent the div's onClick from firing
+          onDelete(img.id);
+        }}
+        className="absolute top-1 right-1 bg-white/70 backdrop-blur-sm rounded-full p-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+        aria-label="Delete marked-up image"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
     </div>
   );
 }
@@ -1163,19 +1209,7 @@ export default function HomePage() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
                 {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
                 {pageImages.map((img, idx) => (
-                  <DraggableImage key={`pdf-dnd-${idx}`} id={`image:pdf:${idx}`}>
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-pointer"
-                      onClick={() => setMagnifyPageIdx(idx)}
-                      onKeyDown={(e) => e.key === 'Enter' && setMagnifyPageIdx(idx)}
-                      aria-label={`Magnify Page ${idx + 1}`}
-                    >
-                      <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" draggable="false" />
-                      <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
-                    </div>
-                  </DraggableImage>
+                  <DraggablePDFPage key={`pdf-dnd-${idx}`} idx={idx} img={img} onMagnify={setMagnifyPageIdx} />
                 ))}
               </div>
               {/* Marked-up Images Gallery */}
@@ -1184,28 +1218,7 @@ export default function HomePage() {
                   <h2 className="text-lg font-semibold mb-4 text-legal-700">Marked-up Images</h2>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
                     {markedUpImages.map((img) => (
-                      <DraggableImage key={`marked-dnd-${img.id}`} id={`image:marked:${img.id}`}>
-                        <div className="relative group">
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            className="w-full border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-pointer"
-                            onClick={() => handleEditMarkedUpImage(img.id)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleEditMarkedUpImage(img.id)}
-                            aria-label={`Edit marked-up page ${img.pageNumber}`}
-                          >
-                            <img src={img.url} alt={`Marked-up page ${img.pageNumber}`} className="w-full h-auto" draggable="false" />
-                            <div className="text-xs text-center text-legal-500 py-1">Page {img.pageNumber} Edited</div>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteMarkedUpImage(img.id)}
-                            className="absolute top-1 right-1 bg-white/70 backdrop-blur-sm rounded-full p-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                            aria-label="Delete marked-up image"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </DraggableImage>
+                      <DraggableMarkedUpImage key={`marked-dnd-${img.id}`} img={img} onEdit={handleEditMarkedUpImage} onDelete={handleDeleteMarkedUpImage} />
                     ))}
                   </div>
                 </div>
