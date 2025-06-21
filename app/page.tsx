@@ -30,6 +30,9 @@ import { Switch } from '@headlessui/react';
 import { Dialog } from '@headlessui/react';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from "./context/AuthContext";
+import { signOut } from './lib/auth';
+import Link from 'next/link';
 
 // Use a stable CDN for the PDF.js worker to ensure compatibility with Vercel's build environment.
 // We also point to the '.mjs' version for modern module compatibility.
@@ -202,6 +205,24 @@ function SortablePostItem({ post, index, generatedThread, startEditing, deletePo
             )}
         </div>
         <p className="text-legal-400 text-sm mt-auto pt-2">{index + 1}/{generatedThread.length}</p>
+      </div>
+    </div>
+  );
+}
+
+const AuthDisplay = () => {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Link href="/login" className="btn-primary">Login</Link>;
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <img src={user.photoURL || ''} alt="User photo" className="h-10 w-10 rounded-full" />
+      <div>
+        <p className="font-semibold">{user.displayName}</p>
+        <button onClick={() => signOut()} className="text-sm text-red-500 hover:underline">Logout</button>
       </div>
     </div>
   );
@@ -979,16 +1000,18 @@ export default function HomePage() {
   };
 
   return (
-    <DndContext 
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
+    <>
+      <header className="bg-white p-4 border-b">
+        <div className="max-w-screen-xl mx-auto flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-legal-800">Threadifier</h1>
+          <AuthDisplay />
+        </div>
+      </header>
       <main className="min-h-screen bg-legal-50 p-4 sm:p-8">
         <div className="max-w-screen-xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Left Column: Controls */}
           <div className="card h-fit sticky top-8 col-span-1">
-            <h1 className="text-2xl font-bold mb-4 text-legal-800">Threadifier</h1>
+            <h1 className="text-2xl font-bold mb-4 text-legal-800">Threadifier Controls</h1>
             <div
               {...getRootProps()}
               className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
@@ -1272,6 +1295,6 @@ export default function HomePage() {
           </div>
         </div>
       </main>
-    </DndContext>
+    </>
   );
 }
