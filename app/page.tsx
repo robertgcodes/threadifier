@@ -221,7 +221,7 @@ const AuthDisplay = () => {
   );
 }
 
-export default function HomePage() {
+function Page() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState<string>("");
   const [isExtracting, setIsExtracting] = useState(false);
@@ -851,22 +851,13 @@ export default function HomePage() {
   };
 
   // Save/download marked-up image (now also saves fabric JSON)
-  const handleSaveMarkedUpImage = (url: string, json: any) => {
-    let sourcePageNumber : number | null = null;
-    if(editingMarkedUpId){
-      sourcePageNumber = markedUpImages.find(img => img.id === editingMarkedUpId)?.pageNumber ?? null;
-    } else if (magnifyPageIdx !== null) {
-      sourcePageNumber = magnifyPageIdx + 1;
-    }
-     if (sourcePageNumber === null) {
-      toast.error("Could not determine source page number.");
-      return;
-    }
-
+  const handleSaveMarkedUpImage = (imageData: { id: string; url: string; pageNumber: number; json: any; }) => {
+    const { url, json, pageNumber } = imageData;
+    
     if (editingMarkedUpId) {
-      setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, pageNumber: sourcePageNumber as number, url, json } : m));
+      setMarkedUpImages(prev => prev.map(m => m.id === editingMarkedUpId ? { ...m, pageNumber, url, json } : m));
     } else {
-      setMarkedUpImages(prev => [...prev, { id: uuidv4(), pageNumber: sourcePageNumber as number, url, json }]);
+      setMarkedUpImages(prev => [...prev, { id: uuidv4(), pageNumber, url, json }]);
     }
   };
 
@@ -960,10 +951,13 @@ export default function HomePage() {
       <AnnotationModal
         isOpen={magnifyPageIdx !== null}
         onClose={closeMagnify}
-        pageImages={pageImages}
-        initialPage={magnifyPageIdx}
+        image={magnifyPageIdx !== null ? {
+          url: pageImages[magnifyPageIdx],
+          pageNumber: magnifyPageIdx + 1,
+          id: editingMarkedUpId || undefined,
+          json: editingMarkedUpId ? markedUpImages.find(m => m.id === editingMarkedUpId)?.json : undefined
+        } : null}
         onSave={handleSaveMarkedUpImage}
-        editingMarkedUpImage={editingMarkedUpId ? markedUpImages.find(m => m.id === editingMarkedUpId) : undefined}
       />
       <header className="bg-white p-4 border-b">
         <div className="max-w-screen-xl mx-auto flex justify-between items-center">
@@ -1149,6 +1143,7 @@ export default function HomePage() {
                 </div>
               )}
             </div>
+
             {/* Extracted Text */}
             {extractedText && (
               <div className="card">
