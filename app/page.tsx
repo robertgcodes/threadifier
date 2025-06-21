@@ -136,7 +136,13 @@ export default function HomePage() {
   const [useHashtags, setUseHashtags] = useState(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      // Require the mouse to move by 10 pixels before activating a drag.
+      // This allows for click events to be processed correctly.
+      activationConstraint: {
+        distance: 10,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
