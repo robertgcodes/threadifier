@@ -96,8 +96,10 @@ function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap }: { 
   );
 }
 
-// --- Sortable Post Item Component ---
-function SortablePostItem({ post, index, generatedThread, startEditing, deletePost, editingPostId, editingText, setEditingText, saveEdit, cancelEdit, handleCopy }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void }) {
+// --- Sortable Thread Row ---
+// This component represents a full row in the editor, containing the text and the image drop zone.
+// The useSortable hook is applied here to make the entire row draggable.
+function SortableThreadRow({ post, index, generatedThread, ...props }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any }) {
   const {
     attributes,
     listeners,
@@ -112,42 +114,72 @@ function SortablePostItem({ post, index, generatedThread, startEditing, deletePo
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="flex gap-4 group items-start">
+    <div ref={setNodeRef} style={style} className="grid grid-cols-2 gap-4 items-start">
+      {/* Post Item Column */}
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-legal-200 h-full">
+        <SortablePostItem 
+          post={post} 
+          index={index} 
+          generatedThread={generatedThread}
+          dragHandleListeners={listeners}
+          dragHandleAttributes={attributes}
+          {...props} 
+        />
+      </div>
+      {/* Image Drop Zone Column */}
+      <ImageDropZone
+        id={`drop-zone:${post.id}`}
+        post={post}
+        pageImages={props.pageImages}
+        markedUpImages={props.markedUpImages}
+        postPageMap={props.postPageMap}
+      />
+    </div>
+  );
+}
+
+// --- Sortable Post Item Component ---
+function SortablePostItem({ post, index, generatedThread, startEditing, deletePost, editingPostId, editingText, setEditingText, saveEdit, cancelEdit, handleCopy, dragHandleListeners, dragHandleAttributes }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void, dragHandleListeners: any, dragHandleAttributes: any }) {
+  
+  return (
+    <div className="flex gap-2 items-start h-full">
       {/* Drag Handle */}
-      <div {...attributes} {...listeners} className="flex-shrink-0 touch-none cursor-grab text-legal-400 hover:text-legal-600 pt-3">
+      <div {...dragHandleAttributes} {...dragHandleListeners} className="flex-shrink-0 touch-none cursor-grab text-legal-400 hover:text-legal-600 pt-3">
         <GripVertical className="h-5 w-5" />
       </div>
-      <div className="flex-shrink-0">
-        <div className="h-10 w-10 rounded-full bg-legal-800 flex items-center justify-center">
-          <Twitter className="h-5 w-5 text-white" />
+      <div className="flex-grow flex flex-col">
+        <div className="flex items-center mb-2">
+            <div className="h-10 w-10 rounded-full bg-legal-800 flex items-center justify-center mr-3 flex-shrink-0">
+              <Twitter className="h-5 w-5 text-white" />
+            </div>
+            <p className="font-semibold text-legal-800">Legal Eagle Bot <span className="text-legal-500 font-normal">· @threadifier</span></p>
         </div>
-      </div>
-      <div className="flex-grow">
-        <p className="font-semibold text-legal-800">Legal Eagle Bot <span className="text-legal-500 font-normal">· @threadifier</span></p>
-        {editingPostId === post.id ? (
-          <>
-            <textarea
-              className="input-field w-full h-36 text-base"
-              value={editingText}
-              onChange={(e) => setEditingText(e.target.value)}
-              autoFocus
-            />
-            <div className="flex gap-2 mt-2">
-              <button onClick={saveEdit} className="btn-primary py-1 px-3 text-sm flex items-center"><Save className="w-4 h-4 mr-1"/>Save</button>
-              <button onClick={cancelEdit} className="btn-secondary py-1 px-3 text-sm flex items-center"><XCircle className="w-4 h-4 mr-1"/>Cancel</button>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="text-legal-600 whitespace-pre-wrap">{post.text}</p>
-            <div className="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-               <button onClick={() => handleCopy(post.text)} className="text-legal-500 hover:text-primary-600 text-sm flex items-center"><CopyIcon className="w-4 h-4 mr-1"/>Copy</button>
-               <button onClick={() => startEditing(post)} className="text-legal-500 hover:text-primary-600 text-sm flex items-center"><Edit className="w-4 h-4 mr-1"/>Edit</button>
-               <button onClick={() => deletePost(post.id)} className="text-legal-500 hover:text-red-600 text-sm flex items-center"><Trash2 className="w-4 h-4 mr-1"/>Delete</button>
-            </div>
-          </>
-        )}
-        <p className="text-legal-400 text-sm mt-1">{index + 1}/{generatedThread.length}</p>
+        <div className="flex-grow">
+            {editingPostId === post.id ? (
+              <>
+                <textarea
+                  className="input-field w-full h-36 text-base"
+                  value={editingText}
+                  onChange={(e) => setEditingText(e.target.value)}
+                  autoFocus
+                />
+                <div className="flex gap-2 mt-2">
+                  <button onClick={saveEdit} className="btn-primary py-1 px-3 text-sm flex items-center"><Save className="w-4 h-4 mr-1"/>Save</button>
+                  <button onClick={cancelEdit} className="btn-secondary py-1 px-3 text-sm flex items-center"><XCircle className="w-4 h-4 mr-1"/>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-legal-600 whitespace-pre-wrap">{post.text}</p>
+                <div className="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => handleCopy(post.text)} className="text-legal-500 hover:text-primary-600 text-sm flex items-center"><CopyIcon className="w-4 h-4 mr-1"/>Copy</button>
+                  <button onClick={() => startEditing(post)} className="text-legal-500 hover:text-primary-600 text-sm flex items-center"><Edit className="w-4 h-4 mr-1"/>Edit</button>
+                  <button onClick={() => deletePost(post.id)} className="text-legal-500 hover:text-red-600 text-sm flex items-center"><Trash2 className="w-4 h-4 mr-1"/>Delete</button>
+                </div>
+              </>
+            )}
+        </div>
+        <p className="text-legal-400 text-sm mt-auto pt-2">{index + 1}/{generatedThread.length}</p>
       </div>
     </div>
   );
@@ -927,7 +959,7 @@ export default function HomePage() {
       onDragEnd={handleDragEnd}
     >
       <main className="min-h-screen bg-legal-50 p-4 sm:p-8">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="max-w-screen-xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Left Column: Controls */}
           <div className="card h-fit sticky top-8 col-span-1">
             <h1 className="text-2xl font-bold mb-4 text-legal-800">Threadifier</h1>
@@ -1048,180 +1080,47 @@ export default function HomePage() {
               </div>
             )}
           </div>
-          {/* Middle Column: PDF Page Thumbnails & Extracted Text */}
-          <div className="col-span-1 space-y-8">
-            <div className="card">
-              <h2 className="text-lg font-semibold mb-4 text-legal-700">PDF Pages</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
-                {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
-                {pageImages.map((img, idx) => (
-                  <DraggableImage key={`pdf-dnd-${idx}`} id={`image:pdf:${idx}`}>
-                    <button
-                      className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500"
-                      onClick={() => setMagnifyPageIdx(idx)}
-                      tabIndex={0}
-                      aria-label={`Magnify Page ${idx + 1}`}
-                    >
-                      <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" />
-                      <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
-                    </button>
-                  </DraggableImage>
+          {/* THREAD EDITOR & IMAGE LANE (Combined for synced scroll) */}
+          <div className="lg:col-span-2 space-y-4">
+            {generatedThread.length > 0 && (
+              <div className="sticky top-8 z-10 bg-legal-50/80 backdrop-blur-sm py-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <h2 className="text-xl font-semibold text-legal-700 px-4">Edit Your Thread</h2>
+                  <h2 className="text-xl font-semibold text-legal-700 px-4">Image Lane</h2>
+                </div>
+              </div>
+            )}
+            <SortableContext 
+              items={generatedThread}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {generatedThread.map((post, index) => (
+                  <SortableThreadRow
+                    key={post.id}
+                    post={post}
+                    index={index}
+                    generatedThread={generatedThread}
+                    startEditing={startEditing}
+                    deletePost={deletePost}
+                    editingPostId={editingPostId}
+                    editingText={editingText}
+                    setEditingText={setEditingText}
+                    saveEdit={saveEdit}
+                    cancelEdit={cancelEdit}
+                    handleCopy={handleCopy}
+                    pageImages={pageImages}
+                    markedUpImages={markedUpImages}
+                    postPageMap={postPageMap}
+                  />
                 ))}
               </div>
-              {/* Marked-up Images Gallery */}
-              {markedUpImages.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-semibold mb-2 text-legal-700">Marked-up Images</h3>
-                  <div className="flex flex-wrap gap-4">
-                    {markedUpImages.map((img) => (
-                       <DraggableImage key={`marked-dnd-${img.id}`} id={`image:marked:${img.id}`}>
-                        <div className="relative group border border-legal-200 rounded overflow-hidden shadow-lg" style={{ width: 120 }}>
-                          <button onClick={() => handleEditMarkedUpImage(img.id)} className="w-full h-full text-left">
-                            <img src={img.url} alt={`Page ${img.pageNumber} Edited`} className="h-28 w-full object-contain bg-white" />
-                            <div className="text-xs text-center text-legal-500 py-1 truncate">Page {img.pageNumber} Edited</div>
-                          </button>
-                          <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button title="Download" className="bg-green-500 text-white rounded-full p-1 shadow" onClick={() => { const a = document.createElement('a'); a.href = img.url; a.download = `Page_${img.pageNumber}_Edited.png`; a.click(); }}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
-                            </button>
-                            <button title="Delete" className="bg-red-500 text-white rounded-full p-1 shadow" onClick={() => handleDeleteMarkedUpImage(img.id)}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                          </div>
-                        </div>
-                      </DraggableImage>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            {/* Extracted Text */}
-            {extractedText && (
-              <div className="card">
-                <h2 className="text-xl font-semibold mb-2 text-legal-700">Extracted Document Text</h2>
-                <textarea
-                  className="input-field h-96 text-sm bg-legal-50"
-                  value={extractedText}
-                  readOnly
-                />
-              </div>
-            )}
-            {/* Magnifier Modal with Annotation */}
-            <Dialog open={magnifyPageIdx !== null || editingMarkedUpId !== null} onClose={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }} className="fixed z-50 inset-0 flex items-center justify-center">
-              <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-              <div className="relative z-10 bg-white rounded-lg shadow-lg p-4" style={{ width: '90vw', height: '90vh', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                {/* Toolbar at the top */}
-                <div className={`w-full flex items-center gap-2 bg-white/95 border-b border-legal-200 px-4 py-2 sticky top-0 z-20 ${toolbarCollapsed ? 'h-8 min-h-8' : ''}`} style={{ minHeight: toolbarCollapsed ? 32 : 56, transition: 'min-height 0.2s' }}>
-                  <button onClick={() => setToolbarCollapsed(c => !c)} className="text-legal-500 hover:text-primary-600 focus:outline-none mr-2" title={toolbarCollapsed ? 'Show Tools' : 'Hide Tools'}>
-                    {toolbarCollapsed ? (
-                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 8v8m0 0l-4-4m4 4l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    ) : (
-                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 16V8m0 0l-4 4m4-4l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    )}
-                  </button>
-                  {!toolbarCollapsed && <>
-                    <span className="font-semibold text-legal-700 select-none">✥ Tools</span>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <button className="btn-secondary px-2" onClick={handleZoomOut} title="Zoom Out">-</button>
-                      <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
-                      <button className="btn-secondary px-2" onClick={handleZoomIn} title="Zoom In">+</button>
-                      <button className="btn-secondary px-2" onClick={handleZoomReset} title="Reset Zoom">⟳</button>
-                      <button className="btn-secondary px-2" onClick={handleFitToWindow} title="Fit to Window">🗖</button>
-                    </div>
-                    <button className={`btn-secondary px-2 ${panMode ? 'bg-blue-200' : ''}`} onClick={() => setPanMode(p => !p)} title="Pan Mode (Hand Tool, disables drawing)">🖐️</button>
-                    <button className={`btn-secondary px-2 ${cropMode ? 'bg-blue-200' : ''}`} onClick={() => setCropMode(c => !c)} title="Crop Tool">
-                      <Crop className="w-4 h-4" />
-                    </button>
-                    <label className="text-sm text-legal-700">Pen Color:
-                      <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="ml-2 w-8 h-8 border rounded-full" />
-                    </label>
-                    <label className="text-sm text-legal-700">Pen Size:
-                      <input type="range" min={2} max={16} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="ml-2" />
-                      <span className="ml-2">{penSize}px</span>
-                    </label>
-                    <button className={`btn-secondary py-1 px-3 text-sm ${isErasing ? 'bg-red-200' : ''}`} onClick={() => setIsErasing(e => !e)}>{isErasing ? 'Eraser (On)' : 'Eraser'}</button>
-                    <button className="btn-secondary py-1 px-3 text-sm" onClick={handleResetAnnotation}>Reset</button>
-                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveOnlyMarkedUpImage}>Save</button>
-                    <button className="btn-primary py-1 px-3 text-sm" onClick={handleSaveMarkedUpImage}>Save & Download</button>
-                    {cropRect && (
-                      <button className="btn-primary py-1 px-3 text-sm animate-pulse" onClick={handleApplyCrop}>Apply Crop</button>
-                    )}
-                  </>}
-                </div>
-                {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
-                <div ref={modalContentRef} style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-                  <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
-                </div>
-                {(magnifyImage || editingMarkedUpId) && (
-                  <div className="flex gap-2 items-center mt-2">
-                    {magnifyPageIdx !== null && (
-                      <>
-                        <button className="btn-secondary" disabled={magnifyPageIdx <= 0} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx > 0 ? idx - 1 : idx))}>Prev</button>
-                        <span className="text-xs text-legal-700">Page {magnifyPageIdx + 1}</span>
-                        <button className="btn-secondary" disabled={magnifyPageIdx >= pageImages.length - 1} onClick={() => setMagnifyPageIdx(idx => (idx !== null && idx < pageImages.length - 1 ? idx + 1 : idx))}>Next</button>
-                      </>
-                    )}
-                    <button className="btn-secondary" onClick={() => { setMagnifyPageIdx(null); setEditingMarkedUpId(null); }}>Close</button>
-                  </div>
-                )}
-              </div>
-            </Dialog>
-          </div>
-          {/* Right Column: Thread Editor */}
-          <div className="col-span-1 lg:col-span-1 space-y-8">
-            {/* Generated Thread Editor */}
-            {generatedThread.length > 0 && (
-              <SortableContext 
-                items={generatedThread}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="card">
-                  <h2 className="text-xl font-semibold mb-4 text-legal-700">Edit Your Thread</h2>
-                  <div className="space-y-4">
-                    {generatedThread.map((post, index) => (
-                      <div key={post.id} className="relative">
-                        <SortablePostItem 
-                          post={post}
-                          index={index}
-                          generatedThread={generatedThread}
-                          startEditing={startEditing}
-                          deletePost={deletePost}
-                          editingPostId={editingPostId}
-                          editingText={editingText}
-                          setEditingText={setEditingText}
-                          saveEdit={saveEdit}
-                          cancelEdit={cancelEdit}
-                          handleCopy={handleCopy}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <button onClick={addPost} className="btn-secondary mt-6 w-full flex items-center justify-center">
-                    <PlusCircle className="w-5 h-5 mr-2" /> Add Post to Thread
-                  </button>
-                </div>
-              </SortableContext>
-            )}
-          </div>
-          {/* Image Lane Column */}
-          <div className="col-span-1 space-y-8">
+            </SortableContext>
              {generatedThread.length > 0 && (
-               <div className="card h-fit sticky top-8">
-                 <h2 className="text-xl font-semibold mb-4 text-legal-700">Image Lane</h2>
-                 <div className="space-y-4">
-                    {generatedThread.map((post) => (
-                      <ImageDropZone
-                        key={`drop-zone-${post.id}`}
-                        id={`drop-zone:${post.id}`}
-                        post={post}
-                        pageImages={pageImages}
-                        markedUpImages={markedUpImages}
-                        postPageMap={postPageMap}
-                      />
-                    ))}
-                 </div>
-               </div>
-             )}
+              <button onClick={addPost} className="btn-secondary mt-6 w-full flex items-center justify-center">
+                <PlusCircle className="w-5 h-5 mr-2" /> Add Post to Thread
+              </button>
+            )}
           </div>
         </div>
       </main>
