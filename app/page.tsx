@@ -33,6 +33,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from "./context/AuthContext";
 import { signOut } from './lib/auth';
 import Link from 'next/link';
+import { AuthProvider } from '@/app/context/AuthContext';
+
+export const dynamic = 'force-dynamic';
 
 // Use a stable CDN for the PDF.js worker to ensure compatibility with Vercel's build environment.
 // We also point to the '.mjs' version for modern module compatibility.

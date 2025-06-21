@@ -3,6 +3,9 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithGoogle } from '../lib/auth';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/app/context/AuthContext';
+
+export const dynamic = 'force-dynamic';
 
 const LoginPage = () => {
   const router = useRouter();
