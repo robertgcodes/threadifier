@@ -24,15 +24,17 @@ export default function AnnotationModal({
   initialPage,
   editingMarkedUpImage
 }: AnnotationModalProps) {
+  // Component State
   const [magnifyPageIdx, setMagnifyPageIdx] = useState(initialPage);
   const [magnifyImage, setMagnifyImage] = useState<string | null>(null);
   const [magnifyLoading, setMagnifyLoading] = useState(false);
-  const pdfDocRef = useRef<any>(null);
-
+  
+  // Fabric.js refs
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
-  const fabricContainerRef = useRef<HTMLDivElement | null>(null);
-  const modalContentRef = useRef<HTMLDivElement | null>(null);
+  const canvasElRef = useRef<HTMLCanvasElement>(null); // Ref to the actual canvas element
+  const canvasContainerRef = useRef<HTMLDivElement>(null); // Container for the canvas
 
+  // Toolbar State
   const [zoom, setZoom] = useState(1);
   const [panMode, setPanMode] = useState(false);
   const [penColor, setPenColor] = useState<string>("#e11d48");
@@ -40,89 +42,102 @@ export default function AnnotationModal({
   const [isErasing, setIsErasing] = useState(false);
   const [cropMode, setCropMode] = useState(false);
   const [cropRect, setCropRect] = useState<fabric.Object | null>(null);
-  const [canvasNaturalSize, setCanvasNaturalSize] = useState<{ width: number, height: number } | null>(null);
 
   // Sync with incoming props
   useEffect(() => {
     if (isOpen) {
         setMagnifyPageIdx(initialPage);
-        // Reset modes when modal opens or page changes
         setPanMode(false);
         setCropMode(false);
         setCropRect(null);
     }
   }, [isOpen, initialPage]);
 
-  // Load high-res image for the current page
+  // Load image URL
   useEffect(() => {
-    if (magnifyPageIdx === null) {
-      setMagnifyImage(null);
-      return;
-    };
-    
-    setMagnifyLoading(true);
-    const targetImage = editingMarkedUpImage && editingMarkedUpImage.pageNumber === (magnifyPageIdx + 1)
-      ? editingMarkedUpImage.url
-      : pageImages[magnifyPageIdx];
+    if (!isOpen) return;
 
+    setMagnifyLoading(true);
+    let targetImage = '';
+    if (editingMarkedUpImage) {
+        targetImage = editingMarkedUpImage.url;
+    } else if (magnifyPageIdx !== null) {
+        targetImage = pageImages[magnifyPageIdx];
+    }
+    
     setMagnifyImage(targetImage);
     setMagnifyLoading(false);
 
-  }, [magnifyPageIdx, pageImages, editingMarkedUpImage]);
+  }, [isOpen, magnifyPageIdx, pageImages, editingMarkedUpImage]);
+  
+  const fitCanvasToContainer = (imgWidth: number, imgHeight: number) => {
+    const canvas = fabricCanvasRef.current;
+    const container = canvasContainerRef.current;
+    if (!canvas || !container) return;
 
-  const handleFitToWindow = () => {
-     if (!canvasNaturalSize || !modalContentRef.current) return;
-     const { width: imgW, height: imgH } = canvasNaturalSize;
-     const container = modalContentRef.current;
-     const containerW = container.clientWidth - 40; 
-     const containerH = container.clientHeight - 80; // Account for toolbar
-     const scale = Math.min(containerW / imgW, containerH / imgH, 1); // Don't zoom past 100% on fit
-     setZoom(scale);
-   };
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
 
-  // Initialize Fabric.js canvas
+    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight) * 0.95; // Add some padding
+    
+    canvas.setWidth(containerWidth);
+    canvas.setHeight(containerHeight);
+    canvas.setZoom(scale);
+    
+    const center = new fabric.Point(containerWidth / 2, containerHeight / 2);
+    const newVpt = fabric.util.transformPoint(
+      new fabric.Point(imgWidth/2, imgHeight/2),
+      fabric.util.invertTransform(canvas.viewportTransform!)
+    );
+    canvas.absolutePan(newVpt.subtract(center));
+
+    setZoom(scale);
+  };
+
+  // Initialize Fabric.js canvas ONCE when modal opens
   useEffect(() => {
-    if (!isOpen || !magnifyImage || !fabricContainerRef.current) return;
+    if (isOpen && canvasElRef.current && !fabricCanvasRef.current) {
+        const canvas = new fabric.Canvas(canvasElRef.current);
+        fabricCanvasRef.current = canvas;
+    }
+    
+    // Cleanup on close
+    return () => {
+        if (!isOpen && fabricCanvasRef.current) {
+            fabricCanvasRef.current.dispose();
+            fabricCanvasRef.current = null;
+        }
+    };
+  }, [isOpen]);
 
-    const container = fabricContainerRef.current;
-    container.innerHTML = '';
-    const canvasEl = document.createElement("canvas");
-    container.appendChild(canvasEl);
-
-    const canvas = new fabric.Canvas(canvasEl);
-    fabricCanvasRef.current = canvas;
-
-    fabric.Image.fromURL(magnifyImage, (img) => {
-      setCanvasNaturalSize({ width: img.width!, height: img.height! });
-      canvas.setWidth(img.width!);
-      canvas.setHeight(img.height!);
+  // Load image or JSON into canvas
+  useEffect(() => {
+      if (!magnifyImage || !fabricCanvasRef.current) return;
+      const canvas = fabricCanvasRef.current;
+      canvas.clear();
       
       const isEditingThisImage = editingMarkedUpImage && editingMarkedUpImage.url === magnifyImage;
 
       if (isEditingThisImage && editingMarkedUpImage.json) {
-        canvas.loadFromJSON(editingMarkedUpImage.json, () => {
-          canvas.renderAll();
-          handleFitToWindow();
-          setZoom(canvas.getZoom());
-        });
+          canvas.loadFromJSON(editingMarkedUpImage.json, () => {
+            canvas.renderAll();
+            const bgImage = canvas.backgroundImage as fabric.Image;
+            if (bgImage) {
+              fitCanvasToContainer(bgImage.getScaledWidth(), bgImage.getScaledHeight());
+            } else {
+              const group = new fabric.Group(canvas.getObjects());
+              fitCanvasToContainer(group.getScaledWidth(), group.getScaledHeight());
+            }
+          });
       } else {
-        canvas.setBackgroundImage(img, () => {
-          canvas.renderAll();
-          handleFitToWindow();
-        }, {
-          scaleX: 1,
-          scaleY: 1
-        });
+          fabric.Image.fromURL(magnifyImage, (img) => {
+              fitCanvasToContainer(img.width!, img.height!);
+              canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {});
+          }, { crossOrigin: 'anonymous' });
       }
-    });
 
-    return () => {
-      if (fabricCanvasRef.current) {
-        fabricCanvasRef.current.dispose();
-        fabricCanvasRef.current = null;
-      }
-    };
-  }, [magnifyImage, isOpen]); // Rerun when image changes
+  }, [magnifyImage]);
+
 
   // Update brush
   useEffect(() => {
@@ -131,20 +146,27 @@ export default function AnnotationModal({
     canvas.isDrawingMode = !panMode && !cropMode;
     canvas.freeDrawingBrush.color = isErasing ? '#ffffff' : penColor;
     canvas.freeDrawingBrush.width = isErasing ? penSize * 2 : penSize;
-  }, [penColor, penSize, isErasing, panMode, cropMode, fabricCanvasRef.current]);
+  }, [penColor, penSize, isErasing, panMode, cropMode]);
 
-  // Zoom
-  const handleZoomIn = () => setZoom(z => Math.min(3, z + 0.1));
-  const handleZoomOut = () => setZoom(z => Math.max(0.1, z - 0.1));
-  const handleZoomReset = () => setZoom(1);
-
-  useEffect(() => {
+  // Zoom handlers
+  const handleZoom = (newZoom: number) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
-    canvas.setZoom(zoom);
-    canvas.renderAll();
-  }, [zoom]);
-  
+    const center = canvas.getCenter();
+    canvas.zoomToPoint(new fabric.Point(center.left, center.top), newZoom);
+    setZoom(newZoom);
+  };
+  const handleZoomIn = () => handleZoom(Math.min(3, zoom + 0.1));
+  const handleZoomOut = () => handleZoom(Math.max(0.1, zoom - 0.1));
+  const handleZoomReset = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const bgImage = canvas.backgroundImage as fabric.Image;
+     if (bgImage && bgImage.width && bgImage.height) {
+        fitCanvasToContainer(bgImage.width, bgImage.height);
+      }
+  };
+
   // Pan
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -187,7 +209,7 @@ export default function AnnotationModal({
         canvas.off('mouse:up');
       }
     }
-  }, [panMode, fabricCanvasRef.current])
+  }, [panMode]);
 
   // Crop
   useEffect(() => {
@@ -227,7 +249,7 @@ export default function AnnotationModal({
           width: 0,
           height: 0,
           stroke: '#e11d48',
-          strokeWidth: 2,
+          strokeWidth: 2 / zoom, // Adjust stroke width for zoom
           strokeDashArray: [5, 5],
           fill: 'rgba(225, 29, 72, 0.1)',
           selectable: false,
@@ -253,7 +275,12 @@ export default function AnnotationModal({
       const onMouseUp = () => {
         isDown = false;
         if(rect) {
-          rect.set({ selectable: true, hasControls: true, lockRotation: true });
+          rect.set({ 
+              strokeWidth: 2 / canvas.getZoom(),
+              selectable: true, 
+              hasControls: true, 
+              lockRotation: true 
+          });
           rect.setCoords();
           canvas.setActiveObject(rect);
           canvas.selection = true;
@@ -277,15 +304,13 @@ export default function AnnotationModal({
     }
 
     return cleanup;
-  }, [cropMode]);
+  }, [cropMode, zoom]);
 
   const handleResetAnnotation = () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
-    // Get background image
     const bgImage = canvas.backgroundImage;
     canvas.clear();
-    // Add background image back
     if (bgImage) {
       canvas.setBackgroundImage(bgImage, canvas.renderAll.bind(canvas));
     }
@@ -303,6 +328,10 @@ export default function AnnotationModal({
   const handleApplyCrop = () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !cropRect) return;
+
+    // The crop rectangle's coordinates are relative to the zoomed canvas.
+    // We need to calculate the crop area on the original, unzoomed image.
+    const zoom = canvas.getZoom();
     const url = canvas.toDataURL({
         format: 'png',
         left: cropRect.left,
@@ -310,6 +339,7 @@ export default function AnnotationModal({
         width: cropRect.width,
         height: cropRect.height,
     });
+    
     onCrop(url);
     setCropMode(false);
     setCropRect(null);
@@ -321,7 +351,7 @@ export default function AnnotationModal({
     <Dialog open={isOpen} onClose={onClose} className="fixed z-50 inset-0">
       <Dialog.Overlay className="fixed inset-0 bg-black/60" />
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel ref={modalContentRef} className="bg-white rounded-lg shadow-xl w-full max-w-7xl h-[95vh] flex flex-col">
+        <Dialog.Panel className="bg-white rounded-lg shadow-xl w-full max-w-7xl h-[95vh] flex flex-col">
           <div className="flex items-center justify-between p-2 border-b gap-4 flex-wrap bg-gray-50 rounded-t-lg">
             <Dialog.Title className="text-lg font-semibold text-gray-800 pl-2">
               Editing Page {magnifyPageIdx !== null ? magnifyPageIdx + 1 : ''}
@@ -331,7 +361,6 @@ export default function AnnotationModal({
               <button onClick={handleZoomOut} className="btn-secondary p-2" title="Zoom Out"><Minus size={16} /></button>
               <button onClick={handleZoomReset} className="btn-secondary p-2" title="Reset Zoom"><RefreshCw size={16} /></button>
               <button onClick={handleZoomIn} className="btn-secondary p-2" title="Zoom In"><Plus size={16} /></button>
-              <button onClick={handleFitToWindow} className="btn-secondary p-2" title="Fit to Window"><Maximize size={16} /></button>
               <span className="text-sm w-12 text-center">{(zoom * 100).toFixed(0)}%</span>
             </div>
             <div className="flex items-center gap-3">
@@ -354,10 +383,9 @@ export default function AnnotationModal({
             </div>
           </div>
 
-          <div className="flex-grow overflow-auto bg-gray-200 flex items-center justify-center p-2">
-            {magnifyLoading ? <Loader2 className="animate-spin text-blue-500" size={48} /> : (
-              <div ref={fabricContainerRef} className="mx-auto shadow-lg" />
-            )}
+          <div ref={canvasContainerRef} className="flex-grow overflow-hidden bg-gray-200 flex items-center justify-center p-2 relative">
+             {magnifyLoading && <Loader2 className="animate-spin text-blue-500 absolute" size={48} />}
+             <canvas ref={canvasElRef} />
           </div>
         </Dialog.Panel>
       </div>
