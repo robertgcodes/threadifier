@@ -300,12 +300,24 @@ export default function HomePage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<any>(null); // For DragOverlay
 
-  // Define sensors with activation constraints to prevent clicks from starting a drag
+  // Define sensors with a custom activation handler
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      // activationConstraint: {
-      //   distance: 8,
-      // },
+      // This is the key change to fix the click vs. drag conflict.
+      // It inspects the initial event and prevents drag from starting
+      // if the user is clicking on an interactive element.
+      onActivation: ({ event }) => {
+        const target = event.target as HTMLElement;
+        if (
+          target.closest('button') ||
+          target.closest('a') ||
+          target.closest('input') ||
+          target.closest('textarea')
+        ) {
+          return false;
+        }
+        return true;
+      },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
