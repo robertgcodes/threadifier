@@ -14,6 +14,7 @@ import {
   useSensors,
   DragEndEvent,
   useDraggable,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -45,18 +46,52 @@ interface MarkedUpImage {
 }
 
 // --- Draggable Image Item ---
-function DraggableImage({ id, children }: { id: string, children: React.ReactNode }) {
-  const {attributes, listeners, setNodeRef, transform} = useDraggable({
+function DraggableImage({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
+  const {attributes, listeners, setNodeRef} = useDraggable({
     id: id,
   });
-  const style = transform ? {
-    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-    zIndex: 9999, // Ensure it's on top while dragging
-  } : undefined;
 
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+    <div ref={setNodeRef} {...listeners} {...attributes} className={className}>
       {children}
+    </div>
+  );
+}
+
+// --- Droppable Zone for Images ---
+function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap }: { id: string, post: ThreadPost, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any }) {
+  const {isOver, setNodeRef} = useDroppable({ id });
+  
+  const style = {
+    borderColor: isOver ? '#22c55e' : '#d1d5db',
+    backgroundColor: isOver ? '#f0fdf4' : '#f9fafb',
+    transition: 'background-color 0.2s, border-color 0.2s',
+  };
+
+  const imageInfo = postPageMap[post.id];
+  let imageUrl: string | null = null;
+  let imageAlt = 'Placeholder';
+
+  if (imageInfo) {
+    if (imageInfo.type === 'pdf') {
+      imageUrl = pageImages[imageInfo.value];
+      imageAlt = `Page ${imageInfo.value + 1}`;
+    } else {
+      const markedImg = markedUpImages.find(m => m.id === imageInfo.value);
+      if (markedImg) {
+        imageUrl = markedImg.url;
+        imageAlt = `Page ${markedImg.pageNumber} Edited`;
+      }
+    }
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-legal-400 text-sm p-2">
+      {imageUrl ? (
+        <img src={imageUrl} alt={imageAlt} className="max-h-full max-w-full object-contain rounded" />
+      ) : (
+        <span>Drop Image Here</span>
+      )}
     </div>
   );
 }
@@ -597,15 +632,25 @@ export default function HomePage() {
     const activeId = active.id.toString();
     const overId = over.id.toString();
 
-    // Case 1: Dragging an image over a post
-    if (activeId.startsWith('image-') && generatedThread.some(p => p.id.toString() === overId)) {
-        const post = generatedThread.find(p => p.id.toString() === overId);
+    // Case 1: Dragging an image over a post's text or its new drop zone
+    if (activeId.startsWith('image:')) {
+      let postId: string | null = null;
+      if (overId.startsWith('drop-zone:')) {
+        postId = overId.split(':')[1];
+      } else if (generatedThread.some(p => p.id.toString() === overId)) {
+        postId = overId;
+      }
+
+      if (postId) {
+        const post = generatedThread.find(p => p.id.toString() === postId);
         if (post) {
-            const [, type, value] = activeId.split('-');
+            const [, type, ...valueParts] = activeId.split(':');
+            const value = valueParts.join(':'); // Robustly handle IDs with special chars
             const numericValue = type === 'pdf' ? Number(value) : value;
             handleSelectPage(post.id, type as 'pdf' | 'marked', numericValue);
         }
-        return; // End of this drag operation
+        return;
+      }
     }
 
     // Case 2: Sorting posts (original logic)
@@ -614,8 +659,8 @@ export default function HomePage() {
 
     if (isActivePost && isOverPost && active.id !== over.id) {
       setGeneratedThread((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
+        const oldIndex = items.findIndex((item) => item.id.toString() === activeId);
+        const newIndex = items.findIndex((item) => item.id.toString() === overId);
         
         return arrayMove(items, oldIndex, newIndex);
       });
@@ -882,7 +927,7 @@ export default function HomePage() {
       onDragEnd={handleDragEnd}
     >
       <main className="min-h-screen bg-legal-50 p-4 sm:p-8">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Left Column: Controls */}
           <div className="card h-fit sticky top-8 col-span-1">
             <h1 className="text-2xl font-bold mb-4 text-legal-800">Threadifier</h1>
@@ -1010,9 +1055,8 @@ export default function HomePage() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
                 {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
                 {pageImages.map((img, idx) => (
-                  <DraggableImage key={`pdf-dnd-${idx}`} id={`image-pdf-${idx}`}>
+                  <DraggableImage key={`pdf-dnd-${idx}`} id={`image:pdf:${idx}`}>
                     <button
-                      key={idx}
                       className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500"
                       onClick={() => setMagnifyPageIdx(idx)}
                       tabIndex={0}
@@ -1030,19 +1074,18 @@ export default function HomePage() {
                   <h3 className="text-sm font-semibold mb-2 text-legal-700">Marked-up Images</h3>
                   <div className="flex flex-wrap gap-4">
                     {markedUpImages.map((img) => (
-                       <DraggableImage key={`marked-dnd-${img.id}`} id={`image-marked-${img.id}`}>
-                        <div key={img.id} className="relative group border border-legal-200 rounded overflow-hidden shadow-lg" style={{ width: 120 }}>
-                          <img src={img.url} alt={`Page ${img.pageNumber} Edited`} className="h-28 w-full object-contain bg-white" />
-                          <div className="text-xs text-center text-legal-500 py-1 truncate">Page {img.pageNumber} Edited</div>
-                          <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button title="Edit" className="bg-blue-500 text-white rounded-full p-1 shadow" onClick={() => handleEditMarkedUpImage(img.id)}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2l-6 6m-2 2h6" /></svg>
-                            </button>
+                       <DraggableImage key={`marked-dnd-${img.id}`} id={`image:marked:${img.id}`}>
+                        <div className="relative group border border-legal-200 rounded overflow-hidden shadow-lg" style={{ width: 120 }}>
+                          <button onClick={() => handleEditMarkedUpImage(img.id)} className="w-full h-full text-left">
+                            <img src={img.url} alt={`Page ${img.pageNumber} Edited`} className="h-28 w-full object-contain bg-white" />
+                            <div className="text-xs text-center text-legal-500 py-1 truncate">Page {img.pageNumber} Edited</div>
+                          </button>
+                          <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button title="Download" className="bg-green-500 text-white rounded-full p-1 shadow" onClick={() => { const a = document.createElement('a'); a.href = img.url; a.download = `Page_${img.pageNumber}_Edited.png`; a.click(); }}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
                             </button>
                             <button title="Delete" className="bg-red-500 text-white rounded-full p-1 shadow" onClick={() => handleDeleteMarkedUpImage(img.id)}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                           </div>
                         </div>
@@ -1150,56 +1193,6 @@ export default function HomePage() {
                           cancelEdit={cancelEdit}
                           handleCopy={handleCopy}
                         />
-                        {/* Manual Page Matching UI */}
-                        <div className="mt-2 flex items-center gap-2">
-                          <button
-                            className="btn-secondary text-xs px-2 py-1"
-                            onClick={() => setSelectingForPost(post.id)}
-                          >
-                            {postPageMap[post.id] ? 'Change Page/Image' : 'Select Page/Image'}
-                          </button>
-                          {postPageMap[post.id] && (
-                            (() => {
-                              const mapping = postPageMap[post.id];
-                              if (mapping?.type === 'pdf' && typeof mapping.value === 'number' && pageImages[mapping.value]) {
-                                return <img src={pageImages[mapping.value]} alt={`Page ${mapping.value + 1}`} className="h-16 w-auto border border-legal-200 rounded shadow-sm" />;
-                              }
-                              if (mapping?.type === 'marked' && typeof mapping.value === 'string') {
-                                const img = markedUpImages.find(m => m.id === mapping.value);
-                                if (img) return <img src={img.url} alt={`Page ${img.pageNumber} Edited`} className="h-16 w-auto border border-legal-200 rounded shadow-sm" />;
-                              }
-                              return null;
-                            })()
-                          )}
-                        </div>
-                        {/* Page/Image Picker Modal/Popover */}
-                        {selectingForPost === post.id && (
-                          <div className="absolute z-20 bg-white border border-legal-300 rounded shadow-lg p-2 mt-2 left-0 w-full max-w-xs">
-                            <div className="text-xs text-legal-700 mb-2">Select a page or marked-up image for this post:</div>
-                            <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
-                              {/* Original PDF pages */}
-                              {pageImages.map((img, idx) => (
-                                <button
-                                  key={`pdf-${idx}`}
-                                  className="border border-legal-200 rounded focus:ring-2 focus:ring-primary-500"
-                                  onClick={() => handleSelectPage(post.id, 'pdf', idx)}
-                                >
-                                  <img src={img} alt={`Page ${idx + 1}`} />
-                                </button>
-                              ))}
-                              {/* Marked-up images */}
-                              {markedUpImages.map((img) => (
-                                <button
-                                  key={`marked-${img.id}`}
-                                  className="border border-legal-200 rounded focus:ring-2 focus:ring-primary-500"
-                                  onClick={() => handleSelectPage(post.id, 'marked', img.id)}
-                                >
-                                  <img src={img.url} alt={`Page ${img.pageNumber} Edited`} />
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -1209,6 +1202,26 @@ export default function HomePage() {
                 </div>
               </SortableContext>
             )}
+          </div>
+          {/* Image Lane Column */}
+          <div className="col-span-1 space-y-8">
+             {generatedThread.length > 0 && (
+               <div className="card h-fit sticky top-8">
+                 <h2 className="text-xl font-semibold mb-4 text-legal-700">Image Lane</h2>
+                 <div className="space-y-4">
+                    {generatedThread.map((post) => (
+                      <ImageDropZone
+                        key={`drop-zone-${post.id}`}
+                        id={`drop-zone:${post.id}`}
+                        post={post}
+                        pageImages={pageImages}
+                        markedUpImages={markedUpImages}
+                        postPageMap={postPageMap}
+                      />
+                    ))}
+                 </div>
+               </div>
+             )}
           </div>
         </div>
       </main>
