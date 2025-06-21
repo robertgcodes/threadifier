@@ -1164,38 +1164,46 @@ export default function HomePage() {
                 {pageImages.length === 0 && <div className="text-legal-400">No PDF loaded.</div>}
                 {pageImages.map((img, idx) => (
                   <DraggableImage key={`pdf-dnd-${idx}`} id={`image:pdf:${idx}`}>
-                    <button
-                      className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500"
-                      onClick={() => setMagnifyPageIdx(idx)}
+                    <div
+                      role="button"
                       tabIndex={0}
+                      className="border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                      onClick={() => setMagnifyPageIdx(idx)}
+                      onKeyDown={(e) => e.key === 'Enter' && setMagnifyPageIdx(idx)}
                       aria-label={`Magnify Page ${idx + 1}`}
                     >
-                      <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" />
+                      <img src={img} alt={`Page ${idx + 1}`} className="w-full h-auto" draggable="false" />
                       <div className="text-xs text-center text-legal-500 py-1">Page {idx + 1}</div>
-                    </button>
+                    </div>
                   </DraggableImage>
                 ))}
               </div>
               {/* Marked-up Images Gallery */}
               {markedUpImages.length > 0 && (
                 <div className="mt-6">
-                  <h3 className="text-sm font-semibold mb-2 text-legal-700">Marked-up Images</h3>
-                  <div className="flex flex-wrap gap-4">
+                  <h2 className="text-lg font-semibold mb-4 text-legal-700">Marked-up Images</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
                     {markedUpImages.map((img) => (
-                       <DraggableImage key={`marked-dnd-${img.id}`} id={`image:marked:${img.id}`}>
-                        <div className="relative group border border-legal-200 rounded overflow-hidden shadow-lg" style={{ width: 120 }}>
-                          <button onClick={() => handleEditMarkedUpImage(img.id)} className="w-full h-full text-left">
-                            <img src={img.url} alt={`Page ${img.pageNumber} Edited`} className="h-28 w-full object-contain bg-white" />
-                            <div className="text-xs text-center text-legal-500 py-1 truncate">Page {img.pageNumber} Edited</div>
-                          </button>
-                          <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button title="Download" className="bg-green-500 text-white rounded-full p-1 shadow" onClick={() => { const a = document.createElement('a'); a.href = img.url; a.download = `Page_${img.pageNumber}_Edited.png`; a.click(); }}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
-                            </button>
-                            <button title="Delete" className="bg-red-500 text-white rounded-full p-1 shadow" onClick={() => handleDeleteMarkedUpImage(img.id)}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
+                      <DraggableImage key={`marked-dnd-${img.id}`} id={`image:marked:${img.id}`}>
+                        <div className="relative group">
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            className="w-full border border-legal-200 rounded overflow-hidden focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                            onClick={() => handleEditMarkedUpImage(img.id)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleEditMarkedUpImage(img.id)}
+                            aria-label={`Edit marked-up page ${img.pageNumber}`}
+                          >
+                            <img src={img.url} alt={`Marked-up page ${img.pageNumber}`} className="w-full h-auto" draggable="false" />
+                            <div className="text-xs text-center text-legal-500 py-1">Page {img.pageNumber} Edited</div>
                           </div>
+                          <button
+                            onClick={() => handleDeleteMarkedUpImage(img.id)}
+                            className="absolute top-1 right-1 bg-white/70 backdrop-blur-sm rounded-full p-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Delete marked-up image"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </DraggableImage>
                     ))}
