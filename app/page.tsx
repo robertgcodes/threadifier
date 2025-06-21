@@ -284,18 +284,30 @@ export default function HomePage() {
 
     if (cropMode) {
       canvas.isDrawingMode = false;
-      canvas.selection = false;
+      canvas.selection = true; // Enable selection for the rect
       canvas.defaultCursor = 'crosshair';
-      canvas.forEachObject(obj => { obj.selectable = false; });
+      canvas.forEachObject(obj => { 
+        // Make only the crop rect selectable
+        if (obj !== activeRectRef.current) {
+          obj.selectable = false;
+        }
+      });
 
       let isDrawing = false;
       let startPoint = { x: 0, y: 0 };
 
       const onMouseDown = (o: fabric.IEvent) => {
-        // Clear previous rect
+        // If we're clicking on the existing rectangle, let fabric.js handle it (move/scale)
+        if (o.target === activeRectRef.current) {
+          canvas.setActiveObject(activeRectRef.current!);
+          return;
+        }
+
+        // If we click outside, clear the old rect and start drawing a new one
         if (activeRectRef.current) {
           canvas.remove(activeRectRef.current);
         }
+        
         isDrawing = true;
         const pointer = canvas.getPointer(o.e);
         startPoint = pointer;
@@ -317,6 +329,7 @@ export default function HomePage() {
         });
         activeRectRef.current = rect;
         canvas.add(activeRectRef.current);
+        setCropRect(null); // Hide apply button while drawing
       };
 
       const onMouseMove = (o: fabric.IEvent) => {
@@ -341,13 +354,25 @@ export default function HomePage() {
 
       const onMouseUp = () => {
         isDrawing = false;
-        if (activeRectRef.current) {
+        if (activeRectRef.current && activeRectRef.current.width && activeRectRef.current.height && activeRectRef.current.width > 0 && activeRectRef.current.height > 0) {
           canvas.setActiveObject(activeRectRef.current);
           setCropRect(activeRectRef.current); // Show "Apply Crop" button
           
-          activeRectRef.current.on('moving', () => updateCropOverlay(canvas, activeRectRef.current));
-          activeRectRef.current.on('scaling', () => updateCropOverlay(canvas, activeRectRef.current));
+          const updateOverlayOnModify = () => updateCropOverlay(canvas, activeRectRef.current);
+          
+          activeRectRef.current.off('moving', updateOverlayOnModify);
+          activeRectRef.current.off('scaling', updateOverlayOnModify);
+          
+          activeRectRef.current.on('moving', updateOverlayOnModify);
+          activeRectRef.current.on('scaling', updateOverlayOnModify);
+
           updateCropOverlay(canvas, activeRectRef.current);
+        } else if (activeRectRef.current) {
+          // If the box has no size, remove it.
+          canvas.remove(activeRectRef.current);
+          activeRectRef.current = null;
+          setCropRect(null);
+          updateCropOverlay(canvas, null);
         }
       };
       
@@ -364,27 +389,36 @@ export default function HomePage() {
 
   const handleApplyCrop = () => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !cropRect) return;
-
-    const croppedDataUrl = canvas.toDataURL({
-      format: 'png',
+    if (!cropRect || !canvas) return;
+  
+    // Create the cropped image data URL
+    const croppedImageDataUrl = canvas.toDataURL({
       left: cropRect.left,
       top: cropRect.top,
-      width: cropRect.getScaledWidth(),
-      height: cropRect.getScaledHeight(),
+      width: cropRect.width,
+      height: cropRect.height,
+      format: 'png',
     });
-
-    // Create a new fabric canvas just to generate JSON for the cropped image
-    const tempCanvas = new fabric.Canvas(null, { width: cropRect.getScaledWidth(), height: cropRect.getScaledHeight() });
-    fabric.Image.fromURL(croppedDataUrl, (img) => {
-      tempCanvas.setBackgroundImage(img, tempCanvas.renderAll.bind(tempCanvas));
-      const newJson = tempCanvas.toJSON();
-      setMarkedUpImages(prev => [...prev, { id: uuidv4(), url: croppedDataUrl, label: 'Cropped Image', json: newJson }]);
-      toast.success("Image cropped and saved!");
-    });
-
-    // Exit crop mode
+  
+    // Add the new cropped image to the gallery
+    const newId = `marked-up-${Date.now()}`;
+    const newMarkedUpImage: { id: string, url: string, label: string, json: any } = {
+      id: newId,
+      url: croppedImageDataUrl,
+      label: 'Cropped Image',
+      json: null, // Cropped images are flat, no fabric data
+    };
+    setMarkedUpImages(prev => [...prev, newMarkedUpImage]);
+  
+    // ** KEY CHANGE: Update modal to show the newly cropped image **
+    // Exit crop mode first to trigger cleanup
     setCropMode(false);
+    
+    // Clear any previous annotations
+    setEditingMarkedUpId(null);
+    
+    // Set the new cropped image as the active image in the modal
+    setMagnifyImage(croppedImageDataUrl);
   };
 
   const onDrop = (acceptedFiles: File[]) => {
