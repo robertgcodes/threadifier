@@ -709,9 +709,12 @@ export default function HomePage() {
     const type = active.data.current?.type;
     setActiveId(active.id.toString());
 
+    console.log('DragStart - Active:', active.id, 'Type:', type);
+
     if (type === 'post') {
       const post = generatedThread.find(p => p.id === active.id);
       setActiveItem(post);
+      console.log('Post drag started:', post);
     } else if (type === 'image') {
       const [, imageType, ...valueParts] = active.id.toString().split(':');
       const value = valueParts.join(':');
@@ -724,6 +727,7 @@ export default function HomePage() {
         imageUrl = markedImg?.url || '';
       }
       setActiveItem({ id: active.id, type: 'image', url: imageUrl });
+      console.log('Image drag started:', { id: active.id, type: 'image', url: imageUrl });
     }
   }
 
@@ -733,8 +737,11 @@ export default function HomePage() {
 
     const activeType = active.data.current?.type;
     
+    console.log('DragEnd - Active:', active.id, 'Type:', activeType, 'Over:', over.id);
+    
     // Case 1: An image is dropped onto a drop zone
     if (activeType === 'image' && over.id.toString().startsWith('droppable-')) {
+      console.log('Image drop detected!');
       const postId = over.id.toString().split('-')[1];
       const post = generatedThread.find(p => p.id.toString() === postId);
       
@@ -742,7 +749,9 @@ export default function HomePage() {
         const [, type, ...valueParts] = active.id.toString().split(':');
         const value = valueParts.join(':');
         const numericValue = type === 'pdf' ? Number(value) : value;
+        console.log('Calling handleSelectPage with:', post.id, type, numericValue);
         handleSelectPage(post.id, type as 'pdf' | 'marked', numericValue);
+        toast.success(`Image added to post ${post.id}!`);
       }
       return;
     }
@@ -750,6 +759,7 @@ export default function HomePage() {
     // Case 2: A post is sorted
     const overType = over.data.current?.type;
     if (activeType === 'post' && overType === 'post' && active.id !== over.id) {
+      console.log('Post sort detected!');
       setGeneratedThread((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
