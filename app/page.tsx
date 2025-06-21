@@ -34,6 +34,7 @@ import { useAuth } from "./context/AuthContext";
 import { signOut } from './lib/auth';
 import Link from 'next/link';
 import { AuthProvider } from '@/app/context/AuthContext';
+import ThreadEditor from './components/ThreadEditor';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,12 +73,6 @@ function DraggableImage({ id, children, className }: { id: string, children: Rea
 // --- Droppable Zone for Images ---
 function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap, handleClearImage }: { id: string, post: ThreadPost, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any, handleClearImage: (postId: number) => void }) {
   const {isOver, setNodeRef} = useDroppable({ id });
-  
-  const style = {
-    borderColor: isOver ? '#22c55e' : '#d1d5db',
-    backgroundColor: isOver ? '#f0fdf4' : '#f9fafb',
-    transition: 'background-color 0.2s, border-color 0.2s',
-  };
 
   const imageInfo = postPageMap[post.id];
   let imageUrl: string | null = null;
@@ -122,56 +117,6 @@ function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap, hand
           <p>Drop Image Here</p>
         </div>
       )}
-    </div>
-  );
-}
-
-// --- Sortable Thread Row ---
-// This component represents a full row in the editor, containing the text and the image drop zone.
-// The useSortable hook is applied here to make the entire row draggable.
-function SortableThreadRow({ post, index, generatedThread, ...props }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any, handleClearImage: (postId: number) => void }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    setActivatorNodeRef,
-    transform,
-    transition,
-  } = useSortable({
-    id: post.id,
-    data: {
-      type: 'post',
-      post: post,
-    }
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} {...attributes} className="grid grid-cols-2 gap-4 items-start">
-      {/* Post Item Column */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-legal-200 h-full">
-        <SortablePostItem 
-          post={post} 
-          index={index} 
-          generatedThread={generatedThread}
-          dragHandleListeners={listeners}
-          setDragHandleRef={setActivatorNodeRef}
-          {...props} 
-        />
-      </div>
-      {/* Image Drop Zone Column */}
-      <ImageDropZone
-        id={`droppable-${post.id}`}
-        post={post}
-        pageImages={props.pageImages}
-        markedUpImages={props.markedUpImages}
-        postPageMap={props.postPageMap}
-        handleClearImage={props.handleClearImage}
-      />
     </div>
   );
 }
@@ -223,6 +168,54 @@ function SortablePostItem({ post, index, generatedThread, startEditing, deletePo
   );
 }
 
+// --- Sortable Thread Row ---
+function SortableThreadRow({ post, index, generatedThread, ...props }: { post: ThreadPost, index: number, generatedThread: ThreadPost[], startEditing: (post: ThreadPost) => void, deletePost: (id: number) => void, editingPostId: number | null, editingText: string, setEditingText: (text: string) => void, saveEdit: () => void, cancelEdit: () => void, handleCopy: (text: string) => void, pageImages: string[], markedUpImages: MarkedUpImage[], postPageMap: any, handleClearImage: (postId: number) => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+  } = useSortable({
+    id: post.id,
+    data: {
+      type: 'post',
+      post: post,
+    }
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} className="grid grid-cols-2 gap-4 items-start">
+      {/* Post Item Column */}
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-legal-200 h-full">
+        <SortablePostItem 
+          post={post} 
+          index={index} 
+          generatedThread={generatedThread}
+          dragHandleListeners={listeners}
+          setDragHandleRef={setActivatorNodeRef}
+          {...props} 
+        />
+      </div>
+      {/* Image Drop Zone Column */}
+      <ImageDropZone
+        id={`droppable-${post.id}`}
+        post={post}
+        pageImages={props.pageImages}
+        markedUpImages={props.markedUpImages}
+        postPageMap={props.postPageMap}
+        handleClearImage={props.handleClearImage}
+      />
+    </div>
+  );
+}
+
 const AuthDisplay = () => {
   const { user } = useAuth();
 
@@ -259,6 +252,7 @@ export default function HomePage() {
   const [useHashtags, setUseHashtags] = useState(false);
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeItem, setActiveItem] = useState<any>(null); // For DragOverlay
 
   // Define sensors with activation constraints to prevent clicks from starting a drag
   const sensors = useSensors(
@@ -709,6 +703,29 @@ export default function HomePage() {
     setGeneratedThread(prev => [...prev, { id: newId, text: "" }]);
     setPostPageMap(prev => ({...prev, [newId]: null}));
   };
+
+  function handleDragStart(event: DragStartEvent) {
+    const { active } = event;
+    const type = active.data.current?.type;
+    setActiveId(active.id.toString());
+
+    if (type === 'post') {
+      const post = generatedThread.find(p => p.id === active.id);
+      setActiveItem(post);
+    } else if (type === 'image') {
+      const [, imageType, ...valueParts] = active.id.toString().split(':');
+      const value = valueParts.join(':');
+      
+      let imageUrl = '';
+      if (imageType === 'pdf') {
+        imageUrl = pageImages[Number(value)];
+      } else {
+        const markedImg = markedUpImages.find(m => m.id === value);
+        imageUrl = markedImg?.url || '';
+      }
+      setActiveItem({ id: active.id, type: 'image', url: imageUrl });
+    }
+  }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -1250,25 +1267,53 @@ export default function HomePage() {
           </div>
 
           {/* THREAD EDITOR & IMAGE LANE (Combined for synced scroll) */}
-          <div className="lg:col-span-2 space-y-4">
-            {generatedThread.length > 0 && (
-              <div className="sticky top-8 z-10 bg-legal-50/95 backdrop-blur-sm py-2 rounded-lg border border-legal-200">
-                <div className="grid grid-cols-2 gap-4">
-                  <h2 className="text-xl font-semibold text-legal-700 px-4">Edit Your Thread</h2>
-                  <h2 className="text-xl font-semibold text-legal-700 px-4">Image Lane</h2>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="lg:col-span-2 space-y-4">
+              {generatedThread.length > 0 && (
+                <div className="sticky top-8 z-10 bg-legal-50/95 backdrop-blur-sm py-2 rounded-lg border border-legal-200">
+                  <div className="grid grid-cols-2 gap-4">
+                    <h2 className="text-xl font-semibold text-legal-700 px-4">Edit Your Thread</h2>
+                    <h2 className="text-xl font-semibold text-legal-700 px-4">Image Lane</h2>
+                  </div>
                 </div>
-              </div>
-            )}
-            <SortableContext 
-              items={generatedThread.map(p => p.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-4">
-                {generatedThread.map((post, index) => (
+              )}
+              <SortableContext 
+                items={generatedThread.map(p => p.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-4" style={{ opacity: activeId && activeId.startsWith('post-') ? 0.5 : 1 }}>
+                  {generatedThread.map((post, index) => (
+                    <SortableThreadRow
+                      key={post.id}
+                      post={post}
+                      index={index}
+                      generatedThread={generatedThread}
+                      startEditing={startEditing}
+                      deletePost={deletePost}
+                      editingPostId={editingPostId}
+                      editingText={editingText}
+                      setEditingText={setEditingText}
+                      saveEdit={saveEdit}
+                      cancelEdit={cancelEdit}
+                      handleCopy={handleCopy}
+                      pageImages={pageImages}
+                      markedUpImages={markedUpImages}
+                      postPageMap={postPageMap}
+                      handleClearImage={handleClearImage}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+              <DragOverlay>
+                {activeItem?.type === 'post' && (
                   <SortableThreadRow
-                    key={post.id}
-                    post={post}
-                    index={index}
+                    post={activeItem}
+                    index={generatedThread.findIndex(p => p.id === activeItem.id)}
                     generatedThread={generatedThread}
                     startEditing={startEditing}
                     deletePost={deletePost}
@@ -1283,15 +1328,20 @@ export default function HomePage() {
                     postPageMap={postPageMap}
                     handleClearImage={handleClearImage}
                   />
-                ))}
-              </div>
-            </SortableContext>
-            {generatedThread.length > 0 && (
-              <button onClick={addPost} className="btn-secondary mt-6 w-full flex items-center justify-center">
-                <PlusCircle className="w-5 h-5 mr-2" /> Add Post to Thread
-              </button>
-            )}
-          </div>
+                )}
+                {activeItem?.type === 'image' && (
+                  <div className="bg-white p-2 rounded-lg shadow-xl">
+                    <img src={activeItem.url} alt="dragged item" className="max-w-xs max-h-48" />
+                  </div>
+                )}
+              </DragOverlay>
+              {generatedThread.length > 0 && (
+                <button onClick={addPost} className="btn-secondary mt-6 w-full flex items-center justify-center">
+                  <PlusCircle className="w-5 h-5 mr-2" /> Add Post to Thread
+                </button>
+              )}
+            </div>
+          </DndContext>
         </div>
       </main>
     </>
