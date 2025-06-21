@@ -39,7 +39,7 @@ export default function AnnotationModal({
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const imageElementRef = useRef<HTMLImageElement | null>(null);
+  const imageElementRef = useRef<fabric.Image | null>(null);
 
   // Tool state
   const [activeTool, setActiveTool] = useState<Tool>('select');
