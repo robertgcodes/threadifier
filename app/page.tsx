@@ -37,6 +37,7 @@ import { AuthProvider } from '@/app/context/AuthContext';
 import ThreadEditor from './components/ThreadEditor';
 import ImagePickerModal from './components/ImagePickerModal';
 import AnnotationModal from './components/AnnotationModal';
+import { Tab } from '@headlessui/react';
 
 export const dynamic = 'force-dynamic';
 
@@ -642,114 +643,161 @@ function Page() {
             </button>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-legal-200">
-            <h2 className="text-xl font-bold text-legal-800 mb-4">Source Document Pages</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-              {pageImages.map((img, index) => (
-                <div key={`page-${index}`} className="group relative border border-legal-200 rounded-lg overflow-hidden">
-                  <img src={img} alt={`Page ${index + 1}`} className="w-full h-auto object-contain" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                     <button onClick={() => setMagnifyPageIdx(index)} className="p-2 bg-white/80 rounded-full text-legal-700 hover:bg-white hover:text-primary-600 backdrop-blur-sm" title="Edit Page">
-                       <Edit className="w-5 h-5" />
-                     </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-           <div className="bg-white p-6 rounded-lg shadow-sm border border-legal-200">
-            <h2 className="text-xl font-bold text-legal-800 mb-4">Marked-up Exhibits</h2>
-             {markedUpImages.length === 0 ? (
-              <p className="text-legal-500 text-sm text-center py-4">No exhibits created yet. Edit a page to create a markup or crop.</p>
-            ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-              {markedUpImages.map((img) => (
-                <div key={img.id} className="group relative border border-legal-200 rounded-lg overflow-hidden">
-                  <img src={img.url} alt={`Markup ${img.id}`} className="w-full h-auto object-contain" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                     <button onClick={() => handleEditMarkedUpImage(img.id)} className="p-2 bg-white/80 rounded-full text-legal-700 hover:bg-white hover:text-primary-600 backdrop-blur-sm" title="Edit Markup">
-                       <Edit className="w-5 h-5" />
-                     </button>
-                      <button onClick={() => handleDeleteMarkedUpImage(img.id)} className="p-2 bg-white/80 rounded-full text-red-500 hover:bg-white backdrop-blur-sm" title="Delete Markup">
-                       <Trash2 className="w-5 h-5" />
-                     </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            )}
-          </div>
         </div>
 
-        {/* --- Right Column: Thread Editor --- */}
+        {/* --- Right Column: Tabbed View for Document and Thread --- */}
         <div className="lg:col-span-8">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-legal-200">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-legal-800">Generated Thread</h2>
-                <div className="flex gap-2">
-                  <button onClick={addPost} className="btn-secondary flex items-center"><PlusCircle className="w-4 h-4 mr-1"/>Add Post</button>
-                  <button onClick={handleCopyAll} className="btn-secondary flex items-center"><CopyIcon className="w-4 h-4 mr-1"/>Copy All</button>
-                </div>
-              </div>
-            
-              <SortableContext
-                items={generatedThread.map(p => p.id.toString())}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-4">
-                  {generatedThread.map((post, index) => (
-                    <SortableThreadRow
-                      key={post.id}
-                      post={post}
-                      index={index}
-                      generatedThread={generatedThread}
-                      startEditing={startEditing}
-                      deletePost={deletePost}
-                      editingPostId={editingPostId}
-                      editingText={editingText}
-                      setEditingText={setEditingText}
-                      saveEdit={saveEdit}
-                      cancelEdit={cancelEdit}
-                      handleCopy={handleCopy}
-                      pageImages={pageImages}
-                      markedUpImages={markedUpImages}
-                      postPageMap={postPageMap}
-                      handleClearImage={handleClearImage}
-                      onAddImage={handleOpenImagePicker}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </div>
-            
-            <DragOverlay>
-              {activeId && activeItem?.type === 'post' ? (
-                 <div className="grid grid-cols-2 gap-4 items-start">
-                    <div className="bg-white p-4 rounded-lg shadow-lg border border-legal-200 h-full">
-                       <SortablePostItem 
-                        post={activeItem} 
-                        index={generatedThread.findIndex(p => p.id === Number(activeId))} 
-                        generatedThread={generatedThread}
-                        dragHandleListeners={{}}
-                        setDragHandleRef={() => {}}
-                        startEditing={() => {}} deletePost={() => {}} editingPostId={null} editingText="" setEditingText={() => {}} saveEdit={() => {}} cancelEdit={() => {}} handleCopy={() => {}}
-                      />
-                    </div>
-                    <div className="bg-legal-50/50 p-4 rounded-lg flex items-center justify-center text-legal-500 h-full border-2 border-dashed border-legal-300">
-                      <ImageIcon className="w-8 h-8 mx-auto text-legal-400" />
-                    </div>
-                </div>
-              ) : null}
-            </DragOverlay>
+          <Tab.Group>
+            <Tab.List className="flex space-x-1 rounded-xl bg-blue-900/20 p-1 mb-4">
+              <Tab className={({ selected }) =>
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700
+                ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
+                ${selected ? 'bg-white shadow' : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'}`
+              }>
+                Document & Exhibits
+              </Tab>
+              <Tab className={({ selected }) =>
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700
+                ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
+                ${selected ? 'bg-white shadow' : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'}`
+              }>
+                Thread Editor
+              </Tab>
+            </Tab.List>
+            <Tab.Panels className="mt-2">
+              <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+                 <div className="space-y-6">
+                    {/* Extracted Text */}
+                    {extractedText && (
+                      <div>
+                        <h2 className="text-xl font-bold text-legal-800 mb-4">Extracted Text</h2>
+                        <textarea
+                          className="w-full h-64 p-2 border border-legal-200 rounded-md bg-legal-50 font-mono text-xs"
+                          value={extractedText}
+                          readOnly
+                          placeholder="Text extracted from the PDF will appear here."
+                        />
+                      </div>
+                    )}
 
-          </DndContext>
+                    {/* Source Document Pages */}
+                    <div >
+                      <h2 className="text-xl font-bold text-legal-800 mb-4">Source Document Pages</h2>
+                      <div className="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[60vh] overflow-y-auto p-2 bg-slate-100 rounded-lg">
+                        {pageImages.map((img, index) => (
+                          <div key={`page-${index}`} className="group relative border border-legal-200 rounded-lg overflow-hidden">
+                            <img src={img} alt={`Page ${index + 1}`} className="w-full h-auto object-contain" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button onClick={() => setMagnifyPageIdx(index)} className="p-2 bg-white/80 rounded-full text-legal-700 hover:bg-white hover:text-primary-600 backdrop-blur-sm" title="Edit Page">
+                                <Edit className="w-5 h-5" />
+                              </button>
+                            </div>
+                             <div className="absolute bottom-0 w-full bg-black/50 text-white text-xs text-center py-0.5">
+                                Page {index + 1}
+                              </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Marked-up Exhibits */}
+                    <div>
+                      <h2 className="text-xl font-bold text-legal-800 mb-4">Marked-up Exhibits</h2>
+                      {markedUpImages.length === 0 ? (
+                        <p className="text-legal-500 text-sm text-center py-4 bg-slate-100 rounded-lg">No exhibits created yet. Edit a page to create a markup or crop.</p>
+                      ) : (
+                      <div className="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[60vh] overflow-y-auto p-2 bg-slate-100 rounded-lg">
+                        {markedUpImages.map((img) => (
+                          <div key={img.id} className="group relative border border-legal-200 rounded-lg overflow-hidden">
+                            <img src={img.url} alt={`Markup ${img.id}`} className="w-full h-auto object-contain" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                              <button onClick={() => handleEditMarkedUpImage(img.id)} className="p-2 bg-white/80 rounded-full text-legal-700 hover:bg-white hover:text-primary-600 backdrop-blur-sm" title="Edit Markup">
+                                <Edit className="w-5 h-5" />
+                              </button>
+                                <button onClick={() => handleDeleteMarkedUpImage(img.id)} className="p-2 bg-white/80 rounded-full text-red-500 hover:bg-white backdrop-blur-sm" title="Delete Markup">
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+                             <div className="absolute bottom-0 w-full bg-black/50 text-white text-xs text-center py-0.5">
+                                Exhibit (from page {img.pageNumber})
+                              </div>
+                          </div>
+                        ))}
+                      </div>
+                      )}
+                    </div>
+                 </div>
+              </Tab.Panel>
+              <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+                 <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="bg-white p-6 rounded-lg shadow-sm border border-legal-200">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-legal-800">Generated Thread</h2>
+                        <div className="flex gap-2">
+                          <button onClick={addPost} className="btn-secondary flex items-center"><PlusCircle className="w-4 h-4 mr-1"/>Add Post</button>
+                          <button onClick={handleCopyAll} className="btn-secondary flex items-center"><CopyIcon className="w-4 h-4 mr-1"/>Copy All</button>
+                        </div>
+                      </div>
+                    
+                      <SortableContext
+                        items={generatedThread.map(p => p.id.toString())}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-4">
+                          {generatedThread.map((post, index) => (
+                            <SortableThreadRow
+                              key={post.id}
+                              post={post}
+                              index={index}
+                              generatedThread={generatedThread}
+                              startEditing={startEditing}
+                              deletePost={deletePost}
+                              editingPostId={editingPostId}
+                              editingText={editingText}
+                              setEditingText={setEditingText}
+                              saveEdit={saveEdit}
+                              cancelEdit={cancelEdit}
+                              handleCopy={handleCopy}
+                              pageImages={pageImages}
+                              markedUpImages={markedUpImages}
+                              postPageMap={postPageMap}
+                              handleClearImage={handleClearImage}
+                              onAddImage={handleOpenImagePicker}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </div>
+                    
+                    <DragOverlay>
+                      {activeId && activeItem ? (
+                        <div className="grid grid-cols-2 gap-4 items-start">
+                            <div className="bg-white p-4 rounded-lg shadow-lg border border-legal-200 h-full">
+                              <SortablePostItem 
+                                post={activeItem} 
+                                index={generatedThread.findIndex(p => p.id === Number(activeId))} 
+                                generatedThread={generatedThread}
+                                dragHandleListeners={{}}
+                                setDragHandleRef={() => {}}
+                                startEditing={() => {}} deletePost={() => {}} editingPostId={null} editingText="" setEditingText={() => {}} saveEdit={() => {}} cancelEdit={() => {}} handleCopy={() => {}}
+                              />
+                            </div>
+                            <div className="bg-legal-50/50 p-4 rounded-lg flex items-center justify-center text-legal-500 h-full border-2 border-dashed border-legal-300">
+                              <ImageIcon className="w-8 h-8 mx-auto text-legal-400" />
+                            </div>
+                        </div>
+                      ) : null}
+                    </DragOverlay>
+
+                  </DndContext>
+              </Tab.Panel>
+            </Tab.Panels>
+          </Tab.Group>
         </div>
       </main>
 
