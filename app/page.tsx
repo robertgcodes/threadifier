@@ -359,10 +359,16 @@ function Page() {
       const resultText = new TextDecoder("utf-8").decode(chunksAll);
       const posts = JSON.parse(resultText);
 
+      if (!posts || !Array.isArray(posts.thread)) {
+        console.error("API response is not in the expected format: ", posts);
+        toast.error("The AI returned an unexpected response format. Please try again.");
+        return;
+      }
+
       setGeneratedThread(
-        posts.map((post: any, index: number) => ({
+        posts.thread.map((postText: string, index: number) => ({
           id: index + 1,
-          text: post.tweet,
+          text: postText,
         }))
       );
       toast.success("Thread analyzed and generated successfully!");
