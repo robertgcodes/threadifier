@@ -208,7 +208,7 @@ function DraggablePDFPage({ idx, img, onMagnify }: { idx: number, img: string, o
   });
 
   return (
-    <div className="relative group" ref={setNodeRef}>
+    <div className="relative group" ref={setNodeRef} {...attributes}>
       <div
         role="button"
         tabIndex={0}
@@ -222,7 +222,6 @@ function DraggablePDFPage({ idx, img, onMagnify }: { idx: number, img: string, o
       </div>
       <div 
         {...listeners} 
-        {...attributes}
         className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1.5 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity"
         aria-label="Drag this image"
       >
@@ -240,7 +239,7 @@ function DraggableMarkedUpImage({ img, onEdit, onDelete }: { img: MarkedUpImage,
   });
 
   return (
-    <div className="relative group" ref={setNodeRef}>
+    <div className="relative group" ref={setNodeRef} {...attributes}>
        <div
         role="button"
         tabIndex={0}
@@ -254,7 +253,6 @@ function DraggableMarkedUpImage({ img, onEdit, onDelete }: { img: MarkedUpImage,
       </div>
       <div 
         {...listeners}
-        {...attributes}
         className="absolute top-1 right-8 bg-black/50 text-white rounded-full p-1.5 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity"
         aria-label="Drag this image"
       >
