@@ -263,58 +263,60 @@ export default function HomePage() {
     canvas.renderAll();
   };
 
-  // Robust Crop Mode with manual rectangle drawing - FINAL version
+  // Robust Crop Mode - FINAL, DEFINITIVE IMPLEMENTATION
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
+
+    // This ref holds the entire state of the cropping interaction
+    const cropState = {
+      isDrawing: false,
+      startPoint: { x: 0, y: 0 },
+      activeRect: null as fabric.Rect | null,
+    };
 
     const cleanup = () => {
       canvas.off('mouse:down');
       canvas.off('mouse:move');
       canvas.off('mouse:up');
+      canvas.off('object:modified');
       canvas.defaultCursor = 'default';
-      if (activeRectRef.current) {
-        canvas.remove(activeRectRef.current);
-        activeRectRef.current = null;
+      canvas.selection = true;
+      canvas.isDrawingMode = false;
+      canvas.forEachObject(obj => obj.selectable = true); // Make all objects selectable again
+      if (cropState.activeRect) {
+        canvas.remove(cropState.activeRect);
       }
-      setCropRect(null);
       updateCropOverlay(canvas, null);
+      setCropRect(null);
       canvas.renderAll();
     };
 
     if (cropMode) {
       canvas.isDrawingMode = false;
-      canvas.selection = true; // Enable selection for the rect
+      canvas.selection = false; // Disable normal selection
       canvas.defaultCursor = 'crosshair';
-      canvas.forEachObject(obj => { 
-        // Make only the crop rect selectable
-        if (obj !== activeRectRef.current) {
-          obj.selectable = false;
-        }
-      });
-
-      let isDrawing = false;
-      let startPoint = { x: 0, y: 0 };
+      canvas.forEachObject(obj => obj.selectable = false); // Nothing is selectable initially
 
       const onMouseDown = (o: fabric.IEvent) => {
-        // If we're clicking on the existing rectangle, let fabric.js handle it (move/scale)
-        if (o.target === activeRectRef.current) {
-          canvas.setActiveObject(activeRectRef.current!);
+        // If we are clicking on the adjustment controls of an existing rect, fabric.js will handle it.
+        // We only start a new drawing if the click is on the canvas itself.
+        if (o.target && o.target.type === 'rect' && o.target === cropState.activeRect) {
           return;
         }
 
-        // If we click outside, clear the old rect and start drawing a new one
-        if (activeRectRef.current) {
-          canvas.remove(activeRectRef.current);
+        // A new mousedown means we start a new rectangle.
+        if (cropState.activeRect) {
+          canvas.remove(cropState.activeRect);
         }
         
-        isDrawing = true;
+        cropState.isDrawing = true;
         const pointer = canvas.getPointer(o.e);
-        startPoint = pointer;
+        cropState.startPoint = pointer;
 
-        const rect = new fabric.Rect({
-          left: startPoint.x,
-          top: startPoint.y,
+        const newRect = new fabric.Rect({
+          left: pointer.x,
+          top: pointer.y,
           width: 0,
           height: 0,
           stroke: '#4A90E2',
@@ -327,18 +329,21 @@ export default function HomePage() {
           cornerSize: 10,
           transparentCorners: false,
         });
-        activeRectRef.current = rect;
-        canvas.add(activeRectRef.current);
-        setCropRect(null); // Hide apply button while drawing
+        
+        cropState.activeRect = newRect;
+        canvas.add(cropState.activeRect);
+        setCropRect(null); // Hide button while drawing
+        updateCropOverlay(canvas, null);
       };
 
       const onMouseMove = (o: fabric.IEvent) => {
-        if (!isDrawing || !activeRectRef.current) return;
+        if (!cropState.isDrawing || !cropState.activeRect) return;
+
         const pointer = canvas.getPointer(o.e);
-        let left = startPoint.x;
-        let top = startPoint.y;
-        let width = pointer.x - startPoint.x;
-        let height = pointer.y - startPoint.y;
+        let left = cropState.startPoint.x;
+        let top = cropState.startPoint.y;
+        let width = pointer.x - cropState.startPoint.x;
+        let height = pointer.y - cropState.startPoint.y;
 
         if (width < 0) {
           left = pointer.x;
@@ -348,47 +353,40 @@ export default function HomePage() {
           top = pointer.y;
           height = Math.abs(height);
         }
-        activeRectRef.current.set({ left, top, width, height });
+        cropState.activeRect.set({ left, top, width, height });
         canvas.renderAll();
       };
 
-      const onMouseUp = (o: fabric.IEvent) => {
-        isDrawing = false;
+      const onMouseUp = () => {
+        cropState.isDrawing = false;
         
-        if (!activeRectRef.current) return;
+        if (!cropState.activeRect) return;
 
-        const pointer = canvas.getPointer(o.e);
-        const dx = Math.abs(startPoint.x - pointer.x);
-        const dy = Math.abs(startPoint.y - pointer.y);
-        const clickTolerance = 5; // Pixels
-        const isClick = dx < clickTolerance && dy < clickTolerance;
-
-        if (isClick || activeRectRef.current.width === 0 || activeRectRef.current.height === 0) {
-          // This was a click or a zero-size drag, so remove the drawn rectangle.
-          canvas.remove(activeRectRef.current);
-          activeRectRef.current = null;
+        // If the box is too small, treat it as a click and remove it.
+        if (!cropState.activeRect.width || !cropState.activeRect.height || (cropState.activeRect.width < 5 && cropState.activeRect.height < 5)) {
+          canvas.remove(cropState.activeRect);
+          cropState.activeRect = null;
           setCropRect(null);
-          updateCropOverlay(canvas, null);
         } else {
-          // This was a drag, so finalize the rectangle.
-          canvas.setActiveObject(activeRectRef.current);
-          setCropRect(activeRectRef.current); // Show "Apply Crop" button
-          
-          const updateOverlayOnModify = () => updateCropOverlay(canvas, activeRectRef.current);
-          
-          activeRectRef.current.off('moving', updateOverlayOnModify);
-          activeRectRef.current.off('scaling', updateOverlayOnModify);
-          
-          activeRectRef.current.on('moving', updateOverlayOnModify);
-          activeRectRef.current.on('scaling', updateOverlayOnModify);
-
-          updateCropOverlay(canvas, activeRectRef.current);
+          // Finalize the rectangle, make it active and adjustable.
+          cropState.activeRect.setCoords(); // Important for future interactions
+          canvas.setActiveObject(cropState.activeRect);
+          setCropRect(cropState.activeRect);
+          updateCropOverlay(canvas, cropState.activeRect);
         }
+        canvas.renderAll();
       };
       
+      const onObjectModified = (e: fabric.IEvent) => {
+          if (e.target === cropState.activeRect) {
+              updateCropOverlay(canvas, cropState.activeRect);
+          }
+      };
+
       canvas.on('mouse:down', onMouseDown);
       canvas.on('mouse:move', onMouseMove);
       canvas.on('mouse:up', onMouseUp);
+      canvas.on('object:modified', onObjectModified); // For scaling/moving
 
       return cleanup;
     } else {
@@ -996,7 +994,7 @@ export default function HomePage() {
                 </>}
               </div>
               {magnifyLoading && <div className="text-legal-500">Loading high-res page...</div>}
-              <div style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+              <div ref={modalContentRef} style={{ width: '100%', height: '100%', overflow: 'auto', flex: 1, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
                 <div ref={fabricContainerRef} style={{ width: canvasNaturalSize ? canvasNaturalSize.width * zoom : undefined, height: canvasNaturalSize ? canvasNaturalSize.height * zoom : undefined, margin: 'auto' }} />
               </div>
               {(magnifyImage || editingMarkedUpId) && (
