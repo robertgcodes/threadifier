@@ -242,6 +242,7 @@ export default function HomePage() {
       fill: 'rgba(0,0,0,0.5)',
       selectable: false,
       evented: false,
+      excludeFromExport: true,
     };
 
     const overlays = [
@@ -260,65 +261,95 @@ export default function HomePage() {
     canvas.renderAll();
   };
 
-  // Crop mode disables drawing and pan modes
+  // Robust Crop Mode with manual rectangle drawing
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    const onSelectionCreated = (e: any) => {
-      setCropRect(e.target);
-      updateCropOverlay(canvas, e.target);
-    };
-    const onSelectionCleared = () => {
-      setCropRect(null);
-      updateCropOverlay(canvas, null);
-    };
-    const onSelectionUpdated = (e: any) => {
-      setCropRect(e.target);
-      updateCropOverlay(canvas, e.target);
-    };
-    
     if (cropMode) {
       canvas.isDrawingMode = false;
-      canvas.selection = true;
+      canvas.selection = false;
       canvas.defaultCursor = 'crosshair';
       canvas.forEachObject(obj => { obj.selectable = false; });
-      // Attach listeners only in crop mode
-      canvas.on('selection:created', onSelectionCreated);
-      canvas.on('selection:cleared', onSelectionCleared);
-      canvas.on('selection:updated', onSelectionUpdated);
-    } else {
-      canvas.selection = false;
-      canvas.defaultCursor = 'default';
-      if (canvas.getActiveObject()) {
-        canvas.discardActiveObject();
-      }
-      updateCropOverlay(canvas, null);
-      setCropRect(null);
-      // Detach listeners when not in crop mode
-      canvas.off('selection:created', onSelectionCreated);
-      canvas.off('selection:cleared', onSelectionCleared);
-      canvas.off('selection:updated', onSelectionUpdated);
-    }
 
-    canvas.renderAll();
+      let isDrawingRect = false;
+      let startPoint = { x: 0, y: 0 };
+      let activeRect: fabric.Rect | null = null;
 
-    return () => {
-      if (canvas) {
-        canvas.off('selection:created', onSelectionCreated);
-        canvas.off('selection:cleared', onSelectionCleared);
-        canvas.off('selection:updated', onSelectionUpdated);
+      const onMouseDown = (o: fabric.IEvent) => {
+        // Clear previous rect if exists
+        if (cropRect) {
+          canvas.remove(cropRect);
+        }
+        isDrawingRect = true;
+        const pointer = canvas.getPointer(o.e);
+        startPoint = pointer;
+        activeRect = new fabric.Rect({
+          left: startPoint.x,
+          top: startPoint.y,
+          width: 0,
+          height: 0,
+          stroke: '#4A90E2',
+          strokeWidth: 2,
+          fill: 'rgba(74, 144, 226, 0.1)',
+          selectable: true,
+          hasControls: true,
+          lockRotation: true,
+          cornerColor: '#4A90E2',
+          cornerSize: 10,
+          transparentCorners: false,
+        });
+        canvas.add(activeRect);
+      };
+
+      const onMouseMove = (o: fabric.IEvent) => {
+        if (!isDrawingRect || !activeRect) return;
+        const pointer = canvas.getPointer(o.e);
+        activeRect.set({
+          width: Math.abs(pointer.x - startPoint.x),
+          height: Math.abs(pointer.y - startPoint.y),
+        });
+        if (pointer.x < startPoint.x) activeRect.set({ left: pointer.x });
+        if (pointer.y < startPoint.y) activeRect.set({ top: pointer.y });
+        canvas.renderAll();
+      };
+
+      const onMouseUp = () => {
+        isDrawingRect = false;
+        if (activeRect) {
+          canvas.setActiveObject(activeRect);
+          setCropRect(activeRect);
+          updateCropOverlay(canvas, activeRect);
+          
+          activeRect.on('scaling', () => updateCropOverlay(canvas, activeRect));
+          activeRect.on('moving', () => updateCropOverlay(canvas, activeRect));
+        }
+      };
+
+      canvas.on('mouse:down', onMouseDown);
+      canvas.on('mouse:move', onMouseMove);
+      canvas.on('mouse:up', onMouseUp);
+      
+      return () => { // Cleanup
+        canvas.off('mouse:down', onMouseDown);
+        canvas.off('mouse:move', onMouseMove);
+        canvas.off('mouse:up', onMouseUp);
+        canvas.defaultCursor = 'default';
+        if (activeRect) canvas.remove(activeRect);
         updateCropOverlay(canvas, null);
-      }
+      };
+    } else {
+      // Cleanup when exiting crop mode
+      if(cropRect) canvas.remove(cropRect);
+      setCropRect(null);
+      updateCropOverlay(canvas, null);
     }
-  }, [cropMode, fabricCanvasRef.current]);
+
+  }, [cropMode]);
 
   const handleApplyCrop = () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !cropRect) return;
-
-    // Temporarily remove overlay for clean capture
-    updateCropOverlay(canvas, null);
 
     const croppedDataUrl = canvas.toDataURL({
       format: 'png',
