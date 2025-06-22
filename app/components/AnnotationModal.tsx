@@ -40,6 +40,7 @@ export default function AnnotationModal({
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const imageElementRef = useRef<fabric.Image | null>(null);
+  const mutationObserverRef = useRef<MutationObserver | null>(null);
 
   // Tool state
   const [activeTool, setActiveTool] = useState<Tool>('draw');
@@ -130,8 +131,12 @@ export default function AnnotationModal({
   useEffect(() => {
     if (!isOpen) return;
 
+    let isInitializing = false;
+
     // Wait for the modal to be fully rendered
     const initCanvas = () => {
+      if (isInitializing) return;
+      
       if (!canvasElRef.current || !canvasElRef.current.parentNode) {
         console.log('Canvas element not ready, retrying...');
         setTimeout(initCanvas, 50);
@@ -144,6 +149,7 @@ export default function AnnotationModal({
         return;
       }
 
+      isInitializing = true;
       console.log('Initializing fabric canvas');
       console.log('Canvas element before fabric:', canvasElRef.current);
       
@@ -155,14 +161,50 @@ export default function AnnotationModal({
       console.log('Container dimensions:', containerWidth, 'x', containerHeight);
       
       try {
+        // Clone the canvas element to prevent React interference
+        const canvasElement = canvasElRef.current;
+        
+        // Set up mutation observer to detect DOM changes
+        if (typeof MutationObserver !== 'undefined') {
+          mutationObserverRef.current = new MutationObserver((mutations) => {
+            // Temporarily pause fabric.js operations during DOM mutations
+            mutations.forEach((mutation) => {
+              if (mutation.type === 'childList' && fabricCanvasRef.current) {
+                // Debounce rendering during mutations
+                clearTimeout((fabricCanvasRef.current as any)._renderTimer);
+                (fabricCanvasRef.current as any)._renderTimer = setTimeout(() => {
+                  try {
+                    if (fabricCanvasRef.current) {
+                      fabricCanvasRef.current.renderAll();
+                    }
+                  } catch (error) {
+                    console.error('Error during mutation render:', error);
+                  }
+                }, 100);
+              }
+            });
+          });
+          
+          if (canvasContainerRef.current) {
+            mutationObserverRef.current.observe(canvasContainerRef.current, {
+              childList: true,
+              subtree: true
+            });
+          }
+        }
+        
         // Ensure DOM is stable before creating fabric canvas
-        const canvas = new fabric.Canvas(canvasElRef.current, {
+        const canvas = new fabric.Canvas(canvasElement, {
           width: Math.min(containerWidth - 50, 1000), // Large but reasonable
           height: Math.min(containerHeight - 50, 800),
           backgroundColor: '#ffffff', // Clean white background
           enableRetinaScaling: false, // Prevent scaling issues
           skipOffscreen: true, // Skip rendering objects that are offscreen
-          renderOnAddRemove: false // Prevent automatic renders during add/remove
+          renderOnAddRemove: false, // Prevent automatic renders during add/remove
+          allowTouchScrolling: false, // Prevent touch interference
+          stopContextMenu: true, // Prevent context menu
+          fireRightClick: false, // Disable right click events
+          stateful: false // Disable automatic state saving
         });
         
         console.log('Canvas set to:', canvas.width, 'x', canvas.height);
@@ -202,25 +244,33 @@ export default function AnnotationModal({
         canvas.on('object:removed', saveToHistory);
         canvas.on('object:modified', saveToHistory);
         
-        // Initial render with protection
-        try {
-          canvas.renderAll();
-          console.log('Canvas initialized successfully');
-        } catch (renderError) {
-          console.error('Error during initial render:', renderError);
-        }
+        // Initial render with protection - use RAF to avoid conflicts
+        requestAnimationFrame(() => {
+          try {
+            if (fabricCanvasRef.current === canvas) {
+              canvas.renderAll();
+              console.log('Canvas initialized successfully');
+            }
+          } catch (renderError) {
+            console.error('Error during initial render:', renderError);
+          } finally {
+            isInitializing = false;
+          }
+        });
         
       } catch (error) {
         console.error('Error initializing canvas:', error);
         fabricCanvasRef.current = null;
+        isInitializing = false;
       }
     };
 
     // Start initialization after a longer delay to ensure DOM stability
-    const timer = setTimeout(initCanvas, 200);
+    const timer = setTimeout(initCanvas, 300);
 
     return () => {
       clearTimeout(timer);
+      isInitializing = false;
     };
   }, [isOpen]);
 
@@ -230,6 +280,17 @@ export default function AnnotationModal({
       console.log('Cleaning up canvas on modal close');
       try {
         const canvas = fabricCanvasRef.current;
+        
+        // Disconnect mutation observer
+        if (mutationObserverRef.current) {
+          mutationObserverRef.current.disconnect();
+          mutationObserverRef.current = null;
+        }
+        
+        // Clear any pending render timers
+        if ((canvas as any)._renderTimer) {
+          clearTimeout((canvas as any)._renderTimer);
+        }
         
         // Remove all event listeners
         canvas.off('path:created');
@@ -373,24 +434,35 @@ export default function AnnotationModal({
               console.log('Image visible?', img.visible);
               console.log('Image opacity:', img.opacity);
               
-              // Re-enable rendering and render once
+              // Re-enable rendering and render once using RAF
               canvas.renderOnAddRemove = true;
-              canvas.renderAll();
-              setIsLoading(false);
-              initializeHistory();
               
-              // Force re-render after a short delay with additional protection
-              setTimeout(() => {
+              // Use requestAnimationFrame to prevent DOM conflicts
+              requestAnimationFrame(() => {
                 try {
-                  if (fabricCanvasRef.current && canvas === fabricCanvasRef.current) {
-                    console.log('Force re-rendering canvas');
-                    console.log('Canvas objects after timeout:', canvas.getObjects().length);
+                  if (fabricCanvasRef.current === canvas) {
                     canvas.renderAll();
+                    setIsLoading(false);
+                    initializeHistory();
+                    
+                    // Additional render after a frame to ensure stability
+                    requestAnimationFrame(() => {
+                      try {
+                        if (fabricCanvasRef.current === canvas) {
+                          console.log('Force re-rendering canvas');
+                          console.log('Canvas objects after RAF:', canvas.getObjects().length);
+                          canvas.renderAll();
+                        }
+                      } catch (renderError) {
+                        console.error('Error during force re-render:', renderError);
+                      }
+                    });
                   }
                 } catch (renderError) {
-                  console.error('Error during force re-render:', renderError);
+                  console.error('Error during RAF render:', renderError);
+                  setIsLoading(false);
                 }
-              }, 300);
+              });
               
             } catch (error) {
               console.error('Error adding image to canvas:', error);
