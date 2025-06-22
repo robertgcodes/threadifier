@@ -188,9 +188,11 @@ export default function AnnotationModal({
         // Load existing markup
         console.log('Loading existing markup');
         canvas.loadFromJSON(editingMarkedUpImage.json, () => {
-          const bgImage = canvas.backgroundImage as fabric.Image;
+          // Find the background image object (should be the first/bottom object)
+          const objects = canvas.getObjects();
+          const bgImage = objects.find(obj => obj instanceof fabric.Image) as fabric.Image;
           if (bgImage) {
-            fitCanvasToImage(bgImage.width!, bgImage.height!);
+            fitCanvasToImage(bgImage.width! * bgImage.scaleX!, bgImage.height! * bgImage.scaleY!);
           }
           canvas.renderAll();
           setIsLoading(false);
@@ -251,14 +253,21 @@ export default function AnnotationModal({
             const scaledWidth = img.width! * scale;
             const scaledHeight = img.height! * scale;
             
-            // Center the image
+            // Center the image and add it as a regular object (not background)
             img.set({
               left: (canvasWidth - scaledWidth) / 2,
               top: (canvasHeight - scaledHeight) / 2,
               scaleX: scale,
               scaleY: scale,
               selectable: false,
-              evented: false
+              evented: false,
+              lockMovementX: true,
+              lockMovementY: true,
+              lockScalingX: true,
+              lockScalingY: true,
+              lockRotation: true,
+              hasControls: false,
+              hasBorders: false
             });
             
             console.log('Image positioned at:', {
@@ -268,17 +277,25 @@ export default function AnnotationModal({
               scaledHeight
             });
             
-            canvas.setBackgroundImage(img, () => {
-              console.log('Background image set successfully');
+            // Add image as the first object (bottom layer)
+            canvas.add(img);
+            canvas.sendToBack(img); // Ensure it's behind all other objects
+            
+            console.log('Image added to canvas successfully');
+            console.log('Canvas objects count:', canvas.getObjects().length);
+            console.log('Image visible?', img.visible);
+            console.log('Image opacity:', img.opacity);
+            
+            canvas.renderAll();
+            setIsLoading(false);
+            initializeHistory();
+            
+            // Force re-render after a short delay
+            setTimeout(() => {
+              console.log('Force re-rendering canvas');
+              console.log('Canvas objects after timeout:', canvas.getObjects().length);
               canvas.renderAll();
-              setIsLoading(false);
-              initializeHistory();
-              
-              // Force re-render after a short delay
-              setTimeout(() => {
-                canvas.renderAll();
-              }, 100);
-            });
+            }, 100);
             
             imageElementRef.current = img;
             setZoom(1);
@@ -299,9 +316,11 @@ export default function AnnotationModal({
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
     
-    const json = JSON.stringify(canvas.toJSON(['selectable', 'evented']));
+    // Create history snapshot including the background image
+    const json = JSON.stringify(canvas.toJSON(['selectable', 'evented', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hasControls', 'hasBorders']));
     setHistory([json]);
     setHistoryIndex(0);
+    console.log('History initialized with', canvas.getObjects().length, 'objects');
   };
 
   const fitCanvasToImage = (imgWidth: number, imgHeight: number) => {
@@ -622,10 +641,14 @@ export default function AnnotationModal({
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    const bgImage = canvas.backgroundImage;
+    const backgroundImg = imageElementRef.current;
     canvas.clear();
-    if (bgImage) {
-      canvas.setBackgroundImage(bgImage, canvas.renderAll.bind(canvas));
+    
+    // Re-add the background image if it exists
+    if (backgroundImg) {
+      canvas.add(backgroundImg);
+      canvas.sendToBack(backgroundImg);
+      canvas.renderAll();
     }
   };
 
