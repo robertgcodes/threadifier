@@ -487,10 +487,20 @@ export default function AnnotationModal({
     let rect: fabric.Rect;
 
     const onMouseDown = (opt: fabric.IEvent) => {
+      // Only start new crop if not clicking on existing crop rect
+      if (cropRect && canvas.getActiveObject() === cropRect) {
+        return; // Allow manipulation of existing crop rect
+      }
+
       const pointer = canvas.getPointer(opt.e);
       isDown = true;
       startX = pointer.x;
       startY = pointer.y;
+
+      // Remove previous crop rect if exists
+      if (cropRect) {
+        canvas.remove(cropRect);
+      }
 
       rect = new fabric.Rect({
         left: startX,
@@ -543,6 +553,14 @@ export default function AnnotationModal({
       if (rect) {
         rect.setCoords();
         canvas.setActiveObject(rect);
+        // Remove event listeners after crop is complete
+        canvas.off('mouse:down', onMouseDown);
+        canvas.off('mouse:move', onMouseMove);
+        canvas.off('mouse:up', onMouseUp);
+        
+        // Re-enable selection mode
+        canvas.selection = true;
+        console.log('Crop rectangle created, switching to selection mode');
       }
     };
 

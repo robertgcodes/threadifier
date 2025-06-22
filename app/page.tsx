@@ -225,6 +225,7 @@ const AuthDisplay = () => {
 function Page() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pageImages, setPageImages] = useState<string[]>([]);
+  const [highResPageImages, setHighResPageImages] = useState<string[]>([]);
   const [markedUpImages, setMarkedUpImages] = useState<MarkedUpImage[]>([]);
   const [extractedText, setExtractedText] = useState<string>("");
   const [isExtracting, setIsExtracting] = useState(false);
@@ -270,6 +271,7 @@ function Page() {
       setExtractedText("");
       setGeneratedThread([]);
       setMarkedUpImages([]);
+      setHighResPageImages([]);
       setPostPageMap({});
       toast.success("PDF loaded successfully!");
       extractTextFromPDF(file);
@@ -288,19 +290,34 @@ function Page() {
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         let fullText = "";
         const images: string[] = [];
+        const highResImages: string[] = [];
+        
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 0.2 }); // thumbnail size
-          const canvas = document.createElement("canvas");
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          const context = canvas.getContext("2d");
-          await page.render({ canvasContext: context!, viewport }).promise;
-          images.push(canvas.toDataURL("image/png"));
+          
+          // Generate thumbnail for UI
+          const thumbnailViewport = page.getViewport({ scale: 0.2 });
+          const thumbnailCanvas = document.createElement("canvas");
+          thumbnailCanvas.width = thumbnailViewport.width;
+          thumbnailCanvas.height = thumbnailViewport.height;
+          const thumbnailContext = thumbnailCanvas.getContext("2d");
+          await page.render({ canvasContext: thumbnailContext!, viewport: thumbnailViewport }).promise;
+          images.push(thumbnailCanvas.toDataURL("image/png"));
+          
+          // Generate high-resolution for editing (2x scale for crisp text)
+          const highResViewport = page.getViewport({ scale: 2.0 });
+          const highResCanvas = document.createElement("canvas");
+          highResCanvas.width = highResViewport.width;
+          highResCanvas.height = highResViewport.height;
+          const highResContext = highResCanvas.getContext("2d");
+          await page.render({ canvasContext: highResContext!, viewport: highResViewport }).promise;
+          highResImages.push(highResCanvas.toDataURL("image/png"));
+          
           const pageText = await page.getTextContent();
           fullText += pageText.items.map((item: any) => item.str).join(" ") + "\n\n";
         }
         setPageImages(images);
+        setHighResPageImages(highResImages);
         setExtractedText(fullText);
         setIsExtracting(false);
       };
@@ -821,7 +838,7 @@ function Page() {
             onClose={closeMagnify}
             onSave={handleSaveMarkedUpImage}
             onCrop={handleCrop}
-            pageImages={pageImages}
+            pageImages={highResPageImages.length > 0 ? highResPageImages : pageImages}
             initialPage={magnifyInitialPage}
             editingMarkedUpImage={editingMarkedUpImage}
           />
