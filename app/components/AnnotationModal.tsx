@@ -116,11 +116,20 @@ export default function AnnotationModal({
       console.log('Initializing fabric canvas');
       console.log('Canvas element before fabric:', canvasElRef.current);
       
+      // Get actual container dimensions
+      const container = canvasContainerRef.current;
+      const containerWidth = container?.clientWidth || 800;
+      const containerHeight = container?.clientHeight || 600;
+      
+      console.log('Container dimensions:', containerWidth, 'x', containerHeight);
+      
       const canvas = new fabric.Canvas(canvasElRef.current, {
-        width: 600,
-        height: 800,
+        width: Math.min(containerWidth - 50, 1000), // Large but reasonable
+        height: Math.min(containerHeight - 50, 800),
         backgroundColor: '#ffcccc' // Temporary red background for debugging
       });
+      
+      console.log('Canvas set to:', canvas.width, 'x', canvas.height);
 
       fabricCanvasRef.current = canvas;
       
@@ -130,8 +139,8 @@ export default function AnnotationModal({
       
       // Add a simple test rectangle to see if fabric is working at all
       const testRect = new fabric.Rect({
-        left: 50,
-        top: 50,
+        left: canvas.width! - 150, // Position in top-right corner
+        top: 20,
         width: 100,
         height: 100,
         fill: 'yellow',
@@ -139,6 +148,7 @@ export default function AnnotationModal({
         strokeWidth: 3
       });
       canvas.add(testRect);
+      console.log('Test rectangle added at:', testRect.left, testRect.top);
       
       // Force render immediately
       canvas.renderAll();
@@ -258,24 +268,27 @@ export default function AnnotationModal({
             const containerWidth = canvasContainerRef.current?.clientWidth || 800;
             const containerHeight = canvasContainerRef.current?.clientHeight || 600;
             
-            // For debugging - use simple, fixed canvas size first
-            const canvasWidth = 600;
-            const canvasHeight = 800;
+            // Use the canvas dimensions we already set
+            const canvasWidth = canvas.width!;
+            const canvasHeight = canvas.height!;
             
-            console.log('Setting canvas dimensions:', canvasWidth, 'x', canvasHeight);
+            console.log('Using canvas dimensions:', canvasWidth, 'x', canvasHeight);
             console.log('Original image dimensions:', img.width, 'x', img.height);
             
-            canvas.setDimensions({ width: canvasWidth, height: canvasHeight });
-            
-            // For debugging - use simple scaling and positioning
-            const scale = 0.5; // Fixed scale for testing
+            // Calculate scale to fit image nicely in canvas
+            const scaleX = (canvasWidth * 0.9) / img.width!; // Use 90% of canvas width
+            const scaleY = (canvasHeight * 0.9) / img.height!; // Use 90% of canvas height
+            const scale = Math.min(scaleX, scaleY); // Keep aspect ratio
             
             console.log('Image scale factor:', scale);
             
-            // Position image at top-left corner for debugging
+            // Center the image in the canvas
+            const scaledWidth = img.width! * scale;
+            const scaledHeight = img.height! * scale;
+            
             img.set({
-              left: 10,
-              top: 10,
+              left: (canvasWidth - scaledWidth) / 2,
+              top: (canvasHeight - scaledHeight) / 2,
               scaleX: scale,
               scaleY: scale,
               selectable: false,
@@ -297,7 +310,9 @@ export default function AnnotationModal({
               left: img.left,
               top: img.top,
               scaleX: img.scaleX,
-              scaleY: img.scaleY
+              scaleY: img.scaleY,
+              scaledWidth,
+              scaledHeight
             });
             
             // Add image as the first object (bottom layer)
