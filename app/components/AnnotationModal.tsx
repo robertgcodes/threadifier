@@ -101,7 +101,7 @@ export default function AnnotationModal({
 
     // Wait for the modal to be fully rendered
     const initCanvas = () => {
-      if (!canvasElRef.current) {
+      if (!canvasElRef.current || !canvasElRef.current.parentNode) {
         console.log('Canvas element not ready, retrying...');
         setTimeout(initCanvas, 50);
         return;
@@ -124,10 +124,14 @@ export default function AnnotationModal({
       console.log('Container dimensions:', containerWidth, 'x', containerHeight);
       
       try {
+        // Ensure DOM is stable before creating fabric canvas
         const canvas = new fabric.Canvas(canvasElRef.current, {
           width: Math.min(containerWidth - 50, 1000), // Large but reasonable
           height: Math.min(containerHeight - 50, 800),
-          backgroundColor: '#ffffff' // Clean white background
+          backgroundColor: '#ffffff', // Clean white background
+          enableRetinaScaling: false, // Prevent scaling issues
+          skipOffscreen: true, // Skip rendering objects that are offscreen
+          renderOnAddRemove: false // Prevent automatic renders during add/remove
         });
         
         console.log('Canvas set to:', canvas.width, 'x', canvas.height);
@@ -137,21 +141,29 @@ export default function AnnotationModal({
         console.log('Canvas element after fabric:', canvasElRef.current);
         console.log('Canvas background color:', canvas.backgroundColor);
         
-        // Set up canvas event handlers
+        // Set up canvas event handlers with error protection
         const saveToHistory = () => {
-          if (!fabricCanvasRef.current) return;
-          const json = JSON.stringify(fabricCanvasRef.current.toJSON(['selectable', 'evented']));
-          setHistory(prev => {
-            const newHistory = prev.slice(0, historyIndex + 1);
-            newHistory.push(json);
-            return newHistory;
-          });
-          setHistoryIndex(prev => prev + 1);
+          try {
+            if (!fabricCanvasRef.current) return;
+            const json = JSON.stringify(fabricCanvasRef.current.toJSON(['selectable', 'evented']));
+            setHistory(prev => {
+              const newHistory = prev.slice(0, historyIndex + 1);
+              newHistory.push(json);
+              return newHistory;
+            });
+            setHistoryIndex(prev => prev + 1);
+          } catch (error) {
+            console.error('Error saving to history:', error);
+          }
         };
 
         const handlePathCreated = (e: any) => {
-          console.log('Path created:', e.path);
-          saveToHistory();
+          try {
+            console.log('Path created:', e.path);
+            saveToHistory();
+          } catch (error) {
+            console.error('Error handling path creation:', error);
+          }
         };
 
         canvas.on('path:created', handlePathCreated);
@@ -159,9 +171,13 @@ export default function AnnotationModal({
         canvas.on('object:removed', saveToHistory);
         canvas.on('object:modified', saveToHistory);
         
-        // Initial render
-        canvas.renderAll();
-        console.log('Canvas initialized successfully');
+        // Initial render with protection
+        try {
+          canvas.renderAll();
+          console.log('Canvas initialized successfully');
+        } catch (renderError) {
+          console.error('Error during initial render:', renderError);
+        }
         
       } catch (error) {
         console.error('Error initializing canvas:', error);
@@ -169,8 +185,8 @@ export default function AnnotationModal({
       }
     };
 
-    // Start initialization after a short delay
-    const timer = setTimeout(initCanvas, 100);
+    // Start initialization after a longer delay to ensure DOM stability
+    const timer = setTimeout(initCanvas, 200);
 
     return () => {
       clearTimeout(timer);
@@ -182,15 +198,27 @@ export default function AnnotationModal({
     if (!isOpen && fabricCanvasRef.current) {
       console.log('Cleaning up canvas on modal close');
       try {
-        fabricCanvasRef.current.off('path:created');
-        fabricCanvasRef.current.off('object:added');
-        fabricCanvasRef.current.off('object:removed');
-        fabricCanvasRef.current.off('object:modified');
-        fabricCanvasRef.current.dispose();
+        const canvas = fabricCanvasRef.current;
+        
+        // Remove all event listeners
+        canvas.off('path:created');
+        canvas.off('object:added');
+        canvas.off('object:removed');
+        canvas.off('object:modified');
+        canvas.off('mouse:down');
+        canvas.off('mouse:move');
+        canvas.off('mouse:up');
+        
+        // Clear all objects
+        canvas.clear();
+        
+        // Dispose of the canvas
+        canvas.dispose();
       } catch (error) {
         console.error('Error disposing canvas:', error);
       }
       fabricCanvasRef.current = null;
+      imageElementRef.current = null;
     }
   }, [isOpen]);
 
@@ -214,6 +242,8 @@ export default function AnnotationModal({
       setIsLoading(true);
       
       try {
+        // Disable rendering during canvas operations
+        canvas.renderOnAddRemove = false;
         canvas.clear();
       } catch (error) {
         console.error('Error clearing canvas:', error);
@@ -312,25 +342,31 @@ export default function AnnotationModal({
               console.log('Image visible?', img.visible);
               console.log('Image opacity:', img.opacity);
               
+              // Re-enable rendering and render once
+              canvas.renderOnAddRemove = true;
               canvas.renderAll();
               setIsLoading(false);
               initializeHistory();
               
-              // Force re-render after a short delay
+              // Force re-render after a short delay with additional protection
               setTimeout(() => {
                 try {
-                  console.log('Force re-rendering canvas');
-                  console.log('Canvas objects after timeout:', canvas.getObjects().length);
-                  canvas.renderAll();
+                  if (fabricCanvasRef.current && canvas === fabricCanvasRef.current) {
+                    console.log('Force re-rendering canvas');
+                    console.log('Canvas objects after timeout:', canvas.getObjects().length);
+                    canvas.renderAll();
+                  }
                 } catch (renderError) {
                   console.error('Error during force re-render:', renderError);
                 }
-              }, 200);
+              }, 300);
               
             } catch (error) {
               console.error('Error adding image to canvas:', error);
               setError('Failed to add image to canvas');
               setIsLoading(false);
+              // Re-enable rendering even on error
+              canvas.renderOnAddRemove = true;
             }
             
             imageElementRef.current = img;
@@ -393,51 +429,60 @@ export default function AnnotationModal({
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    // Clean up previous tool
-    canvas.isDrawingMode = false;
-    canvas.selection = true;
-    canvas.defaultCursor = 'default';
-    canvas.hoverCursor = 'move';
-    
-    // Clear crop rect when switching tools
-    if (tool !== 'crop' && cropRect) {
-      canvas.remove(cropRect);
-      setCropRect(null);
+    try {
+      // Clean up previous tool
+      canvas.isDrawingMode = false;
+      canvas.selection = true;
+      canvas.defaultCursor = 'default';
+      canvas.hoverCursor = 'move';
+      
+      // Clear crop rect when switching tools
+      if (tool !== 'crop' && cropRect) {
+        canvas.remove(cropRect);
+        setCropRect(null);
+      }
+
+      setActiveTool(tool);
+    } catch (error) {
+      console.error('Error during tool change:', error);
+      return;
     }
 
-    setActiveTool(tool);
-
-    switch (tool) {
-      case 'draw':
-        canvas.isDrawingMode = true;
-        canvas.freeDrawingBrush.color = penColor;
-        canvas.freeDrawingBrush.width = penSize;
-        canvas.freeDrawingBrush.strokeLineCap = 'round';
-        canvas.freeDrawingBrush.strokeLineJoin = 'round';
-        canvas.renderAll();
-        break;
-      
-      case 'erase':
-        canvas.isDrawingMode = true;
-        // Use white brush for erasing effect
-        canvas.freeDrawingBrush.color = '#ffffff';
-        canvas.freeDrawingBrush.width = penSize * 2;
-        canvas.freeDrawingBrush.strokeLineCap = 'round';
-        canvas.freeDrawingBrush.strokeLineJoin = 'round';
-        break;
-      
-      case 'pan':
-        canvas.selection = false;
-        canvas.defaultCursor = 'grab';
-        canvas.hoverCursor = 'grab';
-        setupPanMode(canvas);
-        break;
-      
-      case 'crop':
-        canvas.selection = false;
-        canvas.defaultCursor = 'crosshair';
-        setupCropMode(canvas);
-        break;
+    try {
+      switch (tool) {
+        case 'draw':
+          canvas.isDrawingMode = true;
+          canvas.freeDrawingBrush.color = penColor;
+          canvas.freeDrawingBrush.width = penSize;
+          canvas.freeDrawingBrush.strokeLineCap = 'round';
+          canvas.freeDrawingBrush.strokeLineJoin = 'round';
+          canvas.renderAll();
+          break;
+        
+        case 'erase':
+          canvas.isDrawingMode = true;
+          // Use white brush for erasing effect
+          canvas.freeDrawingBrush.color = '#ffffff';
+          canvas.freeDrawingBrush.width = penSize * 2;
+          canvas.freeDrawingBrush.strokeLineCap = 'round';
+          canvas.freeDrawingBrush.strokeLineJoin = 'round';
+          break;
+        
+        case 'pan':
+          canvas.selection = false;
+          canvas.defaultCursor = 'grab';
+          canvas.hoverCursor = 'grab';
+          setupPanMode(canvas);
+          break;
+        
+        case 'crop':
+          canvas.selection = false;
+          canvas.defaultCursor = 'crosshair';
+          setupCropMode(canvas);
+          break;
+      }
+    } catch (error) {
+      console.error('Error setting up tool:', tool, error);
     }
   }, [penColor, penSize, cropRect]);
 
