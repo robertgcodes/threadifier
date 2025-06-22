@@ -107,10 +107,10 @@ export default function AnnotationModal({
         return;
       }
 
-      // Clean up any existing canvas first
+      // Only initialize if we don't already have a canvas
       if (fabricCanvasRef.current) {
-        fabricCanvasRef.current.dispose();
-        fabricCanvasRef.current = null;
+        console.log('Canvas already exists, skipping initialization');
+        return;
       }
 
       console.log('Initializing fabric canvas');
@@ -123,51 +123,50 @@ export default function AnnotationModal({
       
       console.log('Container dimensions:', containerWidth, 'x', containerHeight);
       
-      const canvas = new fabric.Canvas(canvasElRef.current, {
-        width: Math.min(containerWidth - 50, 1000), // Large but reasonable
-        height: Math.min(containerHeight - 50, 800),
-        backgroundColor: '#ffffff' // Clean white background
-      });
-      
-      console.log('Canvas set to:', canvas.width, 'x', canvas.height);
-
-      fabricCanvasRef.current = canvas;
-      
-      console.log('Fabric canvas created:', canvas);
-      console.log('Canvas element after fabric:', canvasElRef.current);
-      console.log('Canvas background color:', canvas.backgroundColor);
-      
-      // Canvas is working - test rectangle removed
-      
-      // Force render immediately
-      canvas.renderAll();
-      console.log('Added test rectangle and rendered canvas');
-      
-      console.log('Canvas initialized successfully');
-
-      // Set up canvas event handlers
-      const saveToHistory = () => {
-        if (!canvas) return;
-        const json = JSON.stringify(canvas.toJSON(['selectable', 'evented']));
-        setHistory(prev => {
-          const newHistory = prev.slice(0, historyIndex + 1);
-          newHistory.push(json);
-          return newHistory;
+      try {
+        const canvas = new fabric.Canvas(canvasElRef.current, {
+          width: Math.min(containerWidth - 50, 1000), // Large but reasonable
+          height: Math.min(containerHeight - 50, 800),
+          backgroundColor: '#ffffff' // Clean white background
         });
-        setHistoryIndex(prev => prev + 1);
-        // Force render after saving to history
-        setTimeout(() => canvas.renderAll(), 50);
-      };
+        
+        console.log('Canvas set to:', canvas.width, 'x', canvas.height);
+        fabricCanvasRef.current = canvas;
+        
+        console.log('Fabric canvas created:', canvas);
+        console.log('Canvas element after fabric:', canvasElRef.current);
+        console.log('Canvas background color:', canvas.backgroundColor);
+        
+        // Set up canvas event handlers
+        const saveToHistory = () => {
+          if (!fabricCanvasRef.current) return;
+          const json = JSON.stringify(fabricCanvasRef.current.toJSON(['selectable', 'evented']));
+          setHistory(prev => {
+            const newHistory = prev.slice(0, historyIndex + 1);
+            newHistory.push(json);
+            return newHistory;
+          });
+          setHistoryIndex(prev => prev + 1);
+        };
 
-      const handlePathCreated = (e: any) => {
-        console.log('Path created:', e.path);
-        saveToHistory();
-      };
+        const handlePathCreated = (e: any) => {
+          console.log('Path created:', e.path);
+          saveToHistory();
+        };
 
-      canvas.on('path:created', handlePathCreated);
-      canvas.on('object:added', saveToHistory);
-      canvas.on('object:removed', saveToHistory);
-      canvas.on('object:modified', saveToHistory);
+        canvas.on('path:created', handlePathCreated);
+        canvas.on('object:added', saveToHistory);
+        canvas.on('object:removed', saveToHistory);
+        canvas.on('object:modified', saveToHistory);
+        
+        // Initial render
+        canvas.renderAll();
+        console.log('Canvas initialized successfully');
+        
+      } catch (error) {
+        console.error('Error initializing canvas:', error);
+        fabricCanvasRef.current = null;
+      }
     };
 
     // Start initialization after a short delay
@@ -175,15 +174,24 @@ export default function AnnotationModal({
 
     return () => {
       clearTimeout(timer);
-      if (fabricCanvasRef.current) {
+    };
+  }, [isOpen]);
+
+  // Cleanup canvas when modal closes
+  useEffect(() => {
+    if (!isOpen && fabricCanvasRef.current) {
+      console.log('Cleaning up canvas on modal close');
+      try {
         fabricCanvasRef.current.off('path:created');
         fabricCanvasRef.current.off('object:added');
         fabricCanvasRef.current.off('object:removed');
         fabricCanvasRef.current.off('object:modified');
         fabricCanvasRef.current.dispose();
-        fabricCanvasRef.current = null;
+      } catch (error) {
+        console.error('Error disposing canvas:', error);
       }
-    };
+      fabricCanvasRef.current = null;
+    }
   }, [isOpen]);
 
   // Load image into canvas
