@@ -20,8 +20,12 @@ export async function POST(req: Request) {
       pageTexts = [],
     } = await req.json();
 
-    if (!text) {
+    if (!text && !suggestPages) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
+    }
+
+    if (suggestPages && (!pageTexts || pageTexts.length === 0)) {
+      return NextResponse.json({ error: 'Page texts are required for suggestions' }, { status: 400 });
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {

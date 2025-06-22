@@ -271,6 +271,9 @@ function Page() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [pageTexts, setPageTexts] = useState<string[]>([]);
   
+  // Tab control state
+  const [selectedTabIndex, setSelectedTabIndex] = useState(0);
+  
   const onDrop = (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file && file.type === "application/pdf") {
@@ -448,6 +451,7 @@ function Page() {
         }))
       );
       toast.success("Thread analyzed and generated successfully!");
+      setSelectedTabIndex(1); // Automatically switch to Thread Editor tab
     } catch (error) {
       console.error("Analysis failed:", error);
       toast.error("Failed to analyze the document.");
@@ -725,7 +729,7 @@ function Page() {
 
         {/* --- Right Column: Tabbed View for Document and Thread --- */}
         <div className="lg:col-span-8">
-          <Tab.Group>
+          <Tab.Group selectedIndex={selectedTabIndex} onChange={setSelectedTabIndex}>
             <Tab.List className="flex space-x-1 rounded-xl bg-blue-900/20 p-1 mb-4">
               <Tab className={({ selected }) =>
                 `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700
