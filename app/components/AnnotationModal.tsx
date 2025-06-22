@@ -126,7 +126,7 @@ export default function AnnotationModal({
       const canvas = new fabric.Canvas(canvasElRef.current, {
         width: Math.min(containerWidth - 50, 1000), // Large but reasonable
         height: Math.min(containerHeight - 50, 800),
-        backgroundColor: '#ffcccc' // Temporary red background for debugging
+        backgroundColor: '#ffffff' // Clean white background
       });
       
       console.log('Canvas set to:', canvas.width, 'x', canvas.height);
@@ -137,40 +137,13 @@ export default function AnnotationModal({
       console.log('Canvas element after fabric:', canvasElRef.current);
       console.log('Canvas background color:', canvas.backgroundColor);
       
-      // Add a simple test rectangle to see if fabric is working at all
-      const testRect = new fabric.Rect({
-        left: canvas.width! - 150, // Position in top-right corner
-        top: 20,
-        width: 100,
-        height: 100,
-        fill: 'yellow',
-        stroke: 'black',
-        strokeWidth: 3
-      });
-      canvas.add(testRect);
-      console.log('Test rectangle added at:', testRect.left, testRect.top);
+      // Canvas is working - test rectangle removed
       
       // Force render immediately
       canvas.renderAll();
       console.log('Added test rectangle and rendered canvas');
       
-      // Also try to manipulate the DOM element directly
-      if (canvasElRef.current) {
-        canvasElRef.current.style.border = '5px solid green';
-        console.log('Applied direct border to canvas element');
-        
-        // Check if fabric created any wrapper elements
-        const parent = canvasElRef.current.parentElement;
-        console.log('Canvas parent element:', parent);
-        console.log('Canvas parent children:', parent?.children);
-        
-        // Try to find fabric's upper canvas
-        const upperCanvas = parent?.querySelector('.upper-canvas');
-        console.log('Upper canvas found:', upperCanvas);
-        if (upperCanvas) {
-          (upperCanvas as HTMLElement).style.border = '3px solid purple';
-        }
-      }
+      console.log('Canvas initialized successfully');
 
       // Set up canvas event handlers
       const saveToHistory = () => {
@@ -220,17 +193,25 @@ export default function AnnotationModal({
       return;
     }
 
-    // Wait for canvas to be ready
+    // Wait for canvas to be ready with better error handling
     const loadImage = () => {
       const canvas = fabricCanvasRef.current;
-      if (!canvas) {
+      if (!canvas || !canvas.getContext) {
         console.log('Canvas not ready for image loading, retrying...');
-        setTimeout(loadImage, 100);
+        setTimeout(loadImage, 150);
         return;
       }
+      
       console.log('Loading image into canvas:', currentImage);
       setIsLoading(true);
-      canvas.clear();
+      
+      try {
+        canvas.clear();
+      } catch (error) {
+        console.error('Error clearing canvas:', error);
+        setTimeout(loadImage, 200);
+        return;
+      }
 
       const isEditingExisting = editingMarkedUpImage?.url === currentImage;
       
@@ -301,9 +282,7 @@ export default function AnnotationModal({
               hasControls: false,
               hasBorders: false,
               opacity: 1.0,
-              visible: true,
-              stroke: 'red', // Add red border for debugging
-              strokeWidth: 3
+              visible: true
             });
             
             console.log('Image positioned at:', {
@@ -315,25 +294,36 @@ export default function AnnotationModal({
               scaledHeight
             });
             
-            // Add image as the first object (bottom layer)
-            canvas.add(img);
-            canvas.sendToBack(img); // Ensure it's behind all other objects
-            
-            console.log('Image added to canvas successfully');
-            console.log('Canvas objects count:', canvas.getObjects().length);
-            console.log('Image visible?', img.visible);
-            console.log('Image opacity:', img.opacity);
-            
-            canvas.renderAll();
-            setIsLoading(false);
-            initializeHistory();
-            
-            // Force re-render after a short delay
-            setTimeout(() => {
-              console.log('Force re-rendering canvas');
-              console.log('Canvas objects after timeout:', canvas.getObjects().length);
+            try {
+              // Add image as the first object (bottom layer)
+              canvas.add(img);
+              canvas.sendToBack(img); // Ensure it's behind all other objects
+              
+              console.log('Image added to canvas successfully');
+              console.log('Canvas objects count:', canvas.getObjects().length);
+              console.log('Image visible?', img.visible);
+              console.log('Image opacity:', img.opacity);
+              
               canvas.renderAll();
-            }, 100);
+              setIsLoading(false);
+              initializeHistory();
+              
+              // Force re-render after a short delay
+              setTimeout(() => {
+                try {
+                  console.log('Force re-rendering canvas');
+                  console.log('Canvas objects after timeout:', canvas.getObjects().length);
+                  canvas.renderAll();
+                } catch (renderError) {
+                  console.error('Error during force re-render:', renderError);
+                }
+              }, 200);
+              
+            } catch (error) {
+              console.error('Error adding image to canvas:', error);
+              setError('Failed to add image to canvas');
+              setIsLoading(false);
+            }
             
             imageElementRef.current = img;
             setZoom(1);
@@ -959,12 +949,7 @@ export default function AnnotationModal({
             
             <canvas 
               ref={canvasElRef}
-              className="border-2 border-red-500 shadow-lg"
-              style={{ 
-                backgroundColor: 'blue !important',
-                minWidth: '600px',
-                minHeight: '800px'
-              }}
+              className="border border-gray-300 shadow-lg"
             />
           </div>
         </Dialog.Panel>
