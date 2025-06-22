@@ -114,13 +114,53 @@ export default function AnnotationModal({
       }
 
       console.log('Initializing fabric canvas');
+      console.log('Canvas element before fabric:', canvasElRef.current);
+      
       const canvas = new fabric.Canvas(canvasElRef.current, {
-        width: 800,
-        height: 600,
+        width: 600,
+        height: 800,
         backgroundColor: '#ffcccc' // Temporary red background for debugging
       });
 
       fabricCanvasRef.current = canvas;
+      
+      console.log('Fabric canvas created:', canvas);
+      console.log('Canvas element after fabric:', canvasElRef.current);
+      console.log('Canvas background color:', canvas.backgroundColor);
+      
+      // Add a simple test rectangle to see if fabric is working at all
+      const testRect = new fabric.Rect({
+        left: 50,
+        top: 50,
+        width: 100,
+        height: 100,
+        fill: 'yellow',
+        stroke: 'black',
+        strokeWidth: 3
+      });
+      canvas.add(testRect);
+      
+      // Force render immediately
+      canvas.renderAll();
+      console.log('Added test rectangle and rendered canvas');
+      
+      // Also try to manipulate the DOM element directly
+      if (canvasElRef.current) {
+        canvasElRef.current.style.border = '5px solid green';
+        console.log('Applied direct border to canvas element');
+        
+        // Check if fabric created any wrapper elements
+        const parent = canvasElRef.current.parentElement;
+        console.log('Canvas parent element:', parent);
+        console.log('Canvas parent children:', parent?.children);
+        
+        // Try to find fabric's upper canvas
+        const upperCanvas = parent?.querySelector('.upper-canvas');
+        console.log('Upper canvas found:', upperCanvas);
+        if (upperCanvas) {
+          (upperCanvas as HTMLElement).style.border = '3px solid purple';
+        }
+      }
 
       // Set up canvas event handlers
       const saveToHistory = () => {
@@ -886,8 +926,12 @@ export default function AnnotationModal({
             
             <canvas 
               ref={canvasElRef}
-              className="border-2 border-gray-400 shadow-lg"
-              style={{ backgroundColor: '#f9f9f9' }}
+              className="border-2 border-red-500 shadow-lg"
+              style={{ 
+                backgroundColor: 'blue !important',
+                minWidth: '600px',
+                minHeight: '800px'
+              }}
             />
           </div>
         </Dialog.Panel>
