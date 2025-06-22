@@ -3,9 +3,9 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { fabric } from 'fabric';
 import { Dialog } from '@headlessui/react';
 import { 
-  Crop, Loader2, Minus, Plus, RefreshCw, Hand, Trash2, 
+  Crop, Loader2, Minus, Plus, RefreshCw, Hand, RotateCounterClockwise, 
   Square, Circle, ArrowRight, Type, Download, Save,
-  RotateCcw, PenTool, Eraser
+  RotateCcw, PenTool, Eraser, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { MarkedUpImage } from '../types';
 
@@ -42,9 +42,12 @@ export default function AnnotationModal({
   const imageElementRef = useRef<fabric.Image | null>(null);
 
   // Tool state
-  const [activeTool, setActiveTool] = useState<Tool>('select');
+  const [activeTool, setActiveTool] = useState<Tool>('draw');
   const [penColor, setPenColor] = useState<string>("#e11d48");
   const [penSize, setPenSize] = useState<number>(4);
+  const [textColor, setTextColor] = useState<string>("#000000");
+  const [textSize, setTextSize] = useState<number>(16);
+  const [textFont, setTextFont] = useState<string>("Arial");
   const [zoom, setZoom] = useState(1);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -58,7 +61,7 @@ export default function AnnotationModal({
     if (!isOpen) {
       setCurrentImage(null);
       setError(null);
-      setActiveTool('select');
+      setActiveTool('draw');
       setHistory([]);
       setHistoryIndex(-1);
       setCropRect(null);
@@ -94,6 +97,34 @@ export default function AnnotationModal({
       setIsLoading(false);
     }
   }, [isOpen, initialPage, pageImages, editingMarkedUpImage]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' && currentPageIdx !== null && currentPageIdx > 0) {
+        e.preventDefault();
+        const newPageIdx = currentPageIdx - 1;
+        setCurrentPageIdx(newPageIdx);
+        const newImage = pageImages[newPageIdx];
+        if (newImage) {
+          setCurrentImage(newImage);
+        }
+      } else if (e.key === 'ArrowRight' && currentPageIdx !== null && currentPageIdx < pageImages.length - 1) {
+        e.preventDefault();
+        const newPageIdx = currentPageIdx + 1;
+        setCurrentPageIdx(newPageIdx);
+        const newImage = pageImages[newPageIdx];
+        if (newImage) {
+          setCurrentImage(newImage);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentPageIdx, pageImages]);
 
   // Initialize fabric canvas
   useEffect(() => {
@@ -430,11 +461,16 @@ export default function AnnotationModal({
     if (!canvas) return;
 
     try {
-      // Clean up previous tool
+      // Clean up previous tool and event listeners
       canvas.isDrawingMode = false;
       canvas.selection = true;
       canvas.defaultCursor = 'default';
       canvas.hoverCursor = 'move';
+      
+      // Remove any existing pan/crop event listeners
+      canvas.off('mouse:down');
+      canvas.off('mouse:move');
+      canvas.off('mouse:up');
       
       // Clear crop rect when switching tools
       if (tool !== 'crop' && cropRect) {
@@ -550,14 +586,17 @@ export default function AnnotationModal({
         top: startY,
         width: 0,
         height: 0,
-        stroke: '#e11d48',
-        strokeWidth: 3,
-        fill: 'rgba(225, 29, 72, 0.15)',
+        stroke: '#3b82f6',
+        strokeWidth: 2,
+        fill: 'rgba(59, 130, 246, 0.1)',
         selectable: true,
-        strokeDashArray: [8, 4],
-        cornerColor: '#e11d48',
-        cornerSize: 8,
-        transparentCorners: false
+        strokeDashArray: [],
+        cornerColor: '#3b82f6',
+        cornerSize: 6,
+        transparentCorners: false,
+        cornerStyle: 'circle',
+        borderColor: '#3b82f6',
+        borderDashArray: [5, 5]
       });
 
       canvas.add(rect);
@@ -624,6 +663,59 @@ export default function AnnotationModal({
     }
   };
 
+  const createCropBoxWithAspectRatio = (aspectRatio: CropAspectRatio) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || aspectRatio === 'free') return;
+
+    // Remove existing crop rect
+    if (cropRect) {
+      canvas.remove(cropRect);
+    }
+
+    const aspectValue = getAspectRatioValue(aspectRatio);
+    const canvasCenter = canvas.getCenter();
+    
+    // Default size
+    let width = 200;
+    let height = width / aspectValue;
+    
+    // Adjust if too tall for canvas
+    if (height > canvas.height! * 0.8) {
+      height = canvas.height! * 0.8;
+      width = height * aspectValue;
+    }
+    
+    // Adjust if too wide for canvas
+    if (width > canvas.width! * 0.8) {
+      width = canvas.width! * 0.8;
+      height = width / aspectValue;
+    }
+
+    const rect = new fabric.Rect({
+      left: canvasCenter.left - width / 2,
+      top: canvasCenter.top - height / 2,
+      width: width,
+      height: height,
+      stroke: '#3b82f6',
+      strokeWidth: 2,
+      fill: 'rgba(59, 130, 246, 0.1)',
+      selectable: true,
+      strokeDashArray: [],
+      cornerColor: '#3b82f6',
+      cornerSize: 6,
+      transparentCorners: false,
+      cornerStyle: 'circle',
+      borderColor: '#3b82f6',
+      borderDashArray: [5, 5],
+      lockUniScaling: true // Lock aspect ratio during scaling
+    });
+
+    canvas.add(rect);
+    canvas.setActiveObject(rect);
+    setCropRect(rect);
+    canvas.renderAll();
+  };
+
   const addShape = (type: 'rect' | 'circle' | 'arrow' | 'text') => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
@@ -678,9 +770,9 @@ export default function AnnotationModal({
         shape = new fabric.IText('Double click to edit', {
           left: centerX - 75,
           top: centerY - 10,
-          fontFamily: 'Arial',
-          fontSize: 16,
-          fill: penColor
+          fontFamily: textFont,
+          fontSize: textSize,
+          fill: textColor
         });
         break;
     }
@@ -787,7 +879,7 @@ export default function AnnotationModal({
     onSave(dataURL, json);
   };
 
-  const handleCropAndSave = () => {
+  const handleCrop = () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !cropRect) return;
 
@@ -800,8 +892,19 @@ export default function AnnotationModal({
       multiplier: 2
     });
     
-    onCrop(dataURL);
+    // Create a new marked up image for the cropped result
+    const newMarkedUpImage: MarkedUpImage = {
+      id: `crop-${Date.now()}`,
+      pageNumber: currentPageIdx !== null ? currentPageIdx : 0,
+      url: dataURL,
+      json: null
+    };
+    
+    // Close current modal and open new one with cropped image
     onClose();
+    // Note: This would need to be handled by the parent component
+    // For now, we'll just use onCrop which should handle opening new modal
+    onCrop(dataURL);
   };
 
   const aspectRatioOptions: { value: CropAspectRatio; label: string }[] = [
@@ -823,9 +926,48 @@ export default function AnnotationModal({
         <Dialog.Panel className="bg-white rounded-lg shadow-xl w-full max-w-[95vw] h-[95vh] flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-3 border-b bg-gray-50 rounded-t-lg flex-wrap gap-2">
-            <Dialog.Title className="text-lg font-semibold text-gray-800">
-              {editingMarkedUpImage ? 'Edit Annotation' : `Edit Page ${currentPageIdx !== null ? currentPageIdx + 1 : ''}`}
-            </Dialog.Title>
+            <div className="flex items-center gap-2">
+              <Dialog.Title className="text-lg font-semibold text-gray-800">
+                {editingMarkedUpImage ? 'Edit Annotation' : `Edit Page ${currentPageIdx !== null ? currentPageIdx + 1 : ''}`}
+              </Dialog.Title>
+              
+              {/* Navigation arrows */}
+              {!editingMarkedUpImage && pageImages.length > 1 && (
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => {
+                      if (currentPageIdx !== null && currentPageIdx > 0) {
+                        const newPageIdx = currentPageIdx - 1;
+                        setCurrentPageIdx(newPageIdx);
+                        setCurrentImage(pageImages[newPageIdx]);
+                      }
+                    }}
+                    disabled={currentPageIdx === null || currentPageIdx <= 0}
+                    className="btn-secondary p-1 disabled:opacity-50" 
+                    title="Previous Page"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    {currentPageIdx !== null ? currentPageIdx + 1 : 0} of {pageImages.length}
+                  </span>
+                  <button 
+                    onClick={() => {
+                      if (currentPageIdx !== null && currentPageIdx < pageImages.length - 1) {
+                        const newPageIdx = currentPageIdx + 1;
+                        setCurrentPageIdx(newPageIdx);
+                        setCurrentImage(pageImages[newPageIdx]);
+                      }
+                    }}
+                    disabled={currentPageIdx === null || currentPageIdx >= pageImages.length - 1}
+                    className="btn-secondary p-1 disabled:opacity-50" 
+                    title="Next Page"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
             
             {/* Zoom Controls */}
             <div className="flex items-center gap-2">
@@ -906,25 +1048,62 @@ export default function AnnotationModal({
             </div>
 
             {/* Drawing Options */}
-            <div className="flex items-center gap-2">
-              <input 
-                type="color" 
-                value={penColor} 
-                onChange={(e) => setPenColor(e.target.value)}
-                className="w-8 h-8 rounded border"
-                title="Color"
-              />
-              <input 
-                type="range" 
-                min="1" 
-                max="20" 
-                value={penSize} 
-                onChange={(e) => setPenSize(Number(e.target.value))}
-                className="w-20"
-                title="Brush Size"
-              />
-              <span className="text-xs">{penSize}px</span>
-            </div>
+            {(activeTool === 'draw' || activeTool === 'erase') && (
+              <div className="flex items-center gap-2">
+                <input 
+                  type="color" 
+                  value={penColor} 
+                  onChange={(e) => setPenColor(e.target.value)}
+                  className="w-8 h-8 rounded border"
+                  title="Pen Color"
+                />
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="20" 
+                  value={penSize} 
+                  onChange={(e) => setPenSize(Number(e.target.value))}
+                  className="w-20"
+                  title="Brush Size"
+                />
+                <span className="text-xs">{penSize}px</span>
+              </div>
+            )}
+
+            {/* Text Options */}
+            {activeTool === 'text' && (
+              <div className="flex items-center gap-2">
+                <input 
+                  type="color" 
+                  value={textColor} 
+                  onChange={(e) => setTextColor(e.target.value)}
+                  className="w-8 h-8 rounded border"
+                  title="Text Color"
+                />
+                <select 
+                  value={textFont} 
+                  onChange={(e) => setTextFont(e.target.value)}
+                  className="text-sm border rounded px-2 py-1"
+                  title="Font Family"
+                >
+                  <option value="Arial">Arial</option>
+                  <option value="Times New Roman">Times</option>
+                  <option value="Helvetica">Helvetica</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Verdana">Verdana</option>
+                </select>
+                <input 
+                  type="range" 
+                  min="8" 
+                  max="72" 
+                  value={textSize} 
+                  onChange={(e) => setTextSize(Number(e.target.value))}
+                  className="w-20"
+                  title="Font Size"
+                />
+                <span className="text-xs">{textSize}px</span>
+              </div>
+            )}
 
             {/* Shapes */}
             <div className="flex items-center gap-1">
@@ -949,7 +1128,11 @@ export default function AnnotationModal({
                 <span className="text-sm font-medium">Aspect:</span>
                 <select 
                   value={cropAspectRatio} 
-                  onChange={(e) => setCropAspectRatio(e.target.value as CropAspectRatio)}
+                  onChange={(e) => {
+                    const newRatio = e.target.value as CropAspectRatio;
+                    setCropAspectRatio(newRatio);
+                    createCropBoxWithAspectRatio(newRatio);
+                  }}
                   className="text-sm border rounded px-2 py-1"
                 >
                   {aspectRatioOptions.map(option => (
@@ -961,13 +1144,13 @@ export default function AnnotationModal({
 
             {/* Actions */}
             <div className="flex items-center gap-2 ml-auto">
-              <button onClick={handleClear} className="btn-secondary p-2" title="Clear All">
-                <Trash2 size={16} />
+              <button onClick={handleClear} className="btn-secondary text-sm px-3 py-1" title="Reset Canvas">
+                Reset
               </button>
               
               {activeTool === 'crop' && cropRect && (
-                <button onClick={handleCropAndSave} className="btn-primary text-sm px-3 py-1">
-                  Crop & Save
+                <button onClick={handleCrop} className="btn-primary text-sm px-3 py-1">
+                  Crop
                 </button>
               )}
               
