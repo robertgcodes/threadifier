@@ -108,6 +108,11 @@ export async function POST(req: Request) {
     // Handle page suggestions
     let pageSuggestions = null;
     if (suggestPages && pageTexts.length > 0) {
+      console.log('Starting page suggestions analysis...', {
+        pageCount: pageTexts.length,
+        customInstructions: customInstructions || 'none'
+      });
+      
       // Build page suggestion prompt
       let suggestionPrompt = 'You are an expert content curator. Your task is to analyze document pages and suggest the best ones for creating an engaging social media thread.\n\n';
       
@@ -141,6 +146,12 @@ export async function POST(req: Request) {
         pageContent += `=== PAGE ${index + 1} ===\n${pageText}\n\n`;
       });
       
+      console.log('Sending page analysis request to Anthropic...', {
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 3000,
+        contentLength: pageContent.length
+      });
+
       const suggestionMsg = await anthropic.messages.create({
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 3000,
@@ -152,6 +163,8 @@ export async function POST(req: Request) {
           },
         ],
       });
+
+      console.log('Received response from Anthropic for page suggestions');
 
       if (suggestionMsg.content && suggestionMsg.content.length > 0 && suggestionMsg.content[0].type === 'text') {
         const rawSuggestionResponse = suggestionMsg.content[0].text;
@@ -183,9 +196,14 @@ export async function POST(req: Request) {
     // Log the actual error for better debugging
     if (error instanceof Error) {
       console.error('Error analyzing document:', error.message);
+      console.error('Error stack:', error.stack);
     } else {
       console.error('An unknown error occurred:', error);
     }
+    
+    // Log additional context for debugging
+    console.error('Error occurred during API call');
+    
     return NextResponse.json({ error: 'Failed to analyze document' }, { status: 500 });
   }
 } 

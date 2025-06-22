@@ -350,6 +350,11 @@ function Page() {
       return;
     }
 
+    console.log('Starting page suggestions generation...', {
+      pageTextsLength: pageTexts.length,
+      customInstructions: customInstructions || 'none'
+    });
+
     setSuggestionsLoading(true);
     try {
       const response = await fetch("/api/analyze", {
@@ -379,6 +384,12 @@ function Page() {
           toast.error("No page suggestions received from AI.");
         }
       } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Page suggestions failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
         toast.error("Failed to generate page suggestions.");
       }
     } catch (error) {
