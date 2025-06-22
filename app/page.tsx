@@ -555,7 +555,9 @@ function Page() {
     <div className="bg-legal-100 min-h-screen">
       <header className="bg-white shadow-sm p-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Threadifier Logo" className="h-10"/>
+          <div className="w-10 h-10 bg-legal-800 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-lg">T</span>
+          </div>
           <h1 className="text-2xl font-bold text-legal-800">Threadifier</h1>
         </div>
         <AuthDisplay />

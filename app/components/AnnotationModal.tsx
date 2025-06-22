@@ -58,6 +58,11 @@ export default function AnnotationModal({
     if (!isOpen) {
       setCurrentImage(null);
       setError(null);
+      setActiveTool('select');
+      setHistory([]);
+      setHistoryIndex(-1);
+      setCropRect(null);
+      setZoom(1);
       return;
     }
 
@@ -94,6 +99,12 @@ export default function AnnotationModal({
   useEffect(() => {
     if (!isOpen || !canvasElRef.current) return;
 
+    // Clean up any existing canvas first
+    if (fabricCanvasRef.current) {
+      fabricCanvasRef.current.dispose();
+      fabricCanvasRef.current = null;
+    }
+
     const canvas = new fabric.Canvas(canvasElRef.current, {
       width: 800,
       height: 600,
@@ -104,6 +115,7 @@ export default function AnnotationModal({
 
     // Set up canvas event handlers
     const saveToHistory = () => {
+      if (!canvas) return;
       const json = JSON.stringify(canvas.toJSON(['selectable', 'evented']));
       setHistory(prev => {
         const newHistory = prev.slice(0, historyIndex + 1);
@@ -119,7 +131,13 @@ export default function AnnotationModal({
     canvas.on('object:modified', saveToHistory);
 
     return () => {
-      canvas.dispose();
+      if (canvas) {
+        canvas.off('path:created');
+        canvas.off('object:added');
+        canvas.off('object:removed');
+        canvas.off('object:modified');
+        canvas.dispose();
+      }
       fabricCanvasRef.current = null;
     };
   }, [isOpen]);
@@ -127,74 +145,96 @@ export default function AnnotationModal({
   // Load image into canvas
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !currentImage) return;
-
-    setIsLoading(true);
-    canvas.clear();
-
-    const isEditingExisting = editingMarkedUpImage?.url === currentImage;
-    
-    if (isEditingExisting && editingMarkedUpImage.json) {
-      // Load existing markup
-      canvas.loadFromJSON(editingMarkedUpImage.json, () => {
-        const bgImage = canvas.backgroundImage as fabric.Image;
-        if (bgImage) {
-          fitCanvasToImage(bgImage.width!, bgImage.height!);
-        }
-        canvas.renderAll();
-        setIsLoading(false);
-        initializeHistory();
-      });
-    } else {
-      // Load fresh image
-      fabric.Image.fromURL(
-        currentImage,
-        (img) => {
-          const containerWidth = canvasContainerRef.current?.clientWidth || 800;
-          const containerHeight = canvasContainerRef.current?.clientHeight || 600;
-          
-          // Handle tall documents (8.5x11 ratio ≈ 0.77)
-          const imageAspectRatio = img.width! / img.height!;
-          let canvasWidth, canvasHeight;
-          
-          if (imageAspectRatio < 0.9) { // Tall document
-            canvasHeight = Math.min(containerHeight - 100, img.height!);
-            canvasWidth = canvasHeight * imageAspectRatio;
-          } else { // Wide or square document
-            canvasWidth = Math.min(containerWidth - 100, img.width!);
-            canvasHeight = canvasWidth / imageAspectRatio;
-          }
-          
-          canvas.setDimensions({ width: canvasWidth, height: canvasHeight });
-          
-          // Scale image to fit canvas
-          const scale = Math.min(canvasWidth / img.width!, canvasHeight / img.height!);
-          img.scale(scale);
-          
-          // Center the image
-          img.set({
-            left: (canvasWidth - img.width! * scale) / 2,
-            top: (canvasHeight - img.height! * scale) / 2,
-            selectable: false,
-            evented: false
-          });
-          
-          canvas.setBackgroundImage(img, () => {
-            canvas.renderAll();
-            setIsLoading(false);
-            initializeHistory();
-          });
-          
-          imageElementRef.current = img;
-          setZoom(1);
-        },
-        { 
-          crossOrigin: 'anonymous',
-          // Handle potential CORS issues with data URLs
-          ...(currentImage.startsWith('data:') ? {} : { crossOrigin: 'anonymous' })
-        }
-      );
+    if (!canvas || !currentImage) {
+      console.log('Canvas or image not ready:', { canvas: !!canvas, currentImage: !!currentImage });
+      return;
     }
+
+    // Add a small delay to ensure canvas is fully initialized
+    const timer = setTimeout(() => {
+      console.log('Loading image into canvas:', currentImage);
+      setIsLoading(true);
+      canvas.clear();
+
+      const isEditingExisting = editingMarkedUpImage?.url === currentImage;
+      
+      if (isEditingExisting && editingMarkedUpImage.json) {
+        // Load existing markup
+        console.log('Loading existing markup');
+        canvas.loadFromJSON(editingMarkedUpImage.json, () => {
+          const bgImage = canvas.backgroundImage as fabric.Image;
+          if (bgImage) {
+            fitCanvasToImage(bgImage.width!, bgImage.height!);
+          }
+          canvas.renderAll();
+          setIsLoading(false);
+          initializeHistory();
+        });
+      } else {
+        // Load fresh image
+        console.log('Loading fresh image from URL:', currentImage);
+        
+        // Add error handling for fabric.Image.fromURL
+        fabric.Image.fromURL(
+          currentImage,
+          (img) => {
+            console.log('Image loaded successfully:', img.width, 'x', img.height);
+            
+            if (!canvas || !img.width || !img.height) {
+              console.error('Invalid canvas or image dimensions');
+              setError('Failed to load image');
+              setIsLoading(false);
+              return;
+            }
+
+            const containerWidth = canvasContainerRef.current?.clientWidth || 800;
+            const containerHeight = canvasContainerRef.current?.clientHeight || 600;
+            
+            // Handle tall documents (8.5x11 ratio ≈ 0.77)
+            const imageAspectRatio = img.width! / img.height!;
+            let canvasWidth, canvasHeight;
+            
+            if (imageAspectRatio < 0.9) { // Tall document
+              canvasHeight = Math.min(containerHeight - 100, img.height!);
+              canvasWidth = canvasHeight * imageAspectRatio;
+            } else { // Wide or square document
+              canvasWidth = Math.min(containerWidth - 100, img.width!);
+              canvasHeight = canvasWidth / imageAspectRatio;
+            }
+            
+            console.log('Setting canvas dimensions:', canvasWidth, 'x', canvasHeight);
+            canvas.setDimensions({ width: canvasWidth, height: canvasHeight });
+            
+            // Scale image to fit canvas
+            const scale = Math.min(canvasWidth / img.width!, canvasHeight / img.height!);
+            img.scale(scale);
+            
+            // Center the image
+            img.set({
+              left: (canvasWidth - img.width! * scale) / 2,
+              top: (canvasHeight - img.height! * scale) / 2,
+              selectable: false,
+              evented: false
+            });
+            
+            canvas.setBackgroundImage(img, () => {
+              console.log('Background image set successfully');
+              canvas.renderAll();
+              setIsLoading(false);
+              initializeHistory();
+            });
+            
+            imageElementRef.current = img;
+            setZoom(1);
+          },
+          {
+            crossOrigin: 'anonymous'
+          }
+        );
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [currentImage, editingMarkedUpImage]);
 
   const initializeHistory = () => {
