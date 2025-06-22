@@ -16,6 +16,8 @@ export async function POST(req: Request) {
       useEmojis = false,
       useNumbering = true,
       useHashtags = false,
+      suggestPages = false,
+      pageTexts = [],
     } = await req.json();
 
     if (!text) {
@@ -67,35 +69,111 @@ export async function POST(req: Request) {
     userMessage += `Please generate the X thread following the guidelines.\n\n`;
     userMessage += text;
 
-    const msg = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: userMessage,
-        },
-      ],
-    });
+    // Handle thread generation
+    let threadResponse = null;
+    if (!suggestPages) {
+      const msg = await anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: userMessage,
+          },
+        ],
+      });
 
-    if (!msg.content || msg.content.length === 0 || msg.content[0].type !== 'text') {
-      return NextResponse.json({ error: 'Invalid response from AI' }, { status: 500 });
+      if (!msg.content || msg.content.length === 0 || msg.content[0].type !== 'text') {
+        return NextResponse.json({ error: 'Invalid response from AI' }, { status: 500 });
+      }
+
+      const rawResponse = msg.content[0].text;
+      
+      // Find the JSON object within the AI's response
+      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error("AI response did not contain a valid JSON object:", rawResponse);
+        return NextResponse.json({ error: 'AI did not return a parsable JSON object.' }, { status: 500 });
+      }
+      
+      const jsonString = jsonMatch[0];
+      threadResponse = JSON.parse(jsonString);
     }
 
-    const rawResponse = msg.content[0].text;
-    
-    // Find the JSON object within the AI's response
-    const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error("AI response did not contain a valid JSON object:", rawResponse);
-      return NextResponse.json({ error: 'AI did not return a parsable JSON object.' }, { status: 500 });
-    }
-    
-    const jsonString = jsonMatch[0];
-    const jsonResponse = JSON.parse(jsonString);
+    // Handle page suggestions
+    let pageSuggestions = null;
+    if (suggestPages && pageTexts.length > 0) {
+      // Build page suggestion prompt
+      let suggestionPrompt = 'You are an expert content curator. Your task is to analyze document pages and suggest the best ones for creating an engaging social media thread.\n\n';
+      
+      if (customInstructions && customInstructions.trim().length > 0) {
+        suggestionPrompt += `Focus Area: ${customInstructions.trim()}\n\n`;
+      }
+      
+      suggestionPrompt += `Guidelines:\n`;
+      suggestionPrompt += `1. Analyze each page for content that would make compelling social media posts\n`;
+      suggestionPrompt += `2. Consider visual appeal, key insights, quotable content, and relevance to the focus area\n`;
+      suggestionPrompt += `3. Score each page from 1-100 for relevance and engagement potential\n`;
+      suggestionPrompt += `4. Suggest what kind of post each page would make\n`;
+      suggestionPrompt += `5. Only recommend the top ${Math.min(numPosts + 2, 10)} pages\n`;
+      suggestionPrompt += `6. Output must be valid JSON in this exact format:\n`;
+      suggestionPrompt += `{\n`;
+      suggestionPrompt += `  "suggestions": [\n`;
+      suggestionPrompt += `    {\n`;
+      suggestionPrompt += `      "pageNumber": 1,\n`;
+      suggestionPrompt += `      "relevanceScore": 85,\n`;
+      suggestionPrompt += `      "suggestedPost": "Brief description of what this page would contribute to the thread",\n`;
+      suggestionPrompt += `      "reasoning": "Why this page is valuable for the thread",\n`;
+      suggestionPrompt += `      "keyQuotes": ["Important quote 1", "Important quote 2"],\n`;
+      suggestionPrompt += `      "confidence": "high"\n`;
+      suggestionPrompt += `    }\n`;
+      suggestionPrompt += `  ]\n`;
+      suggestionPrompt += `}\n\n`;
+      
+      // Add page content
+      let pageContent = '';
+      pageTexts.forEach((pageText: string, index: number) => {
+        pageContent += `=== PAGE ${index + 1} ===\n${pageText}\n\n`;
+      });
+      
+      const suggestionMsg = await anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 3000,
+        system: suggestionPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: `Please analyze these pages and suggest the best ones for creating a social media thread:\n\n${pageContent}`,
+          },
+        ],
+      });
 
-    return NextResponse.json(jsonResponse);
+      if (suggestionMsg.content && suggestionMsg.content.length > 0 && suggestionMsg.content[0].type === 'text') {
+        const rawSuggestionResponse = suggestionMsg.content[0].text;
+        const suggestionJsonMatch = rawSuggestionResponse.match(/\{[\s\S]*\}/);
+        
+        if (suggestionJsonMatch) {
+          try {
+            const suggestionData = JSON.parse(suggestionJsonMatch[0]);
+            pageSuggestions = suggestionData.suggestions || [];
+          } catch (error) {
+            console.error('Error parsing page suggestions:', error);
+          }
+        }
+      }
+    }
+
+    // Return combined response
+    const response: any = {};
+    if (threadResponse) {
+      response.thread = threadResponse.thread;
+    }
+    if (pageSuggestions) {
+      response.pageSuggestions = pageSuggestions;
+    }
+
+    return NextResponse.json(response);
 
   } catch (error) {
     // Log the actual error for better debugging

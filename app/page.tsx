@@ -37,7 +37,9 @@ import { AuthProvider } from '@/app/context/AuthContext';
 import ThreadEditor from './components/ThreadEditor';
 import ImagePickerModal from './components/ImagePickerModal';
 import AnnotationModal from './components/AnnotationModal';
+import AISuggestions from './components/AISuggestions';
 import { Tab } from '@headlessui/react';
+import { PageSuggestion } from './types';
 
 export const dynamic = 'force-dynamic';
 
@@ -263,6 +265,11 @@ function Page() {
   const [imagePickerPostId, setImagePickerPostId] = useState<number | null>(null);
 
   const [postPageMap, setPostPageMap] = useState<Record<number, {type: 'pdf' | 'marked', value: number | string}>>({});
+
+  // AI Suggestions state
+  const [pageSuggestions, setPageSuggestions] = useState<PageSuggestion[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [pageTexts, setPageTexts] = useState<string[]>([]);
   
   const onDrop = (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -291,6 +298,7 @@ function Page() {
         let fullText = "";
         const images: string[] = [];
         const highResImages: string[] = [];
+        const individualPageTexts: string[] = [];
         
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
@@ -313,12 +321,16 @@ function Page() {
           await page.render({ canvasContext: highResContext!, viewport: highResViewport }).promise;
           highResImages.push(highResCanvas.toDataURL("image/png"));
           
+          // Extract text from page
           const pageText = await page.getTextContent();
-          fullText += pageText.items.map((item: any) => item.str).join(" ") + "\n\n";
+          const pageTextString = pageText.items.map((item: any) => item.str).join(" ");
+          individualPageTexts.push(pageTextString);
+          fullText += pageTextString + "\n\n";
         }
         setPageImages(images);
         setHighResPageImages(highResImages);
         setExtractedText(fullText);
+        setPageTexts(individualPageTexts);
         setIsExtracting(false);
       };
       reader.readAsArrayBuffer(file);
@@ -328,6 +340,51 @@ function Page() {
       setIsExtracting(false);
     }
   }
+
+  const generatePageSuggestions = async () => {
+    if (!pageTexts.length) {
+      toast.error("No pages available for analysis. Please upload a PDF first.");
+      return;
+    }
+
+    setSuggestionsLoading(true);
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: "", // Not needed for suggestions only
+          charLimit,
+          numPosts,
+          customInstructions,
+          useEmojis,
+          useNumbering,
+          useHashtags,
+          suggestPages: true,
+          pageTexts: pageTexts,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.pageSuggestions) {
+          setPageSuggestions(data.pageSuggestions);
+          toast.success(`Found ${data.pageSuggestions.length} page suggestions!`);
+        } else {
+          toast.error("No page suggestions received from AI.");
+        }
+      } else {
+        toast.error("Failed to generate page suggestions.");
+      }
+    } catch (error) {
+      console.error("Error generating page suggestions:", error);
+      toast.error("An error occurred while generating page suggestions.");
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
 
   async function handleAnalyze() {
     if (!extractedText) {
@@ -684,6 +741,13 @@ function Page() {
               }>
                 Thread Editor
               </Tab>
+              <Tab className={({ selected }) =>
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700
+                ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
+                ${selected ? 'bg-white shadow' : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'}`
+              }>
+                AI Suggestions
+              </Tab>
             </Tab.List>
             <Tab.Panels className="mt-2">
               <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
@@ -816,6 +880,49 @@ function Page() {
                     </DragOverlay>
 
                   </DndContext>
+              </Tab.Panel>
+              <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+                <div className="space-y-6">
+                  {/* Generate Suggestions Button */}
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-gray-800">AI Page Suggestions</h2>
+                    <button
+                      onClick={generatePageSuggestions}
+                      disabled={suggestionsLoading || !pageTexts.length}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium
+                        ${suggestionsLoading || !pageTexts.length
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                    >
+                      {suggestionsLoading ? (
+                        <>
+                          <Loader2 className="animate-spin h-4 w-4" />
+                          <span>Analyzing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Generate Suggestions</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* AI Suggestions Component */}
+                  <AISuggestions
+                    suggestions={pageSuggestions}
+                    isLoading={suggestionsLoading}
+                    onEditPage={(pageNumber) => {
+                      setMagnifyInitialPage(pageNumber - 1); // Convert to 0-based index
+                      setIsAnnotationModalOpen(true);
+                    }}
+                    onViewPage={(pageNumber) => {
+                      // Could implement a view-only modal or scroll to page in document tab
+                      toast(`Viewing page ${pageNumber} (feature coming soon)`);
+                    }}
+                    customInstructions={customInstructions}
+                  />
+                </div>
               </Tab.Panel>
             </Tab.Panels>
           </Tab.Group>
