@@ -257,7 +257,6 @@ function Page() {
   );
 
   // --- State for Modals ---
-  const [magnifyPageIdx, setMagnifyPageIdx] = useState<number | null>(null);
   const [editingMarkedUpImageId, setEditingMarkedUpImageId] = useState<string | null>(null);
   const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
   const [imagePickerPostId, setImagePickerPostId] = useState<number | null>(null);
@@ -691,7 +690,7 @@ function Page() {
                           <div key={`page-${index}`} className="group relative border border-legal-200 rounded-lg overflow-hidden">
                             <img src={img} alt={`Page ${index + 1}`} className="w-full h-auto object-contain" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <button onClick={() => setMagnifyPageIdx(index)} className="p-2 bg-white/80 rounded-full text-legal-700 hover:bg-white hover:text-primary-600 backdrop-blur-sm" title="Edit Page">
+                              <button onClick={() => { setMagnifyInitialPage(index); setIsAnnotationModalOpen(true); }} className="p-2 bg-white/80 rounded-full text-legal-700 hover:bg-white hover:text-primary-600 backdrop-blur-sm" title="Edit Page">
                                 <Edit className="w-5 h-5" />
                               </button>
                             </div>
