@@ -117,7 +117,7 @@ export default function AnnotationModal({
       const canvas = new fabric.Canvas(canvasElRef.current, {
         width: 800,
         height: 600,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffcccc' // Temporary red background for debugging
       });
 
       fabricCanvasRef.current = canvas;
@@ -218,45 +218,24 @@ export default function AnnotationModal({
             const containerWidth = canvasContainerRef.current?.clientWidth || 800;
             const containerHeight = canvasContainerRef.current?.clientHeight || 600;
             
-            // Calculate better canvas dimensions
-            const imageAspectRatio = img.width! / img.height!;
-            let canvasWidth, canvasHeight;
-            
-            // Make canvas larger and more usable
-            const maxWidth = containerWidth - 100;
-            const maxHeight = containerHeight - 100;
-            
-            if (imageAspectRatio < 0.9) { // Tall document
-              canvasHeight = Math.min(maxHeight, 700); // Minimum useful height
-              canvasWidth = canvasHeight * imageAspectRatio;
-            } else { // Wide or square document
-              canvasWidth = Math.min(maxWidth, 800); // Minimum useful width
-              canvasHeight = canvasWidth / imageAspectRatio;
-            }
-            
-            // Ensure minimum sizes for usability
-            canvasWidth = Math.max(canvasWidth, 500);
-            canvasHeight = Math.max(canvasHeight, 400);
+            // For debugging - use simple, fixed canvas size first
+            const canvasWidth = 600;
+            const canvasHeight = 800;
             
             console.log('Setting canvas dimensions:', canvasWidth, 'x', canvasHeight);
             console.log('Original image dimensions:', img.width, 'x', img.height);
             
             canvas.setDimensions({ width: canvasWidth, height: canvasHeight });
             
-            // Scale image to fit canvas properly
-            const scaleX = canvasWidth / img.width!;
-            const scaleY = canvasHeight / img.height!;
-            const scale = Math.min(scaleX, scaleY) * 0.95; // Leave small margin
+            // For debugging - use simple scaling and positioning
+            const scale = 0.5; // Fixed scale for testing
             
             console.log('Image scale factor:', scale);
             
-            const scaledWidth = img.width! * scale;
-            const scaledHeight = img.height! * scale;
-            
-            // Center the image and add it as a regular object (not background)
+            // Position image at top-left corner for debugging
             img.set({
-              left: (canvasWidth - scaledWidth) / 2,
-              top: (canvasHeight - scaledHeight) / 2,
+              left: 10,
+              top: 10,
               scaleX: scale,
               scaleY: scale,
               selectable: false,
@@ -267,14 +246,18 @@ export default function AnnotationModal({
               lockScalingY: true,
               lockRotation: true,
               hasControls: false,
-              hasBorders: false
+              hasBorders: false,
+              opacity: 1.0,
+              visible: true,
+              stroke: 'red', // Add red border for debugging
+              strokeWidth: 3
             });
             
             console.log('Image positioned at:', {
               left: img.left,
               top: img.top,
-              scaledWidth,
-              scaledHeight
+              scaleX: img.scaleX,
+              scaleY: img.scaleY
             });
             
             // Add image as the first object (bottom layer)
@@ -885,7 +868,7 @@ export default function AnnotationModal({
           </div>
 
           {/* Canvas Container */}
-          <div ref={canvasContainerRef} className="flex-1 overflow-hidden bg-gray-100 flex items-center justify-center p-4 relative">
+          <div ref={canvasContainerRef} className="flex-1 overflow-hidden bg-gray-200 flex items-center justify-center p-4 relative">
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
                 <Loader2 className="animate-spin text-blue-500" size={48} />
@@ -903,7 +886,8 @@ export default function AnnotationModal({
             
             <canvas 
               ref={canvasElRef}
-              className="border border-gray-300 shadow-lg bg-white"
+              className="border-2 border-gray-400 shadow-lg"
+              style={{ backgroundColor: '#f9f9f9' }}
             />
           </div>
         </Dialog.Panel>
