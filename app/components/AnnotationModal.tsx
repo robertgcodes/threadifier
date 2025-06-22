@@ -40,7 +40,6 @@ export default function AnnotationModal({
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const imageElementRef = useRef<fabric.Image | null>(null);
-  const mutationObserverRef = useRef<MutationObserver | null>(null);
 
   // Tool state
   const [activeTool, setActiveTool] = useState<Tool>('draw');
@@ -127,19 +126,23 @@ export default function AnnotationModal({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, currentPageIdx, pageImages]);
 
-  // Initialize fabric canvas
+  // Initialize fabric canvas with DOM isolation
   useEffect(() => {
     if (!isOpen) return;
 
     let isInitializing = false;
+    let initAttempts = 0;
+    const maxAttempts = 10;
 
     // Wait for the modal to be fully rendered
     const initCanvas = () => {
-      if (isInitializing) return;
+      if (isInitializing || initAttempts >= maxAttempts) return;
+      initAttempts++;
       
-      if (!canvasElRef.current || !canvasElRef.current.parentNode) {
-        console.log('Canvas element not ready, retrying...');
-        setTimeout(initCanvas, 50);
+      const wrapper = document.getElementById('fabric-canvas-wrapper');
+      if (!wrapper || !canvasElRef.current) {
+        console.log(`Canvas wrapper not ready, attempt ${initAttempts}/${maxAttempts}, retrying...`);
+        setTimeout(initCanvas, 100);
         return;
       }
 
@@ -150,69 +153,43 @@ export default function AnnotationModal({
       }
 
       isInitializing = true;
-      console.log('Initializing fabric canvas');
-      console.log('Canvas element before fabric:', canvasElRef.current);
-      
-      // Get actual container dimensions
-      const container = canvasContainerRef.current;
-      const containerWidth = container?.clientWidth || 800;
-      const containerHeight = container?.clientHeight || 600;
-      
-      console.log('Container dimensions:', containerWidth, 'x', containerHeight);
+      console.log('Initializing fabric canvas with DOM isolation');
       
       try {
-        // Clone the canvas element to prevent React interference
-        const canvasElement = canvasElRef.current;
+        // Create a completely new canvas element to avoid React interference
+        const newCanvas = document.createElement('canvas');
+        newCanvas.style.display = 'block';
         
-        // Set up mutation observer to detect DOM changes
-        if (typeof MutationObserver !== 'undefined') {
-          mutationObserverRef.current = new MutationObserver((mutations) => {
-            // Temporarily pause fabric.js operations during DOM mutations
-            mutations.forEach((mutation) => {
-              if (mutation.type === 'childList' && fabricCanvasRef.current) {
-                // Debounce rendering during mutations
-                clearTimeout((fabricCanvasRef.current as any)._renderTimer);
-                (fabricCanvasRef.current as any)._renderTimer = setTimeout(() => {
-                  try {
-                    if (fabricCanvasRef.current) {
-                      fabricCanvasRef.current.renderAll();
-                    }
-                  } catch (error) {
-                    console.error('Error during mutation render:', error);
-                  }
-                }, 100);
-              }
-            });
-          });
-          
-          if (canvasContainerRef.current) {
-            mutationObserverRef.current.observe(canvasContainerRef.current, {
-              childList: true,
-              subtree: true
-            });
-          }
-        }
+        // Remove the React-managed canvas and replace with our own
+        const reactCanvas = canvasElRef.current;
+        wrapper.removeChild(reactCanvas);
+        wrapper.appendChild(newCanvas);
         
-        // Ensure DOM is stable before creating fabric canvas
-        const canvas = new fabric.Canvas(canvasElement, {
-          width: Math.min(containerWidth - 50, 1000), // Large but reasonable
+        // We'll use newCanvas directly instead of updating the ref
+        
+        // Get container dimensions
+        const container = canvasContainerRef.current;
+        const containerWidth = container?.clientWidth || 800;
+        const containerHeight = container?.clientHeight || 600;
+        
+        console.log('Container dimensions:', containerWidth, 'x', containerHeight);
+        
+        // Initialize fabric on our isolated canvas
+        const canvas = new fabric.Canvas(newCanvas, {
+          width: Math.min(containerWidth - 50, 1000),
           height: Math.min(containerHeight - 50, 800),
-          backgroundColor: '#ffffff', // Clean white background
-          enableRetinaScaling: false, // Prevent scaling issues
-          skipOffscreen: true, // Skip rendering objects that are offscreen
-          renderOnAddRemove: false, // Prevent automatic renders during add/remove
-          allowTouchScrolling: false, // Prevent touch interference
-          stopContextMenu: true, // Prevent context menu
-          fireRightClick: false, // Disable right click events
-          stateful: false // Disable automatic state saving
+          backgroundColor: '#ffffff',
+          enableRetinaScaling: false,
+          skipOffscreen: false,
+          renderOnAddRemove: false,
+          allowTouchScrolling: false,
+          stopContextMenu: true,
+          fireRightClick: false,
+          stateful: false
         });
         
         console.log('Canvas set to:', canvas.width, 'x', canvas.height);
         fabricCanvasRef.current = canvas;
-        
-        console.log('Fabric canvas created:', canvas);
-        console.log('Canvas element after fabric:', canvasElRef.current);
-        console.log('Canvas background color:', canvas.backgroundColor);
         
         // Set up canvas event handlers with error protection
         const saveToHistory = () => {
@@ -244,12 +221,12 @@ export default function AnnotationModal({
         canvas.on('object:removed', saveToHistory);
         canvas.on('object:modified', saveToHistory);
         
-        // Initial render with protection - use RAF to avoid conflicts
+        // Initial render with protection
         requestAnimationFrame(() => {
           try {
             if (fabricCanvasRef.current === canvas) {
               canvas.renderAll();
-              console.log('Canvas initialized successfully');
+              console.log('Canvas initialized successfully with DOM isolation');
             }
           } catch (renderError) {
             console.error('Error during initial render:', renderError);
@@ -265,8 +242,8 @@ export default function AnnotationModal({
       }
     };
 
-    // Start initialization after a longer delay to ensure DOM stability
-    const timer = setTimeout(initCanvas, 300);
+    // Start initialization after DOM is stable
+    const timer = setTimeout(initCanvas, 500);
 
     return () => {
       clearTimeout(timer);
@@ -277,20 +254,9 @@ export default function AnnotationModal({
   // Cleanup canvas when modal closes
   useEffect(() => {
     if (!isOpen && fabricCanvasRef.current) {
-      console.log('Cleaning up canvas on modal close');
+      console.log('Cleaning up isolated canvas on modal close');
       try {
         const canvas = fabricCanvasRef.current;
-        
-        // Disconnect mutation observer
-        if (mutationObserverRef.current) {
-          mutationObserverRef.current.disconnect();
-          mutationObserverRef.current = null;
-        }
-        
-        // Clear any pending render timers
-        if ((canvas as any)._renderTimer) {
-          clearTimeout((canvas as any)._renderTimer);
-        }
         
         // Remove all event listeners
         canvas.off('path:created');
@@ -1255,10 +1221,20 @@ export default function AnnotationModal({
               </div>
             )}
             
-            <canvas 
-              ref={canvasElRef}
+            <div 
+              id="fabric-canvas-wrapper"
               className="border border-gray-300 shadow-lg"
-            />
+              style={{ 
+                position: 'relative',
+                width: 'fit-content',
+                height: 'fit-content'
+              }}
+            >
+              <canvas 
+                ref={canvasElRef}
+                style={{ display: 'block' }}
+              />
+            </div>
           </div>
         </Dialog.Panel>
       </div>
