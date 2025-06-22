@@ -117,7 +117,7 @@ export default function AnnotationModal({
       const canvas = new fabric.Canvas(canvasElRef.current, {
         width: 800,
         height: 600,
-        backgroundColor: '#f8f9fa'
+        backgroundColor: '#ffffff'
       });
 
       fabricCanvasRef.current = canvas;
@@ -132,9 +132,16 @@ export default function AnnotationModal({
           return newHistory;
         });
         setHistoryIndex(prev => prev + 1);
+        // Force render after saving to history
+        setTimeout(() => canvas.renderAll(), 50);
       };
 
-      canvas.on('path:created', saveToHistory);
+      const handlePathCreated = (e: any) => {
+        console.log('Path created:', e.path);
+        saveToHistory();
+      };
+
+      canvas.on('path:created', handlePathCreated);
       canvas.on('object:added', saveToHistory);
       canvas.on('object:removed', saveToHistory);
       canvas.on('object:modified', saveToHistory);
@@ -209,31 +216,56 @@ export default function AnnotationModal({
             const containerWidth = canvasContainerRef.current?.clientWidth || 800;
             const containerHeight = canvasContainerRef.current?.clientHeight || 600;
             
-            // Handle tall documents (8.5x11 ratio ≈ 0.77)
+            // Calculate better canvas dimensions
             const imageAspectRatio = img.width! / img.height!;
             let canvasWidth, canvasHeight;
             
+            // Make canvas larger and more usable
+            const maxWidth = containerWidth - 100;
+            const maxHeight = containerHeight - 100;
+            
             if (imageAspectRatio < 0.9) { // Tall document
-              canvasHeight = Math.min(containerHeight - 100, img.height!);
+              canvasHeight = Math.min(maxHeight, 700); // Minimum useful height
               canvasWidth = canvasHeight * imageAspectRatio;
             } else { // Wide or square document
-              canvasWidth = Math.min(containerWidth - 100, img.width!);
+              canvasWidth = Math.min(maxWidth, 800); // Minimum useful width
               canvasHeight = canvasWidth / imageAspectRatio;
             }
             
+            // Ensure minimum sizes for usability
+            canvasWidth = Math.max(canvasWidth, 500);
+            canvasHeight = Math.max(canvasHeight, 400);
+            
             console.log('Setting canvas dimensions:', canvasWidth, 'x', canvasHeight);
+            console.log('Original image dimensions:', img.width, 'x', img.height);
+            
             canvas.setDimensions({ width: canvasWidth, height: canvasHeight });
             
-            // Scale image to fit canvas
-            const scale = Math.min(canvasWidth / img.width!, canvasHeight / img.height!);
-            img.scale(scale);
+            // Scale image to fit canvas properly
+            const scaleX = canvasWidth / img.width!;
+            const scaleY = canvasHeight / img.height!;
+            const scale = Math.min(scaleX, scaleY) * 0.95; // Leave small margin
+            
+            console.log('Image scale factor:', scale);
+            
+            const scaledWidth = img.width! * scale;
+            const scaledHeight = img.height! * scale;
             
             // Center the image
             img.set({
-              left: (canvasWidth - img.width! * scale) / 2,
-              top: (canvasHeight - img.height! * scale) / 2,
+              left: (canvasWidth - scaledWidth) / 2,
+              top: (canvasHeight - scaledHeight) / 2,
+              scaleX: scale,
+              scaleY: scale,
               selectable: false,
               evented: false
+            });
+            
+            console.log('Image positioned at:', {
+              left: img.left,
+              top: img.top,
+              scaledWidth,
+              scaledHeight
             });
             
             canvas.setBackgroundImage(img, () => {
@@ -241,6 +273,11 @@ export default function AnnotationModal({
               canvas.renderAll();
               setIsLoading(false);
               initializeHistory();
+              
+              // Force re-render after a short delay
+              setTimeout(() => {
+                canvas.renderAll();
+              }, 100);
             });
             
             imageElementRef.current = img;
@@ -287,6 +324,11 @@ export default function AnnotationModal({
       newHeight = newWidth / imageAspectRatio;
     }
     
+    // Ensure minimum size for usability
+    newWidth = Math.max(newWidth, 400);
+    newHeight = Math.max(newHeight, 300);
+    
+    console.log('Fitting canvas to image:', { newWidth, newHeight, containerWidth, containerHeight });
     canvas.setDimensions({ width: newWidth, height: newHeight });
     canvas.renderAll();
   };
@@ -317,6 +359,7 @@ export default function AnnotationModal({
         canvas.freeDrawingBrush.width = penSize;
         canvas.freeDrawingBrush.strokeLineCap = 'round';
         canvas.freeDrawingBrush.strokeLineJoin = 'round';
+        canvas.renderAll();
         break;
       
       case 'erase':
@@ -398,10 +441,13 @@ export default function AnnotationModal({
         width: 0,
         height: 0,
         stroke: '#e11d48',
-        strokeWidth: 2,
-        fill: 'rgba(225, 29, 72, 0.1)',
+        strokeWidth: 3,
+        fill: 'rgba(225, 29, 72, 0.15)',
         selectable: true,
-        strokeDashArray: [5, 5]
+        strokeDashArray: [8, 4],
+        cornerColor: '#e11d48',
+        cornerSize: 8,
+        transparentCorners: false
       });
 
       canvas.add(rect);
@@ -533,6 +579,7 @@ export default function AnnotationModal({
     const newZoom = Math.min(Math.max(zoom + delta, 0.1), 5);
     const center = canvas.getCenter();
     canvas.zoomToPoint(new fabric.Point(center.left, center.top), newZoom);
+    canvas.renderAll(); // Force re-render
     setZoom(newZoom);
   };
 
@@ -541,8 +588,8 @@ export default function AnnotationModal({
     if (!canvas) return;
 
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    setZoom(1);
     canvas.renderAll();
+    setZoom(1);
   };
 
   const handleUndo = () => {
