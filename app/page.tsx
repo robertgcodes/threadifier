@@ -33,13 +33,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from "./context/AuthContext";
 import { signOut } from './lib/auth';
 import Link from 'next/link';
-import { AuthProvider } from '@/app/context/AuthContext';
 import ThreadEditor from './components/ThreadEditor';
 import ImagePickerModal from './components/ImagePickerModal';
 import AnnotationModal from './components/AnnotationModal';
 import AISuggestions from './components/AISuggestions';
 import { Tab } from '@headlessui/react';
-import { PageSuggestion } from './types';
+import { PageSuggestion, PostImageSuggestion } from './types';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,7 +123,7 @@ function SortablePostItem({ post, index, generatedThread, startEditing, deletePo
             <div className="h-10 w-10 rounded-full bg-legal-800 flex items-center justify-center mr-3 flex-shrink-0">
               <Twitter className="h-5 w-5 text-white" />
             </div>
-            <p className="font-semibold text-legal-800">Legal Eagle Bot <span className="text-legal-500 font-normal">· @threadifier</span></p>
+            <p className="font-semibold text-legal-800">Threadifier Bot <span className="text-legal-500 font-normal">· @threadifier</span></p>
         </div>
         <div className="flex-grow">
             {editingPostId === post.id ? (
@@ -270,6 +269,7 @@ function Page() {
   const [pageSuggestions, setPageSuggestions] = useState<PageSuggestion[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [pageTexts, setPageTexts] = useState<string[]>([]);
+  const [postImageSuggestions, setPostImageSuggestions] = useState<PostImageSuggestion[]>([]);
   
   // Tab control state
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
@@ -283,6 +283,7 @@ function Page() {
       setMarkedUpImages([]);
       setHighResPageImages([]);
       setPostPageMap({});
+      setPostImageSuggestions([]);
       toast.success("PDF loaded successfully!");
       extractTextFromPDF(file);
     } else {
@@ -400,6 +401,49 @@ function Page() {
     }
   };
 
+  const generatePostImageSuggestions = async (threadPosts: string[]) => {
+    if (!pageTexts.length) {
+      console.log("No pages available for post-image analysis");
+      return;
+    }
+
+    console.log('Starting post-specific image suggestions generation...', {
+      threadPostsLength: threadPosts.length,
+      pageTextsLength: pageTexts.length,
+      threadPosts: threadPosts
+    });
+    
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          suggestPostImages: true,
+          threadPosts,
+          pageTexts,
+          customInstructions
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Post-image suggestions result:', result);
+      
+      if (result.postImageSuggestions) {
+        setPostImageSuggestions(result.postImageSuggestions);
+        console.log(`Generated ${result.postImageSuggestions.length} post-specific image suggestions:`, result.postImageSuggestions);
+      } else {
+        console.log('No post image suggestions in result:', result);
+      }
+    } catch (error) {
+      console.error("Error generating post-image suggestions:", error);
+      // Don't show error toast as this is automatic - just log for debugging
+    }
+  };
+
   async function handleAnalyze() {
     if (!extractedText) {
       toast.error("No text extracted from PDF. Please upload a PDF first.");
@@ -412,8 +456,8 @@ function Page() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           text: extractedText,
-          postCount: numPosts,
-          characterLimit: charLimit,
+          numPosts: numPosts,
+          charLimit: charLimit,
           customInstructions,
           useEmojis,
           useHashtags,
@@ -455,13 +499,19 @@ function Page() {
         return;
       }
 
-      setGeneratedThread(
-        posts.thread.map((postText: string, index: number) => ({
-          id: index + 1,
-          text: postText,
-        }))
-      );
+      const newThread = posts.thread.map((postText: string, index: number) => ({
+        id: index + 1,
+        text: postText,
+      }));
+      
+      setGeneratedThread(newThread);
       toast.success("Thread analyzed and generated successfully!");
+      
+      // Automatically generate post-specific image suggestions
+      if (pageTexts.length > 0) {
+        generatePostImageSuggestions(posts.thread);
+      }
+      
       setSelectedTabIndex(1); // Automatically switch to Thread Editor tab
     } catch (error) {
       console.error("Analysis failed:", error);
@@ -663,16 +713,18 @@ function Page() {
             }`}
           >
             <input {...getInputProps()} />
-            {isExtracting ? (
-              <div className="flex items-center justify-center text-legal-600">
-                <Loader2 className="animate-spin mr-2" />
-                <p>Analyzing PDF...</p>
-              </div>
-            ) : pdfFile ? (
-              <p className="text-legal-700">Loaded: <span className="font-semibold">{pdfFile.name}</span></p>
-            ) : (
-              <p className="text-legal-600">Drop a PDF here, or click to select a file</p>
-            )}
+            <div className="flex items-center justify-center min-h-[24px]">
+              {isExtracting ? (
+                <>
+                  <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                  <span className="text-legal-600">Analyzing PDF...</span>
+                </>
+              ) : pdfFile ? (
+                <span className="text-legal-700">Loaded: <span className="font-semibold">{pdfFile.name}</span></span>
+              ) : (
+                <span className="text-legal-600">Drop a PDF here, or click to select a file</span>
+              )}
+            </div>
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow-sm border border-legal-200">
@@ -850,25 +902,68 @@ function Page() {
                       >
                         <div className="space-y-4">
                           {generatedThread.map((post, index) => (
-                            <SortableThreadRow
-                              key={post.id}
-                              post={post}
-                              index={index}
-                              generatedThread={generatedThread}
-                              startEditing={startEditing}
-                              deletePost={deletePost}
-                              editingPostId={editingPostId}
-                              editingText={editingText}
-                              setEditingText={setEditingText}
-                              saveEdit={saveEdit}
-                              cancelEdit={cancelEdit}
-                              handleCopy={handleCopy}
-                              pageImages={pageImages}
-                              markedUpImages={markedUpImages}
-                              postPageMap={postPageMap}
-                              handleClearImage={handleClearImage}
-                              onAddImage={handleOpenImagePicker}
-                            />
+                            <div key={post.id}>
+                              <SortableThreadRow
+                                post={post}
+                                index={index}
+                                generatedThread={generatedThread}
+                                startEditing={startEditing}
+                                deletePost={deletePost}
+                                editingPostId={editingPostId}
+                                editingText={editingText}
+                                setEditingText={setEditingText}
+                                saveEdit={saveEdit}
+                                cancelEdit={cancelEdit}
+                                handleCopy={handleCopy}
+                                pageImages={pageImages}
+                                markedUpImages={markedUpImages}
+                                postPageMap={postPageMap}
+                                handleClearImage={handleClearImage}
+                                onAddImage={handleOpenImagePicker}
+                              />
+                              
+                              {/* Post-specific image suggestions */}
+                              {postImageSuggestions.find(suggestion => suggestion.postIndex === index) && (
+                                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <ImageIcon className="h-4 w-4 text-blue-600" />
+                                    <span className="text-sm font-medium text-blue-900">AI Recommended Images</span>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                    {postImageSuggestions
+                                      .find(suggestion => suggestion.postIndex === index)
+                                      ?.recommendedPages.filter(rec => rec.relevanceScore >= 60).slice(0, 5)
+                                      .map((recommendation, recIndex) => (
+                                        <div 
+                                          key={recIndex}
+                                          className="flex items-center space-x-2 p-2 bg-white rounded border hover:border-blue-300 cursor-pointer"
+                                          onClick={() => {
+                                            setMagnifyInitialPage(recommendation.pageNumber - 1);
+                                            setIsAnnotationModalOpen(true);
+                                          }}
+                                        >
+                                          <img 
+                                            src={pageImages[recommendation.pageNumber - 1]} 
+                                            alt={`Page ${recommendation.pageNumber}`}
+                                            className="w-8 h-10 object-cover rounded border"
+                                          />
+                                          <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-medium text-gray-900">
+                                              Page {recommendation.pageNumber}
+                                            </div>
+                                            <div className="text-xs text-blue-600">
+                                              {recommendation.relevanceScore}% match
+                                            </div>
+                                            <div className="text-xs text-gray-500 truncate">
+                                              {recommendation.reasoning}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </SortableContext>
@@ -970,12 +1065,4 @@ function Page() {
   );
 }
 
-function PageClientWrapper() {
-  return (
-    <AuthProvider>
-      <Page />
-    </AuthProvider>
-  );
-}
-
-export default PageClientWrapper;
+export default Page;

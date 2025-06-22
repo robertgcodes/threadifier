@@ -19,7 +19,20 @@ export interface PageSuggestion {
   confidence: 'high' | 'medium' | 'low';
 }
 
+export interface PostImageSuggestion {
+  postIndex: number;
+  postText: string;
+  recommendedPages: {
+    pageNumber: number;
+    relevanceScore: number;
+    reasoning: string;
+    keyQuotes: string[];
+    confidence: 'high' | 'medium' | 'low';
+  }[];
+}
+
 export interface AnalyzeResponse {
   thread?: string[];
   pageSuggestions?: PageSuggestion[];
+  postImageSuggestions?: PostImageSuggestion[];
 } 

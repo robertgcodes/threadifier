@@ -18,14 +18,28 @@ export async function POST(req: Request) {
       useHashtags = false,
       suggestPages = false,
       pageTexts = [],
+      suggestPostImages = false,
+      threadPosts = [],
     } = await req.json();
 
-    if (!text && !suggestPages) {
+    console.log('API Request received:', {
+      hasText: !!text,
+      suggestPages,
+      suggestPostImages,
+      pageTextsLength: pageTexts.length,
+      threadPostsLength: threadPosts.length
+    });
+
+    if (!text && !suggestPages && !suggestPostImages) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
     if (suggestPages && (!pageTexts || pageTexts.length === 0)) {
       return NextResponse.json({ error: 'Page texts are required for suggestions' }, { status: 400 });
+    }
+
+    if (suggestPostImages && (!pageTexts || pageTexts.length === 0 || !threadPosts || threadPosts.length === 0)) {
+      return NextResponse.json({ error: 'Page texts and thread posts are required for post image suggestions' }, { status: 400 });
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -75,7 +89,7 @@ export async function POST(req: Request) {
 
     // Handle thread generation
     let threadResponse = null;
-    if (!suggestPages) {
+    if (!suggestPages && !suggestPostImages) {
       const msg = await anthropic.messages.create({
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 2048,
@@ -140,11 +154,23 @@ export async function POST(req: Request) {
       suggestionPrompt += `  ]\n`;
       suggestionPrompt += `}\n\n`;
       
-      // Add page content
+      // Add page content with length limits
       let pageContent = '';
-      pageTexts.forEach((pageText: string, index: number) => {
-        pageContent += `=== PAGE ${index + 1} ===\n${pageText}\n\n`;
-      });
+      const maxContentLength = 50000; // Limit total content to prevent API issues
+      let currentLength = 0;
+      
+      for (let index = 0; index < pageTexts.length; index++) {
+        const pageText = pageTexts[index];
+        const pageSection = `=== PAGE ${index + 1} ===\n${pageText}\n\n`;
+        
+        if (currentLength + pageSection.length > maxContentLength) {
+          pageContent += `\n[Content truncated - analyzed ${index + 1} of ${pageTexts.length} pages]\n`;
+          break;
+        }
+        
+        pageContent += pageSection;
+        currentLength += pageSection.length;
+      }
       
       console.log('Sending page analysis request to Anthropic...', {
         model: 'claude-3-5-sonnet-20241022',
@@ -181,6 +207,115 @@ export async function POST(req: Request) {
       }
     }
 
+    // Handle post-specific image suggestions
+    let postImageSuggestions = null;
+    if (suggestPostImages && threadPosts.length > 0 && pageTexts.length > 0) {
+      console.log('Starting post-specific image suggestions...', {
+        postCount: threadPosts.length,
+        pageCount: pageTexts.length
+      });
+      
+      // Build post-specific image suggestion prompt
+      let postImagePrompt = 'You are an expert at matching social media post content with relevant document pages. Your task is to find the best page matches for each specific thread post.\\n\\n';
+      
+      if (customInstructions && customInstructions.trim().length > 0) {
+        postImagePrompt += `Focus Area: ${customInstructions.trim()}\\n\\n`;
+      }
+      
+      postImagePrompt += `Guidelines:\\n`;
+      postImagePrompt += `1. Analyze each thread post and find relevant pages from the document\\n`;
+      postImagePrompt += `2. Look for content overlap, supporting evidence, quotes, or visual elements that would enhance the post\\n`;
+      postImagePrompt += `3. Score each page from 1-100 for relevance to the specific post\\n`;
+      postImagePrompt += `4. Include pages scoring 60% or higher - provide a range of options from highly relevant to moderately relevant\\n`;
+      postImagePrompt += `5. Return suggestions for 3-5 pages per post, including both strong matches (80%+) and decent matches (60-79%)\\n`;
+      postImagePrompt += `6. Provide reasoning for why each page supports that specific post\\n`;
+      postImagePrompt += `7. Output must be valid JSON in this exact format:\\n`;
+      postImagePrompt += `{\\n`;
+      postImagePrompt += `  "postSuggestions": [\\n`;
+      postImagePrompt += `    {\\n`;
+      postImagePrompt += `      "postIndex": 0,\\n`;
+      postImagePrompt += `      "postText": "The actual post text",\\n`;
+      postImagePrompt += `      "recommendedPages": [\\n`;
+      postImagePrompt += `        {\\n`;
+      postImagePrompt += `          "pageNumber": 1,\\n`;
+      postImagePrompt += `          "relevanceScore": 85,\\n`;
+      postImagePrompt += `          "reasoning": "Why this page supports this specific post",\\n`;
+      postImagePrompt += `          "keyQuotes": ["Relevant quote from page"],\\n`;
+      postImagePrompt += `          "confidence": "high"\\n`;
+      postImagePrompt += `        }\\n`;
+      postImagePrompt += `      ]\\n`;
+      postImagePrompt += `    }\\n`;
+      postImagePrompt += `  ]\\n`;
+      postImagePrompt += `}\\n\\n`;
+      
+      // Add thread posts
+      let postContent = 'THREAD POSTS:\\n';
+      threadPosts.forEach((post: string, index: number) => {
+        postContent += `Post ${index + 1}: ${post}\\n\\n`;
+      });
+      
+      // Add page content with length limits
+      let pageContent = '\\nDOCUMENT PAGES:\\n';
+      const maxContentLength = 40000; // Smaller limit since we have posts too
+      let currentLength = postContent.length;
+      
+      for (let index = 0; index < pageTexts.length; index++) {
+        const pageText = pageTexts[index];
+        const pageSection = `=== PAGE ${index + 1} ===\\n${pageText}\\n\\n`;
+        
+        if (currentLength + pageSection.length > maxContentLength) {
+          pageContent += `\\n[Content truncated - analyzed ${index + 1} of ${pageTexts.length} pages]\\n`;
+          break;
+        }
+        
+        pageContent += pageSection;
+        currentLength += pageSection.length;
+      }
+      
+      const fullContent = postContent + pageContent;
+      
+      console.log('Sending post-image matching request to Anthropic...', {
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 4000,
+        contentLength: fullContent.length
+      });
+
+      const postImageMsg = await anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 4000,
+        system: postImagePrompt,
+        messages: [
+          {
+            role: 'user',
+            content: `Please analyze these thread posts and find the best matching pages for each post:\\n\\n${fullContent}`,
+          },
+        ],
+      });
+
+      console.log('Received response from Anthropic for post-image suggestions');
+
+      if (postImageMsg.content && postImageMsg.content.length > 0 && postImageMsg.content[0].type === 'text') {
+        const rawPostImageResponse = postImageMsg.content[0].text;
+        console.log('Raw Anthropic response for post-images:', rawPostImageResponse);
+        
+        const postImageJsonMatch = rawPostImageResponse.match(/\{[\s\S]*\}/);
+        
+        if (postImageJsonMatch) {
+          console.log('Found JSON match:', postImageJsonMatch[0]);
+          try {
+            const postImageData = JSON.parse(postImageJsonMatch[0]);
+            console.log('Parsed post-image data:', postImageData);
+            postImageSuggestions = postImageData.postSuggestions || [];
+            console.log('Final postImageSuggestions:', postImageSuggestions);
+          } catch (error) {
+            console.error('Error parsing post-image suggestions:', error);
+          }
+        } else {
+          console.log('No JSON match found in response');
+        }
+      }
+    }
+
     // Return combined response
     const response: any = {};
     if (threadResponse) {
@@ -188,6 +323,9 @@ export async function POST(req: Request) {
     }
     if (pageSuggestions) {
       response.pageSuggestions = pageSuggestions;
+    }
+    if (postImageSuggestions) {
+      response.postImageSuggestions = postImageSuggestions;
     }
 
     return NextResponse.json(response);

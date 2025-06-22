@@ -921,6 +921,11 @@ export default function AnnotationModal({
     const canvas = fabricCanvasRef.current;
     if (!canvas || !cropRect) return;
 
+    // Hide the crop rectangle before exporting
+    const originalVisible = cropRect.visible;
+    cropRect.set('visible', false);
+    canvas.renderAll();
+
     const dataURL = canvas.toDataURL({
       format: 'png',
       left: cropRect.left,
@@ -929,6 +934,10 @@ export default function AnnotationModal({
       height: cropRect.getScaledHeight(),
       multiplier: 2
     });
+
+    // Restore crop rectangle visibility
+    cropRect.set('visible', originalVisible);
+    canvas.renderAll();
     
     // Create a new marked up image for the cropped result
     const newMarkedUpImage: MarkedUpImage = {
