@@ -97,61 +97,80 @@ export default function AnnotationModal({
 
   // Initialize fabric canvas
   useEffect(() => {
-    if (!isOpen || !canvasElRef.current) return;
+    if (!isOpen) return;
 
-    // Clean up any existing canvas first
-    if (fabricCanvasRef.current) {
-      fabricCanvasRef.current.dispose();
-      fabricCanvasRef.current = null;
-    }
+    // Wait for the modal to be fully rendered
+    const initCanvas = () => {
+      if (!canvasElRef.current) {
+        console.log('Canvas element not ready, retrying...');
+        setTimeout(initCanvas, 50);
+        return;
+      }
 
-    const canvas = new fabric.Canvas(canvasElRef.current, {
-      width: 800,
-      height: 600,
-      backgroundColor: '#f8f9fa'
-    });
+      // Clean up any existing canvas first
+      if (fabricCanvasRef.current) {
+        fabricCanvasRef.current.dispose();
+        fabricCanvasRef.current = null;
+      }
 
-    fabricCanvasRef.current = canvas;
-
-    // Set up canvas event handlers
-    const saveToHistory = () => {
-      if (!canvas) return;
-      const json = JSON.stringify(canvas.toJSON(['selectable', 'evented']));
-      setHistory(prev => {
-        const newHistory = prev.slice(0, historyIndex + 1);
-        newHistory.push(json);
-        return newHistory;
+      console.log('Initializing fabric canvas');
+      const canvas = new fabric.Canvas(canvasElRef.current, {
+        width: 800,
+        height: 600,
+        backgroundColor: '#f8f9fa'
       });
-      setHistoryIndex(prev => prev + 1);
+
+      fabricCanvasRef.current = canvas;
+
+      // Set up canvas event handlers
+      const saveToHistory = () => {
+        if (!canvas) return;
+        const json = JSON.stringify(canvas.toJSON(['selectable', 'evented']));
+        setHistory(prev => {
+          const newHistory = prev.slice(0, historyIndex + 1);
+          newHistory.push(json);
+          return newHistory;
+        });
+        setHistoryIndex(prev => prev + 1);
+      };
+
+      canvas.on('path:created', saveToHistory);
+      canvas.on('object:added', saveToHistory);
+      canvas.on('object:removed', saveToHistory);
+      canvas.on('object:modified', saveToHistory);
     };
 
-    canvas.on('path:created', saveToHistory);
-    canvas.on('object:added', saveToHistory);
-    canvas.on('object:removed', saveToHistory);
-    canvas.on('object:modified', saveToHistory);
+    // Start initialization after a short delay
+    const timer = setTimeout(initCanvas, 100);
 
     return () => {
-      if (canvas) {
-        canvas.off('path:created');
-        canvas.off('object:added');
-        canvas.off('object:removed');
-        canvas.off('object:modified');
-        canvas.dispose();
+      clearTimeout(timer);
+      if (fabricCanvasRef.current) {
+        fabricCanvasRef.current.off('path:created');
+        fabricCanvasRef.current.off('object:added');
+        fabricCanvasRef.current.off('object:removed');
+        fabricCanvasRef.current.off('object:modified');
+        fabricCanvasRef.current.dispose();
+        fabricCanvasRef.current = null;
       }
-      fabricCanvasRef.current = null;
     };
   }, [isOpen]);
 
   // Load image into canvas
   useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || !currentImage) {
-      console.log('Canvas or image not ready:', { canvas: !!canvas, currentImage: !!currentImage });
+    if (!currentImage) {
+      console.log('No current image to load');
       return;
     }
 
-    // Add a small delay to ensure canvas is fully initialized
-    const timer = setTimeout(() => {
+    // Wait for canvas to be ready
+    const loadImage = () => {
+      const canvas = fabricCanvasRef.current;
+      if (!canvas) {
+        console.log('Canvas not ready for image loading, retrying...');
+        setTimeout(loadImage, 100);
+        return;
+      }
       console.log('Loading image into canvas:', currentImage);
       setIsLoading(true);
       canvas.clear();
@@ -232,9 +251,11 @@ export default function AnnotationModal({
           }
         );
       }
-    }, 100);
+    };
 
-    return () => clearTimeout(timer);
+    // Start loading after canvas is ready
+    loadImage();
+
   }, [currentImage, editingMarkedUpImage]);
 
   const initializeHistory = () => {
