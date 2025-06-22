@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { fabric } from 'fabric';
 import { Dialog } from '@headlessui/react';
 import { 
-  Crop, Loader2, Minus, Plus, RefreshCw, Hand, RotateCounterClockwise, 
+  Crop, Loader2, Minus, Plus, RefreshCw, Hand, 
   Square, Circle, ArrowRight, Type, Download, Save,
   RotateCcw, PenTool, Eraser, ChevronLeft, ChevronRight
 } from 'lucide-react';
