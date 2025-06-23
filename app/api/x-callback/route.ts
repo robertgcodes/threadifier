@@ -7,20 +7,6 @@ const client = new TwitterApi({
   clientSecret: process.env.X_CLIENT_SECRET!,
 });
 
-// Dynamically determine callback URL based on request headers for better flexibility
-const getCallbackUrl = (request: NextRequest) => {
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return `${process.env.NEXT_PUBLIC_APP_URL}/api/x-callback`;
-  }
-  
-  // Fallback to request headers for dynamic environments
-  const host = request.headers.get('host');
-  const protocol = request.headers.get('x-forwarded-proto') || 'http';
-  return `${protocol}://${host}/api/x-callback`;
-};
-
-const callbackURL = getCallbackUrl(request);
-
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
@@ -30,6 +16,20 @@ export async function GET(request: NextRequest) {
   if (!code || !state) {
     return NextResponse.redirect(new URL('/?error=x_auth_failed', request.url));
   }
+
+  // Dynamically determine callback URL based on request headers for better flexibility
+  const getCallbackUrl = () => {
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      return `${process.env.NEXT_PUBLIC_APP_URL}/api/x-callback`;
+    }
+    
+    // Fallback to request headers for dynamic environments
+    const host = request.headers.get('host');
+    const protocol = request.headers.get('x-forwarded-proto') || 'http';
+    return `${protocol}://${host}/api/x-callback`;
+  };
+
+  const callbackURL = getCallbackUrl();
 
   try {
     // Exchange code for access token
