@@ -17,10 +17,17 @@ interface AnnotationModalProps {
   pageImages: string[];
   initialPage: number | null;
   editingMarkedUpImage?: MarkedUpImage;
+  userProfile?: {
+    displayName: string;
+    username: string;
+    twitterHandle: string;
+    instagramHandle: string;
+    avatar: string | null;
+  };
 }
 
 type Tool = 'select' | 'draw' | 'erase' | 'pan' | 'crop' | 'text' | 'rect' | 'circle' | 'arrow';
-type CropAspectRatio = 'free' | '1:1' | '4:5' | '16:9' | '9:16' | '4:3' | '3:4';
+type CropAspectRatio = 'free' | '1:1' | '4:5' | '16:9' | '9:16' | '4:3' | '3:4' | 'twitter-single' | 'twitter-multi';
 
 export default function AnnotationModal({
   isOpen,
@@ -29,7 +36,8 @@ export default function AnnotationModal({
   onCrop,
   pageImages,
   initialPage,
-  editingMarkedUpImage
+  editingMarkedUpImage,
+  userProfile
 }: AnnotationModalProps) {
   const [currentPageIdx, setCurrentPageIdx] = useState(initialPage);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
@@ -54,7 +62,15 @@ export default function AnnotationModal({
   
   // Crop state
   const [cropRect, setCropRect] = useState<fabric.Rect | null>(null);
-  const [cropAspectRatio, setCropAspectRatio] = useState<CropAspectRatio>('free');
+  const [cropAspectRatio, setCropAspectRatio] = useState<CropAspectRatio>('twitter-single');
+  
+  // Twitter preview mode
+  const [showTwitterPreview, setShowTwitterPreview] = useState(false);
+  
+  // Image quality validation
+  const [imageDimensions, setImageDimensions] = useState<{width: number, height: number} | null>(null);
+  const [imageQualityWarnings, setImageQualityWarnings] = useState<string[]>([]);
+  const [showWarnings, setShowWarnings] = useState(true);
 
   // Initialize image when modal opens
   useEffect(() => {
@@ -81,11 +97,17 @@ export default function AnnotationModal({
     }
 
     if (targetImage) {
-      // Preload image to check for errors
+      // Preload image to check for errors and get dimensions
       const img = new Image();
       img.onload = () => {
         setCurrentImage(targetImage);
         setIsLoading(false);
+        
+        // Capture image dimensions and validate for Twitter
+        const dimensions = { width: img.naturalWidth, height: img.naturalHeight };
+        setImageDimensions(dimensions);
+        const warnings = validateImageForTwitter(dimensions.width, dimensions.height);
+        setImageQualityWarnings(warnings);
       };
       img.onerror = () => {
         setError('Failed to load image');
@@ -250,6 +272,41 @@ export default function AnnotationModal({
       isInitializing = false;
     };
   }, [isOpen]);
+
+  // Real-time crop quality validation
+  useEffect(() => {
+    if (!imageDimensions) return;
+    
+    // Update warnings when crop rect changes
+    const updateValidation = () => {
+      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
+      setImageQualityWarnings(warnings);
+    };
+
+    // Set up canvas listener for crop rect modifications
+    const canvas = fabricCanvasRef.current;
+    if (canvas && cropRect) {
+      const handleObjectModified = () => {
+        setTimeout(updateValidation, 100); // Small delay to ensure crop rect state is updated
+      };
+      
+      canvas.on('object:modified', handleObjectModified);
+      canvas.on('object:scaling', handleObjectModified);
+      canvas.on('object:moving', handleObjectModified);
+      
+      // Initial validation update
+      updateValidation();
+      
+      return () => {
+        canvas.off('object:modified', handleObjectModified);
+        canvas.off('object:scaling', handleObjectModified);
+        canvas.off('object:moving', handleObjectModified);
+      };
+    } else {
+      // Update validation even when no crop rect (for original image analysis)
+      updateValidation();
+    }
+  }, [cropRect, imageDimensions, cropAspectRatio]);
 
   // Cleanup canvas when modal closes
   useEffect(() => {
@@ -604,8 +661,14 @@ export default function AnnotationModal({
     let rect: fabric.Rect;
 
     const onMouseDown = (opt: fabric.IEvent) => {
-      // Only start new crop if not clicking on existing crop rect
-      if (cropRect && canvas.getActiveObject() === cropRect) {
+      // Check if we're clicking on an existing crop rect (more robust detection)
+      const target = opt.target;
+      if (target && target instanceof fabric.Rect && target.stroke === '#3b82f6' && target.strokeWidth === 2) {
+        return; // Allow manipulation of existing crop rect
+      }
+
+      // Also check if we have a tracked crop rect and it's the target
+      if (cropRect && target === cropRect) {
         return; // Allow manipulation of existing crop rect
       }
 
@@ -614,10 +677,14 @@ export default function AnnotationModal({
       startX = pointer.x;
       startY = pointer.y;
 
-      // Remove previous crop rect if exists
-      if (cropRect) {
-        canvas.remove(cropRect);
-      }
+      // Remove all existing crop rectangles (not just the tracked one)
+      const objects = canvas.getObjects();
+      objects.forEach(obj => {
+        if (obj instanceof fabric.Rect && obj.stroke === '#3b82f6' && obj.strokeWidth === 2) {
+          canvas.remove(obj);
+        }
+      });
+      setCropRect(null);
 
       rect = new fabric.Rect({
         left: startX,
@@ -697,6 +764,8 @@ export default function AnnotationModal({
       case '9:16': return 9/16;
       case '4:3': return 4/3;
       case '3:4': return 3/4;
+      case 'twitter-single': return 16/9; // 1200x675 optimal for single Twitter images
+      case 'twitter-multi': return 2/1; // 1200x600 optimal for multiple Twitter images
       default: return 1;
     }
   };
@@ -705,10 +774,16 @@ export default function AnnotationModal({
     const canvas = fabricCanvasRef.current;
     if (!canvas || aspectRatio === 'free') return;
 
-    // Remove existing crop rect
-    if (cropRect) {
-      canvas.remove(cropRect);
-    }
+    // Remove all existing crop rectangles (not just the tracked one)
+    const objects = canvas.getObjects();
+    objects.forEach(obj => {
+      if (obj instanceof fabric.Rect && obj.stroke === '#3b82f6' && obj.strokeWidth === 2) {
+        canvas.remove(obj);
+      }
+    });
+    
+    // Clear the tracked crop rect
+    setCropRect(null);
 
     const aspectValue = getAspectRatioValue(aspectRatio);
     const canvasCenter = canvas.getCenter();
@@ -921,23 +996,46 @@ export default function AnnotationModal({
     const canvas = fabricCanvasRef.current;
     if (!canvas || !cropRect) return;
 
-    // Hide the crop rectangle before exporting
+    // Create a temporary canvas without the crop rectangle
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) return;
+
+    // Get crop dimensions and position
+    const cropWidth = cropRect.getScaledWidth();
+    const cropHeight = cropRect.getScaledHeight();
+    const cropLeft = cropRect.left || 0;
+    const cropTop = cropRect.top || 0;
+
+    // Set temp canvas size to match crop area
+    tempCanvas.width = cropWidth;
+    tempCanvas.height = cropHeight;
+
+    // Temporarily hide the crop rectangle to avoid including it in the output
     const originalVisible = cropRect.visible;
-    cropRect.set('visible', false);
+    cropRect.visible = false;
     canvas.renderAll();
 
-    const dataURL = canvas.toDataURL({
-      format: 'png',
-      left: cropRect.left,
-      top: cropRect.top,
-      width: cropRect.getScaledWidth(),
-      height: cropRect.getScaledHeight(),
-      multiplier: 2
-    });
+    // Get the main canvas as image without the crop overlay
+    const mainCanvasElement = canvas.getElement();
+    
+    // Draw the cropped portion to temp canvas
+    tempCtx.drawImage(
+      mainCanvasElement,
+      cropLeft, cropTop, cropWidth, cropHeight, // Source area (crop region)
+      0, 0, cropWidth, cropHeight // Destination area (full temp canvas)
+    );
 
     // Restore crop rectangle visibility
-    cropRect.set('visible', originalVisible);
+    cropRect.visible = originalVisible;
     canvas.renderAll();
+
+    const dataURL = tempCanvas.toDataURL('image/png', 1.0); // High quality PNG
+    
+    // Remove the crop rectangle after successful crop
+    canvas.remove(cropRect);
+    setCropRect(null);
+    setActiveTool('select');
     
     // Create a new marked up image for the cropped result
     const newMarkedUpImage: MarkedUpImage = {
@@ -949,13 +1047,124 @@ export default function AnnotationModal({
     
     // Close current modal and open new one with cropped image
     onClose();
-    // Note: This would need to be handled by the parent component
     // For now, we'll just use onCrop which should handle opening new modal
     onCrop(dataURL);
   };
 
+  // Twitter image quality validation
+  const getCropAreaDimensions = (): { width: number; height: number; cropPercentage: number } | null => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !cropRect || !imageDimensions) return null;
+
+    // Get crop rect bounds in canvas coordinates
+    const cropLeft = cropRect.left || 0;
+    const cropTop = cropRect.top || 0;
+    const cropWidth = cropRect.width || 0;
+    const cropHeight = cropRect.height || 0;
+
+    // Calculate scale factors from canvas to original image
+    const scaleX = imageDimensions.width / canvas.width!;
+    const scaleY = imageDimensions.height / canvas.height!;
+
+    // Calculate actual crop dimensions in original image pixels
+    const actualCropWidth = Math.round(cropWidth * scaleX);
+    const actualCropHeight = Math.round(cropHeight * scaleY);
+
+    // Calculate what percentage of the original image this crop represents
+    const originalArea = imageDimensions.width * imageDimensions.height;
+    const cropArea = actualCropWidth * actualCropHeight;
+    const cropPercentage = (cropArea / originalArea) * 100;
+
+    return {
+      width: actualCropWidth,
+      height: actualCropHeight,
+      cropPercentage
+    };
+  };
+
+  const validateImageForTwitter = (width: number, height: number): string[] => {
+    const warnings: string[] = [];
+    const aspectRatio = width / height;
+    
+    // Get crop area info if available
+    const cropInfo = getCropAreaDimensions();
+    const isUsingCrop = cropRect && cropInfo;
+    
+    // Use crop dimensions if available, otherwise original dimensions
+    const effectiveWidth = isUsingCrop ? cropInfo.width : width;
+    const effectiveHeight = isUsingCrop ? cropInfo.height : height;
+    const effectiveAspectRatio = effectiveWidth / effectiveHeight;
+    
+    // Original image info
+    warnings.push(`📊 Original: ${width}×${height}px (${aspectRatio.toFixed(2)}:1)`);
+    
+    // Crop area info
+    if (isUsingCrop) {
+      warnings.push(`✂️ Crop area: ${effectiveWidth}×${effectiveHeight}px (${effectiveAspectRatio.toFixed(2)}:1)`);
+      warnings.push(`📈 Using ${cropInfo.cropPercentage.toFixed(1)}% of original image resolution`);
+      
+      // Warn about very small crop areas
+      if (cropInfo.cropPercentage < 25) {
+        warnings.push(`⚠️ Small crop area reduces sharpness - consider using more of the original image`);
+      }
+    }
+    
+    // Check minimum dimensions (using effective dimensions)
+    if (effectiveWidth < 600 || effectiveHeight < 335) {
+      warnings.push(`🚨 ${isUsingCrop ? 'Cropped area' : 'Image'} too small (${effectiveWidth}×${effectiveHeight}). Twitter upscales to 600×335 minimum, causing blur on all devices.`);
+    }
+    
+    // Check if dimensions are below Twitter's optimal size
+    if (effectiveWidth < 1200) {
+      warnings.push(`⚠️ For crisp display on high-DPI screens, use 1200px+ width (${isUsingCrop ? 'crop' : 'current'}: ${effectiveWidth}px). Image may appear soft on Retina displays.`);
+    }
+    
+    // Check aspect ratio for single images
+    if (cropAspectRatio === 'twitter-single') {
+      if (Math.abs(effectiveAspectRatio - (16/9)) > 0.1) {
+        warnings.push(`✂️ Timeline feed will crop to 16:9 (${effectiveAspectRatio.toFixed(2)}:1 → 1.78:1). Full image visible when clicked.`);
+      } else {
+        warnings.push(`✅ Perfect 16:9 ratio - displays fully in timeline feed and expanded view!`);
+      }
+    }
+    
+    // Check aspect ratio for multi images
+    if (cropAspectRatio === 'twitter-multi') {
+      if (Math.abs(effectiveAspectRatio - 2) > 0.1) {
+        warnings.push(`✂️ Multi-image posts crop to 2:1 in timeline (${effectiveAspectRatio.toFixed(2)}:1 → 2:1). Full image when clicked.`);
+      } else {
+        warnings.push(`✅ Perfect 2:1 ratio for multi-image posts - optimal timeline display!`);
+      }
+    }
+    
+    // Check if image will be cropped by Twitter
+    if (cropAspectRatio === 'free') {
+      if (effectiveAspectRatio < 1.5) {
+        warnings.push(`📱 Timeline feed may crop top/bottom on mobile. Desktop shows more. Full image always available on click.`);
+      } else if (effectiveAspectRatio > 3) {
+        warnings.push(`📱 Very wide image - timeline will crop sides on mobile. Better for desktop viewing.`);
+      } else {
+        warnings.push(`👍 Good aspect ratio for timeline display across devices.`);
+      }
+    }
+    
+    // Quality recommendations and platform context
+    if (isUsingCrop && effectiveWidth >= 1200 && effectiveHeight >= 675) {
+      warnings.push(`🎯 Excellent crop quality - crisp on all devices and screen sizes!`);
+    }
+    
+    // Add general platform context
+    if (warnings.length <= 3) { // Only add if we don't have many warnings already
+      warnings.push(`💡 Tip: Timeline shows preview, clicking opens full-size image. Optimize for timeline engagement!`);
+    }
+    
+    return warnings;
+  };
+
   const aspectRatioOptions: { value: CropAspectRatio; label: string }[] = [
     { value: 'free', label: 'Free' },
+    { value: 'twitter-single', label: '𝕏 Single (16:9)' },
+    { value: 'twitter-multi', label: '𝕏 Multi (2:1)' },
     { value: '1:1', label: '1:1 (Square)' },
     { value: '4:5', label: '4:5 (Instagram)' },
     { value: '16:9', label: '16:9 (Landscape)' },
@@ -1051,6 +1260,39 @@ export default function AnnotationModal({
               </button>
             </div>
           </div>
+
+          {/* Twitter Quality Warnings - Collapsible */}
+          {imageQualityWarnings.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded">
+              <button 
+                onClick={() => setShowWarnings(!showWarnings)}
+                className="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-blue-100 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  <span className="text-blue-600 text-sm">𝕏</span>
+                  <span className="text-sm font-medium text-blue-800">
+                    Twitter Display Analysis ({imageQualityWarnings.length})
+                  </span>
+                </div>
+                <span className="text-blue-600 text-sm">
+                  {showWarnings ? '▼' : '▶'}
+                </span>
+              </button>
+              
+              {showWarnings && (
+                <div className="px-3 pb-2 border-t border-blue-200">
+                  <div className="text-xs text-blue-600 mt-1 mb-2 italic">
+                    How your image will appear in Twitter timeline feeds vs. expanded view
+                  </div>
+                  <div className="text-xs text-blue-700 space-y-1">
+                    {imageQualityWarnings.map((warning, index) => (
+                      <div key={index}>{warning}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Toolbar */}
           <div className="flex items-center gap-2 p-2 border-b bg-gray-50 flex-wrap">
@@ -1169,25 +1411,118 @@ export default function AnnotationModal({
               </button>
             </div>
 
-            {/* Crop Aspect Ratio */}
+            {/* Quick Crop Buttons */}
             {activeTool === 'crop' && (
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Aspect:</span>
-                <select 
-                  value={cropAspectRatio} 
-                  onChange={(e) => {
-                    const newRatio = e.target.value as CropAspectRatio;
-                    setCropAspectRatio(newRatio);
-                    createCropBoxWithAspectRatio(newRatio);
+                <span className="text-sm font-medium">Quick Crop:</span>
+                <button 
+                  onClick={() => {
+                    setCropAspectRatio('twitter-single');
+                    if (imageDimensions) {
+                      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
+                      setImageQualityWarnings(warnings);
+                    }
+                    createCropBoxWithAspectRatio('twitter-single');
                   }}
-                  className="text-sm border rounded px-2 py-1"
+                  className={`text-xs px-2 py-1 rounded border ${
+                    cropAspectRatio === 'twitter-single' 
+                      ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  title="Twitter Single Image (16:9)"
                 >
-                  {aspectRatioOptions.map(option => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
+                  <span className="text-xs">𝕏</span> Single
+                </button>
+                <button 
+                  onClick={() => {
+                    setCropAspectRatio('twitter-multi');
+                    if (imageDimensions) {
+                      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
+                      setImageQualityWarnings(warnings);
+                    }
+                    createCropBoxWithAspectRatio('twitter-multi');
+                  }}
+                  className={`text-xs px-2 py-1 rounded border ${
+                    cropAspectRatio === 'twitter-multi' 
+                      ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  title="Twitter Multi Image (2:1)"
+                >
+                  <span className="text-xs">𝕏</span> Multi
+                </button>
+                <button 
+                  onClick={() => {
+                    setCropAspectRatio('1:1');
+                    if (imageDimensions) {
+                      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
+                      setImageQualityWarnings(warnings);
+                    }
+                    createCropBoxWithAspectRatio('1:1');
+                  }}
+                  className={`text-xs px-2 py-1 rounded border ${
+                    cropAspectRatio === '1:1' 
+                      ? 'bg-pink-100 border-pink-300 text-pink-700' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  title="Instagram Square (1:1)"
+                >
+                  📷 Square
+                </button>
+                <button 
+                  onClick={() => {
+                    setCropAspectRatio('4:5');
+                    if (imageDimensions) {
+                      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
+                      setImageQualityWarnings(warnings);
+                    }
+                    createCropBoxWithAspectRatio('4:5');
+                  }}
+                  className={`text-xs px-2 py-1 rounded border ${
+                    cropAspectRatio === '4:5' 
+                      ? 'bg-pink-100 border-pink-300 text-pink-700' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  title="Instagram Portrait (4:5)"
+                >
+                  📷 Portrait
+                </button>
+                <button 
+                  onClick={() => {
+                    setCropAspectRatio('free');
+                    if (imageDimensions) {
+                      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
+                      setImageQualityWarnings(warnings);
+                    }
+                    createCropBoxWithAspectRatio('free');
+                  }}
+                  className={`text-xs px-2 py-1 rounded border ${
+                    cropAspectRatio === 'free' 
+                      ? 'bg-green-100 border-green-300 text-green-700' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  title="Free Crop"
+                >
+                  ✂️ Free
+                </button>
               </div>
             )}
+
+            {/* Twitter Preview Toggle */}
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setShowTwitterPreview(!showTwitterPreview)}
+                className={`text-sm px-3 py-1 rounded border flex items-center gap-1 ${
+                  showTwitterPreview 
+                    ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                    : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
+                }`}
+                title="Toggle Twitter Preview"
+              >
+                <span className="text-sm">𝕏</span>
+                {showTwitterPreview ? 'Hide Preview' : 'Show Preview'}
+              </button>
+            </div>
 
             {/* Actions */}
             <div className="flex items-center gap-2 ml-auto">
@@ -1215,35 +1550,123 @@ export default function AnnotationModal({
 
           {/* Canvas Container */}
           <div ref={canvasContainerRef} className="flex-1 overflow-hidden bg-gray-200 flex items-center justify-center p-4 relative">
-            {isLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-                <Loader2 className="animate-spin text-blue-500" size={48} />
+            {/* Regular Editor Mode - Always present */}
+            <div className={showTwitterPreview ? 'hidden' : 'block'}>
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+                  <Loader2 className="animate-spin text-blue-500" size={48} />
+                </div>
+              )}
+              
+              {error && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+                  <div className="text-center">
+                    <p className="text-red-500 font-medium">{error}</p>
+                    <button onClick={onClose} className="btn-secondary mt-2">Close</button>
+                  </div>
+                </div>
+              )}
+              
+              <div 
+                id="fabric-canvas-wrapper"
+                className="border border-gray-300 shadow-lg"
+                style={{ 
+                  position: 'relative',
+                  width: 'fit-content',
+                  height: 'fit-content'
+                }}
+              >
+                <canvas 
+                  ref={canvasElRef}
+                  style={{ display: 'block' }}
+                />
               </div>
-            )}
-            
-            {error && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-                <div className="text-center">
-                  <p className="text-red-500 font-medium">{error}</p>
-                  <button onClick={onClose} className="btn-secondary mt-2">Close</button>
+            </div>
+
+            {/* Twitter Preview Mode */}
+            {showTwitterPreview && (
+              <div className="h-full w-full overflow-auto flex items-center justify-center p-4">
+                <div className="bg-black rounded-lg p-6 max-w-2xl w-full max-h-full overflow-auto">
+                  <div className="bg-black rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    {/* Profile Picture */}
+                    <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+                      {userProfile?.avatar ? (
+                        <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-base font-bold">
+                          {userProfile?.displayName?.charAt(0)?.toUpperCase() || 'U'}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Post Content */}
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <span className="text-white font-bold text-[15px]">
+                          {userProfile?.displayName || 'Your Name'}
+                        </span>
+                        <span className="text-gray-500 text-[15px]">
+                          @{userProfile?.twitterHandle || 'username'}
+                        </span>
+                        <span className="text-gray-500">·</span>
+                        <span className="text-gray-500 text-[15px]">now</span>
+                      </div>
+                      
+                      <div className="text-white text-[15px] leading-6 mb-3">
+                        Your thread post content will appear here with the edited image below.
+                      </div>
+                      
+                      {/* Twitter-formatted Image Preview */}
+                      {currentImage && (
+                        <div className="mb-3">
+                          <img 
+                            src={currentImage} 
+                            alt="Twitter Preview"
+                            className="w-full rounded-2xl"
+                            style={{
+                              aspectRatio: cropAspectRatio === 'twitter-single' ? '16/9' : 
+                                          cropAspectRatio === 'twitter-multi' ? '2/1' : 'auto',
+                              objectFit: cropAspectRatio === 'twitter-single' || cropAspectRatio === 'twitter-multi' ? 'cover' : 'contain',
+                              maxHeight: cropAspectRatio === 'twitter-single' ? '506px' : 
+                                         cropAspectRatio === 'twitter-multi' ? '506px' : '60vh',
+                              height: cropAspectRatio === 'twitter-single' || cropAspectRatio === 'twitter-multi' ? 'auto' : 'auto'
+                            }}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Engagement Icons */}
+                      <div className="flex items-center justify-between max-w-md pt-1">
+                        <div className="flex items-center space-x-2 text-gray-500">
+                          <div className="p-2 rounded-full hover:bg-blue-900/20">💬</div>
+                          <span className="text-[13px]">24</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-gray-500">
+                          <div className="p-2 rounded-full hover:bg-green-900/20">🔄</div>
+                          <span className="text-[13px]">12</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-gray-500">
+                          <div className="p-2 rounded-full hover:bg-red-900/20">❤️</div>
+                          <span className="text-[13px]">156</span>
+                        </div>
+                        <div className="text-gray-500">
+                          <div className="p-2 rounded-full hover:bg-blue-900/20">🔖</div>
+                        </div>
+                        <div className="text-gray-500">
+                          <div className="p-2 rounded-full hover:bg-blue-900/20">📤</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                  <div className="text-center mt-4 text-white text-sm opacity-75">
+                    👆 Preview of how your image will appear on Twitter/X
+                  </div>
                 </div>
               </div>
             )}
-            
-            <div 
-              id="fabric-canvas-wrapper"
-              className="border border-gray-300 shadow-lg"
-              style={{ 
-                position: 'relative',
-                width: 'fit-content',
-                height: 'fit-content'
-              }}
-            >
-              <canvas 
-                ref={canvasElRef}
-                style={{ display: 'block' }}
-              />
-            </div>
           </div>
         </Dialog.Panel>
       </div>

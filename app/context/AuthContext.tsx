@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { createUserProfile } from '../lib/database';
 import { Loader2 } from 'lucide-react';
 
 interface AuthContextType {
@@ -16,8 +17,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      
+      // Create user profile in Firestore if user just signed in
+      if (user) {
+        try {
+          await createUserProfile(user);
+        } catch (error) {
+          console.error('Error creating user profile:', error);
+        }
+      }
+      
       setLoading(false);
     });
 

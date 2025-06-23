@@ -216,20 +216,38 @@ export async function POST(req: Request) {
       });
       
       // Build post-specific image suggestion prompt
-      let postImagePrompt = 'You are an expert at matching social media post content with relevant document pages. Your task is to find the best page matches for each specific thread post.\\n\\n';
+      let postImagePrompt = 'You are an expert at matching social media post content with relevant document pages. Your task is to strategically match every thread post with the best possible page images, considering document structure and page types.\\n\\n';
       
       if (customInstructions && customInstructions.trim().length > 0) {
         postImagePrompt += `Focus Area: ${customInstructions.trim()}\\n\\n`;
       }
       
-      postImagePrompt += `Guidelines:\\n`;
-      postImagePrompt += `1. Analyze each thread post and find relevant pages from the document\\n`;
-      postImagePrompt += `2. Look for content overlap, supporting evidence, quotes, or visual elements that would enhance the post\\n`;
-      postImagePrompt += `3. Score each page from 1-100 for relevance to the specific post\\n`;
-      postImagePrompt += `4. Include pages scoring 60% or higher - provide a range of options from highly relevant to moderately relevant\\n`;
-      postImagePrompt += `5. Return suggestions for 3-5 pages per post, including both strong matches (80%+) and decent matches (60-79%)\\n`;
-      postImagePrompt += `6. Provide reasoning for why each page supports that specific post\\n`;
-      postImagePrompt += `7. Output must be valid JSON in this exact format:\\n`;
+      postImagePrompt += `CRITICAL REQUIREMENTS:\\n`;
+      postImagePrompt += `- EVERY post must have at least 2-3 image suggestions (even if lower relevance)\\n`;
+      postImagePrompt += `- Ensure good distribution - don\\'t recommend the same page for multiple posts unless highly relevant\\n\\n`;
+      
+      postImagePrompt += `SMART PAGE TYPE DETECTION:\\n`;
+      postImagePrompt += `- TITLE/COVER PAGES: Perfect for first/intro posts (high score for post 0-1)\\n`;
+      postImagePrompt += `- SIGNATURE PAGES: Avoid unless specifically about signatures/authentication\\n`;
+      postImagePrompt += `- COPYRIGHT/LEGAL NOTICES: Avoid unless discussing legal disclaimers\\n`;
+      postImagePrompt += `- ADDRESS/CONTACT PAGES: Avoid unless discussing location/contact info\\n`;
+      postImagePrompt += `- TABLE OF CONTENTS: Good for overview posts about document structure\\n`;
+      postImagePrompt += `- SUBSTANTIVE CONTENT: Prioritize for main argument/evidence posts\\n`;
+      postImagePrompt += `- CHARTS/GRAPHS/IMAGES: Excellent for data/visual posts\\n`;
+      postImagePrompt += `- QUOTES/TESTIMONIALS: Perfect when post discusses testimony/statements\\n\\n`;
+      
+      postImagePrompt += `SCORING GUIDELINES:\\n`;
+      postImagePrompt += `1. Analyze each post and identify 2-4 pages that could support it\\n`;
+      postImagePrompt += `2. Score pages 20-100 based on relevance:\\n`;
+      postImagePrompt += `   - 90-100: Perfect content match + ideal page type\\n`;
+      postImagePrompt += `   - 70-89: Strong content match or good page type\\n`;
+      postImagePrompt += `   - 50-69: Moderate relevance or general support\\n`;
+      postImagePrompt += `   - 20-49: Weak relevance but still usable option\\n`;
+      postImagePrompt += `3. For posts with no strong matches, find the best available option (even if 30-50%)\\n`;
+      postImagePrompt += `4. Prioritize page distribution - spread suggestions across different pages\\n`;
+      postImagePrompt += `5. Consider post sequence: intro posts → main content → conclusion\\n\\n`;
+      
+      postImagePrompt += `OUTPUT FORMAT - Return JSON with exactly this structure:\\n`;
       postImagePrompt += `{\\n`;
       postImagePrompt += `  "postSuggestions": [\\n`;
       postImagePrompt += `    {\\n`;
