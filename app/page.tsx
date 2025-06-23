@@ -295,7 +295,18 @@ function Page() {
   const [showXSetupModal, setShowXSetupModal] = useState(false);
   
   // User Profile state
-  const [userProfile, setUserProfile] = useState(() => {
+  interface UserProfileState {
+    displayName: string;
+    username: string;
+    xHandle: string;
+    instagramHandle: string;
+    avatar: string | null;
+    darkMode?: boolean;
+    globalAIInstructions?: string;
+    customThreadStatuses?: string[];
+  }
+  
+  const [userProfile, setUserProfile] = useState<UserProfileState>(() => {
     // Load from localStorage if available
     if (typeof window !== 'undefined' && user?.uid) {
       const savedProfile = localStorage.getItem(`userProfile_${user.uid}`);
@@ -2088,7 +2099,7 @@ function Page() {
                       className="text-xs px-2 py-1 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       autoFocus
                     >
-                      {(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted']).map((status) => (
+                      {(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted']).map((status: string) => (
                         <option key={status} value={status}>
                           {status}
                         </option>
@@ -3301,7 +3312,7 @@ function Page() {
                   onChange={(e) => setSaveThreadStatus(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted']).map((status) => (
+                  {(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted']).map((status: string) => (
                     <option key={status} value={status}>
                       {status}
                     </option>
