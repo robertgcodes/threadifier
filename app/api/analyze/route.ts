@@ -13,6 +13,7 @@ export async function POST(req: Request) {
       charLimit = 280,
       numPosts = 5,
       customInstructions = '',
+      globalAIInstructions = '',
       useEmojis = false,
       useNumbering = true,
       useHashtags = false,
@@ -48,6 +49,12 @@ export async function POST(req: Request) {
 
     // Build dynamic system prompt
     let systemPrompt = '';
+    
+    // Add global AI instructions with highest priority
+    if (globalAIInstructions && globalAIInstructions.trim().length > 0) {
+      systemPrompt += `MANDATORY GLOBAL INSTRUCTIONS (HIGHEST PRIORITY - ALWAYS APPLY):\n${globalAIInstructions.trim()}\n\n`;
+    }
+    
     if (customInstructions && customInstructions.trim().length > 0) {
       systemPrompt += `Your top priority is to follow the user's instructions below, even if it means adopting a different tone, style, or political perspective than the original document.\nUser Instructions: ${customInstructions.trim()}\n`;
     }
@@ -128,7 +135,14 @@ export async function POST(req: Request) {
       });
       
       // Build page suggestion prompt
-      let suggestionPrompt = 'You are an expert content curator. Your task is to analyze document pages and suggest the best ones for creating an engaging social media thread.\n\n';
+      let suggestionPrompt = '';
+      
+      // Add global AI instructions with highest priority
+      if (globalAIInstructions && globalAIInstructions.trim().length > 0) {
+        suggestionPrompt += `MANDATORY GLOBAL INSTRUCTIONS (HIGHEST PRIORITY - ALWAYS APPLY):\n${globalAIInstructions.trim()}\n\n`;
+      }
+      
+      suggestionPrompt += 'You are an expert content curator. Your task is to analyze document pages and suggest the best ones for creating an engaging social media thread.\n\n';
       
       if (customInstructions && customInstructions.trim().length > 0) {
         suggestionPrompt += `Focus Area: ${customInstructions.trim()}\n\n`;
@@ -216,7 +230,14 @@ export async function POST(req: Request) {
       });
       
       // Build post-specific image suggestion prompt
-      let postImagePrompt = 'You are an expert at matching social media post content with relevant document pages. Your task is to strategically match every thread post with the best possible page images, considering document structure and page types.\\n\\n';
+      let postImagePrompt = '';
+      
+      // Add global AI instructions with highest priority
+      if (globalAIInstructions && globalAIInstructions.trim().length > 0) {
+        postImagePrompt += `MANDATORY GLOBAL INSTRUCTIONS (HIGHEST PRIORITY - ALWAYS APPLY):\\n${globalAIInstructions.trim()}\\n\\n`;
+      }
+      
+      postImagePrompt += 'You are an expert at matching social media post content with relevant document pages. Your task is to strategically match every thread post with the best possible page images, considering document structure and page types.\\n\\n';
       
       if (customInstructions && customInstructions.trim().length > 0) {
         postImagePrompt += `Focus Area: ${customInstructions.trim()}\\n\\n`;

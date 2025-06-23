@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
-import { Loader2, Twitter, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon, Crop, Image as ImageIcon, BookOpen, DownloadCloud, CheckCircle, SortAsc, Send, MoreHorizontal, MessageCircle, Repeat2, Heart, Share, User, Camera, Moon, Sun, Bookmark } from "lucide-react";
+import { Loader2, X, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon, Crop, Image as ImageIcon, BookOpen, DownloadCloud, CheckCircle, SortAsc, Send, MoreHorizontal, MessageCircle, Repeat2, Heart, Share, User, Camera, Moon, Sun, Bookmark } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -40,7 +40,7 @@ import AISuggestions from './components/AISuggestions';
 import LoginScreen from './components/LoginScreen';
 import { Tab } from '@headlessui/react';
 import { PageSuggestion, PostImageSuggestion } from './types';
-import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt } from './lib/database';
+import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread } from './lib/database';
 import { uploadImagesToStorage, uploadMarkedUpImagesToStorage } from './lib/storage';
 
 export const dynamic = 'force-dynamic';
@@ -124,7 +124,7 @@ function SortablePostItem({ post, index, generatedThread, startEditing, deletePo
       <div className="flex-grow flex flex-col">
         <div className="flex items-center mb-2">
             <div className="h-10 w-10 rounded-full bg-legal-800 flex items-center justify-center mr-3 flex-shrink-0">
-              <Twitter className="h-5 w-5 text-white" />
+              <X className="h-5 w-5 text-white" />
             </div>
             <p className="font-semibold text-legal-800">Threadifier Bot <span className="text-legal-500 font-normal">· @threadifier</span></p>
         </div>
@@ -271,6 +271,11 @@ function Page() {
   const [currentView, setCurrentView] = useState<'main' | 'myThreads' | 'templates' | 'billing' | 'customPrompts' | 'profile'>('main');
   const [savedThreads, setSavedThreads] = useState<SavedThread[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [threadSortBy, setThreadSortBy] = useState<'name' | 'date' | 'status'>('date');
+  const [threadSortOrder, setThreadSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveThreadTitle, setSaveThreadTitle] = useState('');
+  const [saveThreadStatus, setSaveThreadStatus] = useState('Draft');
   
   // Custom Prompts state
   const [customPrompts, setCustomPrompts] = useState<CustomPrompt[]>([]);
@@ -279,6 +284,15 @@ function Page() {
   const isLoadingPromptsRef = useRef(false);
   const [promptSortBy, setPromptSortBy] = useState<'name' | 'date'>('date');
   const [showNewPromptModal, setShowNewPromptModal] = useState(false);
+  
+  // Inline status editing state
+  const [editingStatusThreadId, setEditingStatusThreadId] = useState<string | null>(null);
+  
+  // X (Twitter) integration state
+  const [xAuthStatus, setXAuthStatus] = useState<{ authenticated: boolean; user?: any }>({ authenticated: false });
+  const [isPostingToX, setIsPostingToX] = useState(false);
+  const [xCodeVerifier, setXCodeVerifier] = useState<string | null>(null);
+  const [showXSetupModal, setShowXSetupModal] = useState(false);
   
   // User Profile state
   const [userProfile, setUserProfile] = useState(() => {
@@ -293,14 +307,26 @@ function Page() {
     return {
       displayName: user?.displayName || '',
       username: user?.email?.split('@')[0] || '',
-      twitterHandle: user?.email?.split('@')[0] || '',
+      xHandle: user?.email?.split('@')[0] || '',
       instagramHandle: user?.email?.split('@')[0] || '',
       avatar: null as string | null,
+      darkMode: false,
+      globalAIInstructions: '',
+      customThreadStatuses: ['Draft', 'Needs Review', 'Ready to Post', 'Posted'],
     };
   });
   
-  // Twitter Preview settings
-  const [twitterPreviewMode, setTwitterPreviewMode] = useState<'dark' | 'light'>('dark');
+  // X Preview settings
+  const [xPreviewMode, setXPreviewMode] = useState<'dark' | 'light'>('dark');
+  
+  // Apply dark mode to document
+  useEffect(() => {
+    if (userProfile?.darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [userProfile?.darkMode]);
   
   // AI Reasoning Log state
   const [aiReasoningLogs, setAiReasoningLogs] = useState<string[]>([]);
@@ -533,13 +559,16 @@ function Page() {
     return enhanced.sort((a, b) => a.postIndex - b.postIndex);
   };
 
-  const generatePostImageSuggestions = async (threadPosts: string[]) => {
+  const generatePostImageSuggestions = async (threadPosts: string[], isPartOfMainFlow: boolean = false) => {
     if (!pageTexts.length) {
       addReasoningLog("⚠️ No pages available for image analysis");
       return;
     }
 
-    setIsProcessing(true);
+    // Only set processing if this is a standalone call (not part of main flow)
+    if (!isPartOfMainFlow) {
+      setIsProcessing(true);
+    }
     addReasoningLog(`🎯 Analyzing ${threadPosts.length} posts against ${pageTexts.length} document pages`);
     addReasoningLog("🤖 AI is reading through each post to understand content themes...");
     addReasoningLog("📊 Matching semantic content between posts and document sections...");
@@ -554,7 +583,8 @@ function Page() {
           suggestPostImages: true,
           threadPosts,
           pageTexts,
-          customInstructions
+          customInstructions,
+          globalAIInstructions: userProfile.globalAIInstructions
         }),
       });
 
@@ -574,7 +604,13 @@ function Page() {
         
         addReasoningLog(`✅ Generated ${enhancedSuggestions.length} post-specific image recommendations`);
         addReasoningLog("🎨 Image suggestions are now available for each post!");
-        addReasoningLog("👀 Check the Thread Editor tab to see recommended images for each post");
+        
+        if (isPartOfMainFlow) {
+          addReasoningLog("🎉 Complete process finished! Switching to editor view...");
+          setSelectedTabIndex(1); // Switch to Thread Editor tab
+        } else {
+          addReasoningLog("👀 Check the Thread Editor tab to see recommended images for each post");
+        }
       } else {
         addReasoningLog("❌ No image suggestions received from AI");
       }
@@ -582,6 +618,7 @@ function Page() {
       console.error("Error generating post-image suggestions:", error);
       addReasoningLog(`❌ Error generating image suggestions: ${error?.message || 'Unknown error'}`);
     } finally {
+      // Always clear processing state - whether standalone or part of main flow
       setIsProcessing(false);
     }
   };
@@ -614,7 +651,8 @@ function Page() {
           customInstructions,
           useEmojis,
           useHashtags,
-          useNumbering
+          useNumbering,
+          globalAIInstructions: userProfile.globalAIInstructions
         }),
       });
 
@@ -657,7 +695,7 @@ function Page() {
         return;
       }
 
-      addReasoningLog(`✅ Thread generated successfully with ${posts.thread.length} posts`);
+      addReasoningLog(`✅ Text thread generated successfully with ${posts.thread.length} posts`);
       
       const newThread = posts.thread.map((postText: string, index: number) => ({
         id: index + 1,
@@ -678,24 +716,29 @@ function Page() {
         }
       }
       
+      addReasoningLog("✅ Text thread generation complete!");
+      
       // Automatically generate post-specific image suggestions
       if (pageTexts.length > 0) {
-        addReasoningLog("🔄 Starting intelligent image suggestion analysis...");
-        addReasoningLog("🧠 AI will now match post content to relevant document sections");
-        generatePostImageSuggestions(posts.thread);
+        addReasoningLog("🎨 Now fetching AI image suggestions for each post...");
+        addReasoningLog("🤖 Please wait while AI analyzes content to match images...");
+        await generatePostImageSuggestions(posts.thread, true);
       } else {
         addReasoningLog("⚠️ No document pages available for image suggestions");
+        addReasoningLog("🎉 Process complete! Switching to editor view...");
+        setSelectedTabIndex(1); // Switch to Thread Editor tab
       }
-      
-      addReasoningLog("🎉 Thread generation complete! Switching to editor view...");
-      setSelectedTabIndex(1); // Automatically switch to Thread Editor tab
     } catch (error: any) {
       console.error("Analysis failed:", error);
       addReasoningLog(`❌ Analysis failed: ${error?.message || 'Unknown error'}`);
       toast.error("Failed to analyze the document.");
     } finally {
       setIsAnalyzing(false);
-      setIsProcessing(false);
+      // Only clear processing if we're not generating image suggestions
+      // Image suggestions will clear processing when they complete
+      if (!pageTexts.length) {
+        setIsProcessing(false);
+      }
     }
   }
 
@@ -806,7 +849,6 @@ function Page() {
 
   const handleSaveDraft = async () => {
     console.log("=== SAVE DRAFT START ===");
-    addReasoningLog("💾 Saving thread as draft...");
     
     if (!user) {
       toast.error("Please sign in first");
@@ -818,11 +860,28 @@ function Page() {
       return;
     }
 
+    // Set default title and show modal
+    const defaultTitle = generatedThread[0]?.text.substring(0, 50) + "..." || "Untitled Thread";
+    setSaveThreadTitle(defaultTitle);
+    setSaveThreadStatus((userProfile?.customThreadStatuses?.[0]) || 'Draft');
+    setShowSaveModal(true);
+  };
+
+  const confirmSaveDraft = async () => {
+    console.log("=== CONFIRM SAVE DRAFT ===");
+    addReasoningLog("💾 Saving thread as draft...");
+    
+    if (!user || !saveThreadTitle.trim()) {
+      toast.error("Please enter a thread title");
+      return;
+    }
+
+    setShowSaveModal(false);
     setIsSaving(true);
     setIsProcessing(true);
     
     try {
-      const threadTitle = generatedThread[0]?.text.substring(0, 50) + "..." || "Untitled Thread";
+      const threadTitle = saveThreadTitle;
       
       addReasoningLog("📤 Uploading images to cloud storage...");
       
@@ -864,7 +923,7 @@ function Page() {
           useHashtags,
           useNumbering
         },
-        status: 'draft',
+        status: saveThreadStatus,
         originalPdfName: pdfFile?.name,
         // Use uploaded image URLs instead of base64 data
         postPageMap,
@@ -1058,13 +1117,167 @@ function Page() {
         setUserProfile({
           displayName: user?.displayName || '',
           username: user?.email?.split('@')[0] || '',
-          twitterHandle: user?.email?.split('@')[0] || '',
+          xHandle: user?.email?.split('@')[0] || '',
           instagramHandle: user?.email?.split('@')[0] || '',
           avatar: null,
         });
       }
     }
   }, [user]);
+
+  // Check X authentication status on mount
+  useEffect(() => {
+    checkXAuthStatus();
+  }, []);
+
+  // Handle X auth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('x_auth') === 'success') {
+      toast.success('Successfully connected to X!');
+      checkXAuthStatus();
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('error') === 'x_auth_failed') {
+      toast.error('Failed to connect to X');
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // X (Twitter) functions
+  const checkXAuthStatus = async () => {
+    try {
+      const response = await fetch('/api/x-status');
+      const data = await response.json();
+      setXAuthStatus(data);
+    } catch (error) {
+      console.error('Error checking X auth status:', error);
+    }
+  };
+
+  const connectToX = async () => {
+    try {
+      const response = await fetch('/api/x-auth');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        if (data.setupRequired) {
+          // Show setup modal instead of error
+          setShowXSetupModal(true);
+          return;
+        }
+        throw new Error(data.error || 'Failed to connect to X');
+      }
+      
+      if (data.authUrl && data.codeVerifier) {
+        // Store code verifier temporarily
+        setXCodeVerifier(data.codeVerifier);
+        sessionStorage.setItem('x_code_verifier', data.codeVerifier);
+        
+        // Redirect to X for authentication
+        window.location.href = data.authUrl;
+      } else {
+        toast.error('Failed to generate authentication link');
+      }
+    } catch (error) {
+      console.error('Error connecting to X:', error);
+      toast.error('Failed to connect to X');
+    }
+  };
+
+  const disconnectFromX = async () => {
+    try {
+      await fetch('/api/x-disconnect', { method: 'POST' });
+      setXAuthStatus({ authenticated: false });
+      toast.success('Disconnected from X');
+    } catch (error) {
+      console.error('Error disconnecting from X:', error);
+      toast.error('Failed to disconnect from X');
+    }
+  };
+
+  const postThreadToX = async () => {
+    if (!xAuthStatus.authenticated) {
+      toast.error('Please connect to X first');
+      return;
+    }
+
+    if (generatedThread.length === 0) {
+      toast.error('No thread to post');
+      return;
+    }
+
+    setIsPostingToX(true);
+    addReasoningLog('🐦 Starting to post thread to X...');
+
+    try {
+      // Prepare images for each post
+      const imagesMap: Record<number, string[]> = {};
+      
+      for (const [postId, imageInfo] of Object.entries(postPageMap)) {
+        const urls: string[] = [];
+        
+        if (imageInfo.type === 'pdf' && pageImages[imageInfo.value as number]) {
+          urls.push(pageImages[imageInfo.value as number]);
+        } else if (imageInfo.type === 'marked') {
+          const markedImg = markedUpImages.find(m => m.id === imageInfo.value);
+          if (markedImg?.url) {
+            urls.push(markedImg.url);
+          }
+        }
+        
+        if (urls.length > 0) {
+          imagesMap[Number(postId)] = urls;
+        }
+      }
+
+      addReasoningLog(`📤 Posting ${generatedThread.length} tweets with ${Object.keys(imagesMap).length} images...`);
+
+      const response = await fetch('/api/post-to-x', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          posts: generatedThread,
+          images: imagesMap,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        addReasoningLog(`✅ Successfully posted thread to X!`);
+        addReasoningLog(`🔗 View your thread: ${result.threadUrl}`);
+        toast.success('Thread posted to X successfully!');
+        
+        // Open thread in new tab
+        window.open(result.threadUrl, '_blank');
+        
+        // Update thread status if it was saved
+        if (savedThreads.some(t => t.posts === generatedThread)) {
+          // Find and update the thread status
+          const thread = savedThreads.find(t => t.posts === generatedThread);
+          if (thread?.id) {
+            await updateThread(thread.id, { status: 'Posted' });
+            loadUserThreads();
+          }
+        }
+      } else if (result.partial) {
+        addReasoningLog(`⚠️ Partially posted: ${result.postedCount}/${result.totalCount} tweets`);
+        toast.error(`Only posted ${result.postedCount} of ${result.totalCount} tweets: ${result.error}`);
+      } else {
+        throw new Error(result.error || 'Failed to post thread');
+      }
+    } catch (error: any) {
+      console.error('Error posting to X:', error);
+      addReasoningLog(`❌ Failed to post thread: ${error.message}`);
+      toast.error(`Failed to post thread: ${error.message}`);
+    } finally {
+      setIsPostingToX(false);
+    }
+  };
 
   // AuthDisplay component with access to state
   const AuthDisplay = () => {
@@ -1136,7 +1349,7 @@ function Page() {
           </div>
           <div className="hidden sm:block text-left">
             <p className="text-sm font-medium text-gray-900">{userProfile.displayName || user.displayName || user.email}</p>
-            <p className="text-xs text-gray-500">@{userProfile.twitterHandle}</p>
+            <p className="text-xs text-gray-500">@{userProfile.xHandle}</p>
           </div>
         </button>
       </div>
@@ -1463,11 +1676,11 @@ function Page() {
               </Tab>
               <Tab className={({ selected }) =>
                 `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700
-                ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 flex items-center gap-2
+                ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 flex items-center justify-center gap-2
                 ${selected ? 'bg-white shadow' : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'}`
               }>
-                <Twitter className="w-4 h-4" />
-                Twitter Preview
+                <X className="w-4 h-4" />
+                X Preview
               </Tab>
             </Tab.List>
             <Tab.Panels className="mt-2">
@@ -1578,6 +1791,38 @@ function Page() {
                               </>
                             )}
                           </button>
+                          
+                          {/* X (Twitter) Integration */}
+                          {xAuthStatus.authenticated ? (
+                            <button 
+                              onClick={postThreadToX} 
+                              disabled={isPostingToX || generatedThread.length === 0}
+                              className="btn-primary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isPostingToX ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-1 animate-spin"/>
+                                  Posting...
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-4 h-4 mr-1"/>
+                                  Post to X
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={connectToX}
+                              className="btn-secondary flex items-center border-blue-400 text-blue-700 hover:bg-blue-50"
+                            >
+                              <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                              </svg>
+                              Connect X
+                            </button>
+                          )}
+                          
                           <button onClick={handleCopyAll} className="btn-secondary flex items-center"><CopyIcon className="w-4 h-4 mr-1"/>Copy All</button>
                         </div>
                       </div>
@@ -1736,7 +1981,7 @@ function Page() {
                 </div>
               </Tab.Panel>
               <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
-                <TwitterPreview
+                <XPreview
                   posts={generatedThread}
                   postPageMap={postPageMap}
                   pageImages={pageImages}
@@ -1750,12 +1995,60 @@ function Page() {
       </main>
   );
 
-  const renderMyThreadsView = () => (
-    <main className="p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">My Threads</h1>
-        
-        {savedThreads.length === 0 ? (
+  const renderMyThreadsView = () => {
+    // Sort threads based on current sorting settings
+    const sortedThreads = [...savedThreads].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (threadSortBy) {
+        case 'name':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case 'status':
+          comparison = a.status.localeCompare(b.status);
+          break;
+        case 'date':
+        default:
+          const dateA = a.updatedAt?.toDate ? a.updatedAt.toDate().getTime() : 0;
+          const dateB = b.updatedAt?.toDate ? b.updatedAt.toDate().getTime() : 0;
+          comparison = dateB - dateA; // Newest first by default
+          break;
+      }
+      
+      return threadSortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    return (
+      <main className="p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">My Threads</h1>
+            
+            {/* Sorting Controls */}
+            {savedThreads.length > 0 && (
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700">Sort by:</label>
+                <select
+                  value={threadSortBy}
+                  onChange={(e) => setThreadSortBy(e.target.value as 'name' | 'date' | 'status')}
+                  className="text-sm border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="date">Date</option>
+                  <option value="name">Name</option>
+                  <option value="status">Status</option>
+                </select>
+                <button
+                  onClick={() => setThreadSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+                >
+                  <SortAsc className={`w-4 h-4 ${threadSortOrder === 'desc' ? 'rotate-180' : ''} transition-transform`} />
+                  {threadSortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {savedThreads.length === 0 ? (
           <div className="text-center py-12">
             <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No saved threads yet</h3>
@@ -1769,17 +2062,57 @@ function Page() {
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {savedThreads.map((thread) => (
+            {sortedThreads.map((thread) => (
               <div key={thread.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{thread.title}</h3>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    thread.status === 'draft' 
-                      ? 'bg-yellow-100 text-yellow-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {thread.status}
-                  </span>
+                  {editingStatusThreadId === thread.id ? (
+                    <select
+                      value={thread.status}
+                      onChange={async (e) => {
+                        const newStatus = e.target.value;
+                        try {
+                          await updateThread(thread.id!, { status: newStatus });
+                          // Update local state
+                          setSavedThreads(prev => prev.map(t => 
+                            t.id === thread.id ? { ...t, status: newStatus } : t
+                          ));
+                          toast.success('Status updated');
+                          setEditingStatusThreadId(null);
+                        } catch (error) {
+                          console.error('Error updating status:', error);
+                          toast.error('Failed to update status');
+                        }
+                      }}
+                      onBlur={() => setEditingStatusThreadId(null)}
+                      className="text-xs px-2 py-1 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      autoFocus
+                    >
+                      {(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted']).map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <button
+                      onClick={() => setEditingStatusThreadId(thread.id!)}
+                      className={`px-2 py-1 text-xs font-medium rounded-full cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-gray-300 transition-all ${
+                        thread.status === 'Draft' || thread.status === 'draft'
+                          ? 'bg-yellow-100 text-yellow-800' 
+                          : thread.status === 'Needs Review'
+                          ? 'bg-orange-100 text-orange-800'
+                          : thread.status === 'Ready to Post'
+                          ? 'bg-blue-100 text-blue-800'
+                          : thread.status === 'Posted' || thread.status === 'published'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                      title="Click to change status"
+                    >
+                      {thread.status}
+                    </button>
+                  )}
                 </div>
                 
                 <div className="text-sm text-gray-500 mb-4">
@@ -1850,10 +2183,11 @@ function Page() {
               </div>
             ))}
           </div>
-        )}
-      </div>
-    </main>
-  );
+          )}
+        </div>
+      </main>
+    );
+  };
 
   const renderTemplatesView = () => (
     <main className="p-8">
@@ -2088,14 +2422,14 @@ function Page() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Twitter Handle
+                        X Handle
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">@</span>
                         <input
                           type="text"
-                          value={userProfile.twitterHandle}
-                          onChange={(e) => setUserProfile(prev => ({ ...prev, twitterHandle: e.target.value }))}
+                          value={userProfile.xHandle}
+                          onChange={(e) => setUserProfile(prev => ({ ...prev, xHandle: e.target.value }))}
                           className="input-field pl-8"
                           placeholder="username"
                         />
@@ -2132,6 +2466,136 @@ function Page() {
                     <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
                   </div>
 
+                  <div className="border-t pt-6 mt-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Social Media Connections</h3>
+                    
+                    <div className="space-y-4 mb-6">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <svg className="w-6 h-6 text-black" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                          </svg>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">X (Twitter)</p>
+                            {xAuthStatus.authenticated ? (
+                              <p className="text-xs text-green-600">Connected as @{xAuthStatus.user?.username}</p>
+                            ) : (
+                              <p className="text-xs text-gray-500">Not connected</p>
+                            )}
+                          </div>
+                        </div>
+                        {xAuthStatus.authenticated ? (
+                          <button
+                            onClick={disconnectFromX}
+                            className="text-sm text-red-600 hover:text-red-700 font-medium"
+                          >
+                            Disconnect
+                          </button>
+                        ) : (
+                          <button
+                            onClick={connectToX}
+                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            Connect
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-6 mt-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Appearance & AI Settings</h3>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Dark Mode</label>
+                          <p className="text-xs text-gray-500 mt-1">Toggle dark theme for the entire application</p>
+                        </div>
+                        <button
+                          onClick={() => setUserProfile(prev => ({ ...prev, darkMode: !prev.darkMode }))}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                            userProfile.darkMode ? 'bg-blue-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              userProfile.darkMode ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Global AI Instructions
+                        </label>
+                        <p className="text-xs text-gray-500 mb-2">
+                          These instructions will be included with EVERY AI analysis. Use this to set your profession, 
+                          goals, or specific requirements (e.g., "I'm a lawyer specializing in IP law", "Always use formal language", 
+                          "Never include personal opinions").
+                        </p>
+                        <textarea
+                          value={userProfile.globalAIInstructions || ''}
+                          onChange={(e) => setUserProfile(prev => ({ ...prev, globalAIInstructions: e.target.value }))}
+                          rows={4}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          placeholder="Example: I am a corporate lawyer. Always provide analysis from a legal perspective. Focus on potential liability issues. Use formal, professional language. Never make assumptions about jurisdiction."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {(userProfile.globalAIInstructions || '').length}/1000 characters
+                        </p>
+                      </div>
+
+                      <div className="mt-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Custom Thread Statuses
+                        </label>
+                        <p className="text-xs text-gray-500 mb-3">
+                          Define custom statuses for your threads. These can be used as workflow stages or categories.
+                        </p>
+                        <div className="space-y-2">
+                          {(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted']).map((status, index) => (
+                            <div key={index} className="flex gap-2">
+                              <input
+                                type="text"
+                                value={status}
+                                onChange={(e) => {
+                                  const newStatuses = [...(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted'])];
+                                  newStatuses[index] = e.target.value;
+                                  setUserProfile(prev => ({ ...prev, customThreadStatuses: newStatuses }));
+                                }}
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                placeholder="Enter status name"
+                              />
+                              <button
+                                onClick={() => {
+                                  const newStatuses = [...(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted'])];
+                                  newStatuses.splice(index, 1);
+                                  setUserProfile(prev => ({ ...prev, customThreadStatuses: newStatuses }));
+                                }}
+                                className="px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                                disabled={(userProfile.customThreadStatuses || []).length <= 1}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              const newStatuses = [...(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted']), ''];
+                              setUserProfile(prev => ({ ...prev, customThreadStatuses: newStatuses }));
+                            }}
+                            className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                          >
+                            <PlusCircle className="w-4 h-4" />
+                            Add Status
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="flex gap-3 pt-4">
                     <button
                       onClick={handleProfileSave}
@@ -2156,9 +2620,9 @@ function Page() {
           <div className="mt-8">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Preview</h2>
-              <p className="text-gray-600 mb-4">This is how your profile will appear in Twitter previews:</p>
+              <p className="text-gray-600 mb-4">This is how your profile will appear in X previews:</p>
               
-              {/* Twitter Preview Sample */}
+              {/* X Preview Sample */}
               <div className="bg-black rounded-lg p-4 max-w-md">
                 <div className="flex space-x-3">
                   <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
@@ -2176,13 +2640,13 @@ function Page() {
                         {userProfile.displayName || user?.displayName || 'Your Name'}
                       </span>
                       <span className="text-gray-500 text-[15px]">
-                        @{userProfile.twitterHandle || 'username'}
+                        @{userProfile.xHandle || 'username'}
                       </span>
                       <span className="text-gray-500">·</span>
                       <span className="text-gray-500 text-[15px]">now</span>
                     </div>
                     <div className="text-white text-[17px] leading-6">
-                      This is how your thread posts will appear on Twitter with your custom profile! 🧵
+                      This is how your thread posts will appear on X with your custom profile! 🧵
                     </div>
                   </div>
                 </div>
@@ -2491,8 +2955,8 @@ function Page() {
     );
   };
 
-  // TwitterPreview component
-  const TwitterPreview = ({ 
+  // XPreview component
+  const XPreview = ({ 
     posts, 
     postPageMap, 
     pageImages, 
@@ -2528,9 +2992,9 @@ function Page() {
     if (posts.length === 0) {
       return (
         <div className="text-center py-12">
-          <Twitter className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <X className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No thread to preview</h3>
-          <p className="text-gray-500">Generate a thread first to see the Twitter preview</p>
+          <p className="text-gray-500">Generate a thread first to see the X preview</p>
         </div>
       );
     }
@@ -2538,16 +3002,16 @@ function Page() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800">Twitter Thread Preview</h2>
+          <h2 className="text-xl font-bold text-gray-800">X Thread Preview</h2>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               {/* Theme Toggle */}
               <button
-                onClick={() => setTwitterPreviewMode(twitterPreviewMode === 'dark' ? 'light' : 'dark')}
+                onClick={() => setXPreviewMode(xPreviewMode === 'dark' ? 'light' : 'dark')}
                 className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-                title={`Switch to ${twitterPreviewMode === 'dark' ? 'light' : 'dark'} mode`}
+                title={`Switch to ${xPreviewMode === 'dark' ? 'light' : 'dark'} mode`}
               >
-                {twitterPreviewMode === 'dark' ? (
+                {xPreviewMode === 'dark' ? (
                   <Sun className="w-4 h-4 text-gray-600" />
                 ) : (
                   <Moon className="w-4 h-4 text-gray-600" />
@@ -2567,9 +3031,9 @@ function Page() {
           </div>
         </div>
 
-        {/* Twitter Thread Interface - Authentic Structure */}
+        {/* X Thread Interface - Authentic Structure */}
         <div className={`rounded-lg overflow-hidden max-h-[70vh] overflow-y-auto ${
-          twitterPreviewMode === 'dark' 
+          xPreviewMode === 'dark' 
             ? 'bg-black' 
             : 'bg-white border border-gray-200'
         }`}>
@@ -2583,7 +3047,7 @@ function Page() {
               return (
                 <div key={post.id} className={`
                   ${isMainPost ? 'border-b' : ''} 
-                  ${twitterPreviewMode === 'dark' ? 'border-gray-800' : 'border-gray-200'}
+                  ${xPreviewMode === 'dark' ? 'border-gray-800' : 'border-gray-200'}
                 `}>
                   <div className={`p-4 ${isThreadPost ? 'pl-16' : ''}`}> {/* Indent thread posts */}
                     <div className="flex space-x-3">
@@ -2629,11 +3093,11 @@ function Page() {
                       <div className="flex-1 min-w-0">
                         {/* Header - All posts get header */}
                         <div className="flex items-center space-x-2 mb-2">
-                          <span className={`font-bold ${twitterPreviewMode === 'dark' ? 'text-white' : 'text-gray-900'} text-[15px]`}>
+                          <span className={`font-bold ${xPreviewMode === 'dark' ? 'text-white' : 'text-gray-900'} text-[15px]`}>
                             {userProfile.displayName || user?.displayName || user?.email?.split('@')[0] || 'User'}
                           </span>
                           <span className="text-gray-500 text-[15px]">
-                            @{userProfile.twitterHandle || user?.email?.split('@')[0] || 'username'}
+                            @{userProfile.xHandle || user?.email?.split('@')[0] || 'username'}
                           </span>
                           <span className="text-gray-500">·</span>
                           <span className="text-gray-500 text-[15px]">
@@ -2642,7 +3106,7 @@ function Page() {
                         </div>
                         
                         {/* Post Text */}
-                        <div className={`${twitterPreviewMode === 'dark' ? 'text-white' : 'text-gray-900'} text-[15px] leading-6 mb-3`}>
+                        <div className={`${xPreviewMode === 'dark' ? 'text-white' : 'text-gray-900'} text-[15px] leading-6 mb-3`}>
                           {post.text}
                         </div>
                         
@@ -2673,34 +3137,34 @@ function Page() {
                         {/* Social engagement icons for ALL posts */}
                         <div className="flex items-center justify-between max-w-md pt-1">
                           <button className="flex items-center space-x-2 text-gray-500 hover:text-blue-400 transition-colors group">
-                            <div className={`p-2 rounded-full group-hover:${twitterPreviewMode === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'}`}>
+                            <div className={`p-2 rounded-full group-hover:${xPreviewMode === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'}`}>
                               <MessageCircle className="w-5 h-5" />
                             </div>
                             <span className="text-[13px]">{Math.floor(Math.random() * 50) + 12}</span>
                           </button>
                           
                           <button className="flex items-center space-x-2 text-gray-500 hover:text-green-400 transition-colors group">
-                            <div className={`p-2 rounded-full group-hover:${twitterPreviewMode === 'dark' ? 'bg-green-900/20' : 'bg-green-100'}`}>
+                            <div className={`p-2 rounded-full group-hover:${xPreviewMode === 'dark' ? 'bg-green-900/20' : 'bg-green-100'}`}>
                               <Repeat2 className="w-5 h-5" />
                             </div>
                             <span className="text-[13px]">{Math.floor(Math.random() * 30) + 5}</span>
                           </button>
                           
                           <button className="flex items-center space-x-2 text-gray-500 hover:text-red-400 transition-colors group">
-                            <div className={`p-2 rounded-full group-hover:${twitterPreviewMode === 'dark' ? 'bg-red-900/20' : 'bg-red-100'}`}>
+                            <div className={`p-2 rounded-full group-hover:${xPreviewMode === 'dark' ? 'bg-red-900/20' : 'bg-red-100'}`}>
                               <Heart className="w-5 h-5" />
                             </div>
                             <span className="text-[13px]">{Math.floor(Math.random() * 200) + 45}</span>
                           </button>
                           
                           <button className="text-gray-500 hover:text-blue-400 transition-colors group">
-                            <div className={`p-2 rounded-full group-hover:${twitterPreviewMode === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'}`}>
+                            <div className={`p-2 rounded-full group-hover:${xPreviewMode === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'}`}>
                               <Bookmark className="w-5 h-5" />
                             </div>
                           </button>
                           
                           <button className="text-gray-500 hover:text-blue-400 transition-colors group">
-                            <div className={`p-2 rounded-full group-hover:${twitterPreviewMode === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'}`}>
+                            <div className={`p-2 rounded-full group-hover:${xPreviewMode === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'}`}>
                               <Share className="w-5 h-5" />
                             </div>
                           </button>
@@ -2747,13 +3211,13 @@ function Page() {
   };
 
   return (
-    <div className="bg-legal-100 min-h-screen">
-      <header className="bg-white shadow-sm p-4 flex justify-between items-center">
+    <div className="bg-legal-100 dark:bg-gray-900 min-h-screen">
+      <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-700 p-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 bg-legal-800 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-lg">T</span>
           </div>
-          <h1 className="text-2xl font-bold text-legal-800">Threadifier</h1>
+          <h1 className="text-2xl font-bold text-legal-800 dark:text-gray-100">Threadifier</h1>
         </div>
         <AuthDisplay />
       </header>
@@ -2803,6 +3267,175 @@ function Page() {
       )}
 
       <NewPromptModal />
+
+      {/* Save Thread Modal */}
+      <Dialog open={showSaveModal} onClose={() => setShowSaveModal(false)} className="relative z-50">
+        <Dialog.Backdrop className="fixed inset-0 bg-black/30" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <Dialog.Title className="text-lg font-semibold text-gray-900 mb-4">
+              Save Thread
+            </Dialog.Title>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Thread Title
+                </label>
+                <input
+                  type="text"
+                  value={saveThreadTitle}
+                  onChange={(e) => setSaveThreadTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter a title for your thread"
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Status
+                </label>
+                <select
+                  value={saveThreadStatus}
+                  onChange={(e) => setSaveThreadStatus(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted']).map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  You can customize these statuses in your profile settings
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={confirmSaveDraft}
+                disabled={!saveThreadTitle.trim()}
+                className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save Thread
+              </button>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="flex-1 btn-secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
+
+      {/* X Setup Instructions Modal */}
+      <Dialog open={showXSetupModal} onClose={() => setShowXSetupModal(false)} className="relative z-50">
+        <Dialog.Backdrop className="fixed inset-0 bg-black/30" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <Dialog.Title className="text-lg font-semibold text-gray-900 mb-4">
+              Set Up X (Twitter) Integration
+            </Dialog.Title>
+            
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-900">
+                  To post threads directly to X, you need to set up API credentials. This is a one-time setup process.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Step 1: Create an X Developer Account</h4>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                    <li>Go to <a href="https://developer.twitter.com/en/portal/dashboard" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">https://developer.twitter.com/en/portal/dashboard</a></li>
+                    <li>Sign in with your X account</li>
+                    <li>Apply for a developer account if you haven't already</li>
+                  </ol>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Step 2: Create a New App</h4>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                    <li>Click "Projects & Apps" → "Overview"</li>
+                    <li>Click "New Project" and give it a name (e.g., "Threadifier")</li>
+                    <li>Create a new App within the project</li>
+                    <li>Save your API keys when shown (you'll need the OAuth 2.0 Client ID and Client Secret)</li>
+                  </ol>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Step 3: Configure OAuth 2.0</h4>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                    <li>In your app settings, find "User authentication settings"</li>
+                    <li>Click "Set up" or "Edit"</li>
+                    <li>Enable OAuth 2.0</li>
+                    <li>Set Type of App: "Web App"</li>
+                    <li>Add Callback URI: 
+                      <code className="bg-gray-100 px-2 py-1 rounded text-xs block mt-1 mb-1">
+                        {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/x-callback
+                      </code>
+                    </li>
+                    <li>Set Website URL: Your app URL</li>
+                    <li>Select these scopes: tweet.read, tweet.write, users.read, offline.access</li>
+                  </ol>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Step 4: Add Credentials to Your App</h4>
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-700">
+                      Add these to your <code className="bg-gray-100 px-1 rounded">.env.local</code> file:
+                    </p>
+                    <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto">
+{`# X (Twitter) API Configuration
+X_CLIENT_ID=your_oauth2_client_id_here
+X_CLIENT_SECRET=your_oauth2_client_secret_here
+
+# App URL (for OAuth callbacks)
+NEXT_PUBLIC_APP_URL=${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}`}
+                    </pre>
+                    <p className="text-sm text-gray-600">
+                      After adding these environment variables, restart your development server.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <h5 className="font-medium text-amber-900 mb-1">Important Notes:</h5>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
+                    <li>Keep your Client Secret secure and never commit it to version control</li>
+                    <li>The free tier allows 1,500 tweets per month</li>
+                    <li>Make sure to use OAuth 2.0 (not OAuth 1.0a)</li>
+                    <li>Your app may need to be approved by X before you can use it</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowXSetupModal(false)}
+                className="flex-1 btn-secondary"
+              >
+                Close
+              </button>
+              <a
+                href="https://developer.twitter.com/en/portal/dashboard"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 btn-primary text-center"
+              >
+                Go to X Developer Portal
+              </a>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
 
     </div>
   );

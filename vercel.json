@@ -1,0 +1,13 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_APP_URL": "https://threadifier.com"
+  },
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_APP_URL": "https://threadifier.com"
+    }
+  }
+}

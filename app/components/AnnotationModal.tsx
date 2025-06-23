@@ -20,7 +20,7 @@ interface AnnotationModalProps {
   userProfile?: {
     displayName: string;
     username: string;
-    twitterHandle: string;
+    xHandle: string;
     instagramHandle: string;
     avatar: string | null;
   };
@@ -42,6 +42,7 @@ export default function AnnotationModal({
   const [currentPageIdx, setCurrentPageIdx] = useState(initialPage);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCropping, setIsCropping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
@@ -63,14 +64,29 @@ export default function AnnotationModal({
   // Crop state
   const [cropRect, setCropRect] = useState<fabric.Rect | null>(null);
   const [cropAspectRatio, setCropAspectRatio] = useState<CropAspectRatio>('twitter-single');
+  const [forceUpdateCounter, setForceUpdateCounter] = useState(0); // Force re-renders for validation
   
-  // Twitter preview mode
-  const [showTwitterPreview, setShowTwitterPreview] = useState(false);
+  // X (Twitter) preview mode
+  const [showXPreview, setShowXPreview] = useState(false);
   
   // Image quality validation
   const [imageDimensions, setImageDimensions] = useState<{width: number, height: number} | null>(null);
   const [imageQualityWarnings, setImageQualityWarnings] = useState<string[]>([]);
-  const [showWarnings, setShowWarnings] = useState(true);
+  const [showWarnings, setShowWarnings] = useState(() => {
+    // Persist collapse state in localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('annotation-x-warnings-expanded');
+      return saved !== null ? JSON.parse(saved) : true;
+    }
+    return true;
+  });
+
+  // Save warnings collapse state
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('annotation-x-warnings-expanded', JSON.stringify(showWarnings));
+    }
+  }, [showWarnings]);
 
   // Initialize image when modal opens
   useEffect(() => {
@@ -103,10 +119,10 @@ export default function AnnotationModal({
         setCurrentImage(targetImage);
         setIsLoading(false);
         
-        // Capture image dimensions and validate for Twitter
+        // Capture image dimensions and validate for X
         const dimensions = { width: img.naturalWidth, height: img.naturalHeight };
         setImageDimensions(dimensions);
-        const warnings = validateImageForTwitter(dimensions.width, dimensions.height);
+        const warnings = validateImageForX(dimensions.width, dimensions.height);
         setImageQualityWarnings(warnings);
       };
       img.onerror = () => {
@@ -279,34 +295,137 @@ export default function AnnotationModal({
     
     // Update warnings when crop rect changes
     const updateValidation = () => {
-      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
+      // Always call validateImageForX with original dimensions - it will handle crop logic internally
+      const warnings = validateImageForX(imageDimensions.width, imageDimensions.height);
       setImageQualityWarnings(warnings);
     };
 
     // Set up canvas listener for crop rect modifications
     const canvas = fabricCanvasRef.current;
     if (canvas && cropRect) {
-      const handleObjectModified = () => {
-        setTimeout(updateValidation, 100); // Small delay to ensure crop rect state is updated
+      const handleObjectChange = (e: any) => {
+        // Only update if the modified object is the crop rectangle
+        if (e.target === cropRect) {
+          console.log('Crop rect being modified:', e.type, cropRect.width, cropRect.height);
+          // Force immediate update for real-time feedback
+          requestAnimationFrame(() => {
+            updateValidation();
+            setForceUpdateCounter(prev => prev + 1); // Force component re-render
+          });
+        }
       };
       
+      const handleObjectModified = (e: any) => {
+        // Only update if the modified object is the crop rectangle
+        if (e.target === cropRect) {
+          console.log('Crop rect modification complete:', e.type, cropRect.width, cropRect.height);
+          // Force immediate update for real-time feedback
+          requestAnimationFrame(updateValidation);
+        }
+      };
+      
+      // Listen to real-time events during interaction
+      canvas.on('object:scaling', handleObjectChange);
+      canvas.on('object:moving', handleObjectChange);
+      canvas.on('object:resizing', handleObjectChange);
+      canvas.on('object:rotating', handleObjectChange);
+      
+      // Listen to completion events
       canvas.on('object:modified', handleObjectModified);
-      canvas.on('object:scaling', handleObjectModified);
-      canvas.on('object:moving', handleObjectModified);
+      
+      // Also add a direct listener to the crop rectangle itself
+      if (cropRect.on) {
+        cropRect.on('scaling', () => {
+          console.log('Direct crop rect scaling event');
+          requestAnimationFrame(updateValidation);
+        });
+        cropRect.on('moving', () => {
+          console.log('Direct crop rect moving event');
+          requestAnimationFrame(updateValidation);
+        });
+        cropRect.on('modified', () => {
+          console.log('Direct crop rect modified event');
+          requestAnimationFrame(updateValidation);
+        });
+      }
       
       // Initial validation update
       updateValidation();
       
       return () => {
+        canvas.off('object:scaling', handleObjectChange);
+        canvas.off('object:moving', handleObjectChange);
+        canvas.off('object:resizing', handleObjectChange);
+        canvas.off('object:rotating', handleObjectChange);
         canvas.off('object:modified', handleObjectModified);
-        canvas.off('object:scaling', handleObjectModified);
-        canvas.off('object:moving', handleObjectModified);
+        
+        // Clean up direct listeners on crop rect
+        if (cropRect.off) {
+          cropRect.off('scaling');
+          cropRect.off('moving');
+          cropRect.off('modified');
+        }
       };
     } else {
       // Update validation even when no crop rect (for original image analysis)
       updateValidation();
     }
-  }, [cropRect, imageDimensions, cropAspectRatio]);
+  }, [cropRect, imageDimensions, cropAspectRatio, fabricCanvasRef.current, forceUpdateCounter]);
+
+  // Additional effect to watch for crop rect property changes using RAF
+  useEffect(() => {
+    if (!cropRect || !imageDimensions) return;
+
+    let animationFrameId: number;
+    let lastKnownDimensions = { 
+      left: cropRect.left, 
+      top: cropRect.top, 
+      width: cropRect.getScaledWidth(), 
+      height: cropRect.getScaledHeight(),
+      scaleX: cropRect.scaleX,
+      scaleY: cropRect.scaleY
+    };
+
+    const checkForChanges = () => {
+      if (cropRect && fabricCanvasRef.current) {
+        const currentDimensions = {
+          left: cropRect.left,
+          top: cropRect.top,
+          width: cropRect.getScaledWidth(),
+          height: cropRect.getScaledHeight(),
+          scaleX: cropRect.scaleX,
+          scaleY: cropRect.scaleY
+        };
+
+        // Check if dimensions have changed (including scale)
+        if (
+          currentDimensions.left !== lastKnownDimensions.left ||
+          currentDimensions.top !== lastKnownDimensions.top ||
+          currentDimensions.width !== lastKnownDimensions.width ||
+          currentDimensions.height !== lastKnownDimensions.height ||
+          currentDimensions.scaleX !== lastKnownDimensions.scaleX ||
+          currentDimensions.scaleY !== lastKnownDimensions.scaleY
+        ) {
+          console.log('RAF detected crop rect change:', currentDimensions);
+          // Call validateImageForX with original dimensions - it handles crop internally
+          const warnings = validateImageForX(imageDimensions.width, imageDimensions.height);
+          setImageQualityWarnings(warnings);
+          setForceUpdateCounter(prev => prev + 1); // Force component re-render
+          lastKnownDimensions = currentDimensions;
+        }
+      }
+      
+      animationFrameId = requestAnimationFrame(checkForChanges);
+    };
+
+    animationFrameId = requestAnimationFrame(checkForChanges);
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [cropRect, imageDimensions]);
 
   // Cleanup canvas when modal closes
   useEffect(() => {
@@ -733,6 +852,17 @@ export default function AnnotationModal({
       });
 
       canvas.renderAll();
+      
+      // Update validation in real-time while drawing crop
+      if (imageDimensions && rect) {
+        // Temporarily set the cropRect so validation can use it
+        setCropRect(rect);
+        requestAnimationFrame(() => {
+          const warnings = validateImageForX(imageDimensions.width, imageDimensions.height);
+          setImageQualityWarnings(warnings);
+          setForceUpdateCounter(prev => prev + 1);
+        });
+      }
     };
 
     const onMouseUp = () => {
@@ -764,8 +894,8 @@ export default function AnnotationModal({
       case '9:16': return 9/16;
       case '4:3': return 4/3;
       case '3:4': return 3/4;
-      case 'twitter-single': return 16/9; // 1200x675 optimal for single Twitter images
-      case 'twitter-multi': return 2/1; // 1200x600 optimal for multiple Twitter images
+      case 'twitter-single': return 16/9; // 1200x675 optimal for single X images
+      case 'twitter-multi': return 2/1; // 1200x600 optimal for multiple X images
       default: return 1;
     }
   };
@@ -827,6 +957,14 @@ export default function AnnotationModal({
     canvas.setActiveObject(rect);
     setCropRect(rect);
     canvas.renderAll();
+    
+    // Trigger validation update after crop rect is created
+    if (imageDimensions) {
+      requestAnimationFrame(() => {
+        const warnings = validateImageForX(imageDimensions.width, imageDimensions.height);
+        setImageQualityWarnings(warnings);
+      });
+    }
   };
 
   const addShape = (type: 'rect' | 'circle' | 'arrow' | 'text') => {
@@ -863,19 +1001,16 @@ export default function AnnotationModal({
         break;
       
       case 'arrow':
-        const arrowPoints = [
-          new fabric.Point(0, 0),
-          new fabric.Point(80, 0),
-          new fabric.Point(70, -10),
-          new fabric.Point(80, 0),
-          new fabric.Point(70, 10)
-        ];
-        shape = new fabric.Polyline(arrowPoints, {
-          left: centerX - 40,
-          top: centerY - 5,
-          fill: penColor,
+        // Create arrow using Path for better shape
+        const arrowPath = 'M 0 0 L 60 0 M 60 0 L 50 -8 M 60 0 L 50 8';
+        shape = new fabric.Path(arrowPath, {
+          left: centerX - 30,
+          top: centerY,
+          fill: '',
           stroke: penColor,
-          strokeWidth: 2
+          strokeWidth: 3,
+          strokeLineCap: 'round',
+          strokeLineJoin: 'round'
         });
         break;
       
@@ -994,86 +1129,181 @@ export default function AnnotationModal({
 
   const handleCrop = () => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !cropRect) return;
+    const bgImage = imageElementRef.current;
+    
+    if (!canvas || !cropRect || !currentImage || !imageDimensions || !bgImage) {
+      console.error('Missing requirements for crop');
+      return;
+    }
 
-    // Create a temporary canvas without the crop rectangle
+    // Get crop dimensions info to calculate proper coordinates
+    const cropInfo = getCropAreaDimensions();
+    if (!cropInfo) {
+      console.error('Could not calculate crop dimensions');
+      return;
+    }
+    
+    // Start loading state
+    setIsCropping(true);
+
+    // Create a high-resolution temporary canvas for the crop
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
     if (!tempCtx) return;
 
-    // Get crop dimensions and position
+    // Set temp canvas size to the actual crop dimensions in original resolution
+    tempCanvas.width = cropInfo.width;
+    tempCanvas.height = cropInfo.height;
+
+    // Calculate crop coordinates in original image space
+    const cropLeft = cropRect.left || 0;
+    const cropTop = cropRect.top || 0;
+    const cropWidth = cropRect.getScaledWidth();
+    const cropHeight = cropRect.getScaledHeight();
+
+    // Get the background image's position and scale
+    const imgLeft = bgImage.left || 0;
+    const imgTop = bgImage.top || 0;
+    const imgScaleX = bgImage.scaleX || 1;
+    const imgScaleY = bgImage.scaleY || 1;
+    
+    // Calculate the displayed dimensions of the image on canvas
+    const displayedImgWidth = (bgImage.width || imageDimensions.width) * imgScaleX;
+    const displayedImgHeight = (bgImage.height || imageDimensions.height) * imgScaleY;
+
+    // Calculate the crop position relative to the image on canvas
+    const relativeLeft = cropLeft - imgLeft;
+    const relativeTop = cropTop - imgTop;
+
+    // Calculate the source coordinates in original image pixels
+    const sourceX = (relativeLeft / displayedImgWidth) * imageDimensions.width;
+    const sourceY = (relativeTop / displayedImgHeight) * imageDimensions.height;
+    const sourceWidth = (cropWidth / displayedImgWidth) * imageDimensions.width;
+    const sourceHeight = (cropHeight / displayedImgHeight) * imageDimensions.height;
+
+    console.log('Crop calculations:', {
+      sourceX, sourceY, sourceWidth, sourceHeight,
+      outputWidth: cropInfo.width,
+      outputHeight: cropInfo.height
+    });
+
+    // Load the original image at full resolution
+    const originalImg = new Image();
+    originalImg.crossOrigin = 'anonymous';
+    
+    originalImg.onload = () => {
+      // Draw the cropped portion at full resolution
+      tempCtx.drawImage(
+        originalImg,
+        sourceX, sourceY, sourceWidth, sourceHeight, // Source rectangle from original
+        0, 0, cropInfo.width, cropInfo.height // Destination (full temp canvas)
+      );
+
+      const croppedDataURL = tempCanvas.toDataURL('image/png', 1.0);
+      
+      // Remove the crop rectangle
+      canvas.remove(cropRect);
+      setCropRect(null);
+      setActiveTool('draw');
+      
+      // Clear the canvas of all annotations
+      const objects = canvas.getObjects();
+      objects.forEach(obj => {
+        if (obj !== bgImage) {
+          canvas.remove(obj);
+        }
+      });
+      
+      // Update the current image to the cropped version
+      setCurrentImage(croppedDataURL);
+      
+      // Reset image dimensions for the cropped image
+      const croppedImg = new Image();
+      croppedImg.onload = () => {
+        setImageDimensions({ width: croppedImg.width, height: croppedImg.height });
+        
+        // Clear warnings and recalculate for the new cropped image
+        const warnings = validateImageForX(croppedImg.width, croppedImg.height);
+        setImageQualityWarnings(warnings);
+      };
+      croppedImg.src = croppedDataURL;
+      
+      // Reset history for the new cropped image
+      initializeHistory();
+      
+      // End loading state
+      setIsCropping(false);
+    };
+    
+    originalImg.onerror = () => {
+      console.error('Failed to load original image for cropping');
+      setIsCropping(false);
+    };
+    
+    originalImg.src = currentImage;
+  };
+
+  // X image quality validation
+  const getCropAreaDimensions = (): { width: number; height: number; cropPercentage: number } | null => {
+    const canvas = fabricCanvasRef.current;
+    const bgImage = imageElementRef.current;
+    
+    if (!canvas || !cropRect || !imageDimensions || !bgImage) {
+      console.log('getCropAreaDimensions: Missing requirements', { 
+        canvas: !!canvas, 
+        cropRect: !!cropRect, 
+        imageDimensions: !!imageDimensions,
+        bgImage: !!bgImage
+      });
+      return null;
+    }
+
+    // Get the scaled crop rect dimensions (includes any scaling applied to the rect)
     const cropWidth = cropRect.getScaledWidth();
     const cropHeight = cropRect.getScaledHeight();
     const cropLeft = cropRect.left || 0;
     const cropTop = cropRect.top || 0;
 
-    // Set temp canvas size to match crop area
-    tempCanvas.width = cropWidth;
-    tempCanvas.height = cropHeight;
+    console.log('Crop rect scaled dimensions:', { cropLeft, cropTop, cropWidth, cropHeight });
 
-    // Temporarily hide the crop rectangle to avoid including it in the output
-    const originalVisible = cropRect.visible;
-    cropRect.visible = false;
-    canvas.renderAll();
-
-    // Get the main canvas as image without the crop overlay
-    const mainCanvasElement = canvas.getElement();
+    // Get the background image's position and scale on the canvas
+    const imgLeft = bgImage.left || 0;
+    const imgTop = bgImage.top || 0;
+    const imgScaleX = bgImage.scaleX || 1;
+    const imgScaleY = bgImage.scaleY || 1;
     
-    // Draw the cropped portion to temp canvas
-    tempCtx.drawImage(
-      mainCanvasElement,
-      cropLeft, cropTop, cropWidth, cropHeight, // Source area (crop region)
-      0, 0, cropWidth, cropHeight // Destination area (full temp canvas)
-    );
+    // Calculate the displayed dimensions of the image on canvas
+    const displayedImgWidth = (bgImage.width || imageDimensions.width) * imgScaleX;
+    const displayedImgHeight = (bgImage.height || imageDimensions.height) * imgScaleY;
 
-    // Restore crop rectangle visibility
-    cropRect.visible = originalVisible;
-    canvas.renderAll();
+    console.log('Image on canvas:', {
+      imgLeft, imgTop, imgScaleX, imgScaleY,
+      displayedImgWidth, displayedImgHeight,
+      originalWidth: imageDimensions.width,
+      originalHeight: imageDimensions.height
+    });
 
-    const dataURL = tempCanvas.toDataURL('image/png', 1.0); // High quality PNG
-    
-    // Remove the crop rectangle after successful crop
-    canvas.remove(cropRect);
-    setCropRect(null);
-    setActiveTool('select');
-    
-    // Create a new marked up image for the cropped result
-    const newMarkedUpImage: MarkedUpImage = {
-      id: `crop-${Date.now()}`,
-      pageNumber: currentPageIdx !== null ? currentPageIdx : 0,
-      url: dataURL,
-      json: null
-    };
-    
-    // Close current modal and open new one with cropped image
-    onClose();
-    // For now, we'll just use onCrop which should handle opening new modal
-    onCrop(dataURL);
-  };
-
-  // Twitter image quality validation
-  const getCropAreaDimensions = (): { width: number; height: number; cropPercentage: number } | null => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || !cropRect || !imageDimensions) return null;
-
-    // Get crop rect bounds in canvas coordinates
-    const cropLeft = cropRect.left || 0;
-    const cropTop = cropRect.top || 0;
-    const cropWidth = cropRect.width || 0;
-    const cropHeight = cropRect.height || 0;
-
-    // Calculate scale factors from canvas to original image
-    const scaleX = imageDimensions.width / canvas.width!;
-    const scaleY = imageDimensions.height / canvas.height!;
+    // Calculate what portion of the displayed image the crop covers
+    // This gives us the scale factor from canvas pixels to original image pixels
+    const scaleToOriginalX = imageDimensions.width / displayedImgWidth;
+    const scaleToOriginalY = imageDimensions.height / displayedImgHeight;
 
     // Calculate actual crop dimensions in original image pixels
-    const actualCropWidth = Math.round(cropWidth * scaleX);
-    const actualCropHeight = Math.round(cropHeight * scaleY);
+    const actualCropWidth = Math.round(cropWidth * scaleToOriginalX);
+    const actualCropHeight = Math.round(cropHeight * scaleToOriginalY);
 
     // Calculate what percentage of the original image this crop represents
     const originalArea = imageDimensions.width * imageDimensions.height;
     const cropArea = actualCropWidth * actualCropHeight;
     const cropPercentage = (cropArea / originalArea) * 100;
+
+    console.log('Calculated crop dimensions:', { 
+      actualCropWidth, 
+      actualCropHeight, 
+      cropPercentage: cropPercentage.toFixed(1),
+      scaleToOriginalX,
+      scaleToOriginalY
+    });
 
     return {
       width: actualCropWidth,
@@ -1082,24 +1312,24 @@ export default function AnnotationModal({
     };
   };
 
-  const validateImageForTwitter = (width: number, height: number): string[] => {
+  const validateImageForX = (width: number, height: number): string[] => {
     const warnings: string[] = [];
     const aspectRatio = width / height;
     
     // Get crop area info if available
     const cropInfo = getCropAreaDimensions();
-    const isUsingCrop = cropRect && cropInfo;
+    const isUsingCrop = !!(cropRect && cropInfo);
     
     // Use crop dimensions if available, otherwise original dimensions
-    const effectiveWidth = isUsingCrop ? cropInfo.width : width;
-    const effectiveHeight = isUsingCrop ? cropInfo.height : height;
+    const effectiveWidth = isUsingCrop && cropInfo ? cropInfo.width : width;
+    const effectiveHeight = isUsingCrop && cropInfo ? cropInfo.height : height;
     const effectiveAspectRatio = effectiveWidth / effectiveHeight;
     
     // Original image info
     warnings.push(`📊 Original: ${width}×${height}px (${aspectRatio.toFixed(2)}:1)`);
     
     // Crop area info
-    if (isUsingCrop) {
+    if (isUsingCrop && cropInfo) {
       warnings.push(`✂️ Crop area: ${effectiveWidth}×${effectiveHeight}px (${effectiveAspectRatio.toFixed(2)}:1)`);
       warnings.push(`📈 Using ${cropInfo.cropPercentage.toFixed(1)}% of original image resolution`);
       
@@ -1111,10 +1341,10 @@ export default function AnnotationModal({
     
     // Check minimum dimensions (using effective dimensions)
     if (effectiveWidth < 600 || effectiveHeight < 335) {
-      warnings.push(`🚨 ${isUsingCrop ? 'Cropped area' : 'Image'} too small (${effectiveWidth}×${effectiveHeight}). Twitter upscales to 600×335 minimum, causing blur on all devices.`);
+      warnings.push(`🚨 ${isUsingCrop ? 'Cropped area' : 'Image'} too small (${effectiveWidth}×${effectiveHeight}). X upscales to 600×335 minimum, causing blur on all devices.`);
     }
     
-    // Check if dimensions are below Twitter's optimal size
+    // Check if dimensions are below X's optimal size
     if (effectiveWidth < 1200) {
       warnings.push(`⚠️ For crisp display on high-DPI screens, use 1200px+ width (${isUsingCrop ? 'crop' : 'current'}: ${effectiveWidth}px). Image may appear soft on Retina displays.`);
     }
@@ -1137,7 +1367,7 @@ export default function AnnotationModal({
       }
     }
     
-    // Check if image will be cropped by Twitter
+    // Check if image will be cropped by X
     if (cropAspectRatio === 'free') {
       if (effectiveAspectRatio < 1.5) {
         warnings.push(`📱 Timeline feed may crop top/bottom on mobile. Desktop shows more. Full image always available on click.`);
@@ -1225,74 +1455,8 @@ export default function AnnotationModal({
               )}
             </div>
             
-            {/* Zoom Controls */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Zoom:</span>
-              <button onClick={() => handleZoom(-0.1)} className="btn-secondary p-1" title="Zoom Out">
-                <Minus size={14} />
-              </button>
-              <button onClick={handleZoomReset} className="btn-secondary p-1" title="Reset Zoom">
-                <RefreshCw size={14} />
-              </button>
-              <button onClick={() => handleZoom(0.1)} className="btn-secondary p-1" title="Zoom In">
-                <Plus size={14} />
-              </button>
-              <span className="text-xs w-12 text-center">{(zoom * 100).toFixed(0)}%</span>
-            </div>
-
-            {/* History Controls */}
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={handleUndo} 
-                disabled={historyIndex <= 0}
-                className="btn-secondary p-1 disabled:opacity-50" 
-                title="Undo"
-              >
-                <RotateCcw size={14} />
-              </button>
-              <button 
-                onClick={handleRedo} 
-                disabled={historyIndex >= history.length - 1}
-                className="btn-secondary p-1 disabled:opacity-50" 
-                title="Redo"
-              >
-                <RefreshCw size={14} />
-              </button>
-            </div>
           </div>
 
-          {/* Twitter Quality Warnings - Collapsible */}
-          {imageQualityWarnings.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded">
-              <button 
-                onClick={() => setShowWarnings(!showWarnings)}
-                className="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-blue-100 transition-colors"
-              >
-                <div className="flex items-center space-x-2">
-                  <span className="text-blue-600 text-sm">𝕏</span>
-                  <span className="text-sm font-medium text-blue-800">
-                    Twitter Display Analysis ({imageQualityWarnings.length})
-                  </span>
-                </div>
-                <span className="text-blue-600 text-sm">
-                  {showWarnings ? '▼' : '▶'}
-                </span>
-              </button>
-              
-              {showWarnings && (
-                <div className="px-3 pb-2 border-t border-blue-200">
-                  <div className="text-xs text-blue-600 mt-1 mb-2 italic">
-                    How your image will appear in Twitter timeline feeds vs. expanded view
-                  </div>
-                  <div className="text-xs text-blue-700 space-y-1">
-                    {imageQualityWarnings.map((warning, index) => (
-                      <div key={index}>{warning}</div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Toolbar */}
           <div className="flex items-center gap-2 p-2 border-b bg-gray-50 flex-wrap">
@@ -1418,46 +1582,34 @@ export default function AnnotationModal({
                 <button 
                   onClick={() => {
                     setCropAspectRatio('twitter-single');
-                    if (imageDimensions) {
-                      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
-                      setImageQualityWarnings(warnings);
-                    }
                     createCropBoxWithAspectRatio('twitter-single');
                   }}
                   className={`text-xs px-2 py-1 rounded border ${
                     cropAspectRatio === 'twitter-single' 
-                      ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                      ? 'bg-black text-white' 
                       : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
                   }`}
-                  title="Twitter Single Image (16:9)"
+                  title="X Single Image (16:9)"
                 >
-                  <span className="text-xs">𝕏</span> Single
+                  <span className="text-xs font-bold">𝕏</span> Single
                 </button>
                 <button 
                   onClick={() => {
                     setCropAspectRatio('twitter-multi');
-                    if (imageDimensions) {
-                      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
-                      setImageQualityWarnings(warnings);
-                    }
                     createCropBoxWithAspectRatio('twitter-multi');
                   }}
                   className={`text-xs px-2 py-1 rounded border ${
                     cropAspectRatio === 'twitter-multi' 
-                      ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                      ? 'bg-black text-white' 
                       : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
                   }`}
-                  title="Twitter Multi Image (2:1)"
+                  title="X Multi Image (2:1)"
                 >
-                  <span className="text-xs">𝕏</span> Multi
+                  <span className="text-xs font-bold">𝕏</span> Multi
                 </button>
                 <button 
                   onClick={() => {
                     setCropAspectRatio('1:1');
-                    if (imageDimensions) {
-                      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
-                      setImageQualityWarnings(warnings);
-                    }
                     createCropBoxWithAspectRatio('1:1');
                   }}
                   className={`text-xs px-2 py-1 rounded border ${
@@ -1472,10 +1624,6 @@ export default function AnnotationModal({
                 <button 
                   onClick={() => {
                     setCropAspectRatio('4:5');
-                    if (imageDimensions) {
-                      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
-                      setImageQualityWarnings(warnings);
-                    }
                     createCropBoxWithAspectRatio('4:5');
                   }}
                   className={`text-xs px-2 py-1 rounded border ${
@@ -1490,10 +1638,6 @@ export default function AnnotationModal({
                 <button 
                   onClick={() => {
                     setCropAspectRatio('free');
-                    if (imageDimensions) {
-                      const warnings = validateImageForTwitter(imageDimensions.width, imageDimensions.height);
-                      setImageQualityWarnings(warnings);
-                    }
                     createCropBoxWithAspectRatio('free');
                   }}
                   className={`text-xs px-2 py-1 rounded border ${
@@ -1508,19 +1652,55 @@ export default function AnnotationModal({
               </div>
             )}
 
-            {/* Twitter Preview Toggle */}
+            {/* Zoom Controls */}
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-medium mr-2">Zoom:</span>
+              <button onClick={() => handleZoom(-0.1)} className="btn-secondary p-2" title="Zoom Out">
+                <Minus size={16} />
+              </button>
+              <button onClick={handleZoomReset} className="btn-secondary p-2" title="Reset Zoom">
+                <RefreshCw size={16} />
+              </button>
+              <button onClick={() => handleZoom(0.1)} className="btn-secondary p-2" title="Zoom In">
+                <Plus size={16} />
+              </button>
+              <span className="text-xs w-12 text-center">{(zoom * 100).toFixed(0)}%</span>
+            </div>
+
+            {/* History Controls */}
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-medium mr-2">History:</span>
+              <button 
+                onClick={handleUndo} 
+                disabled={historyIndex <= 0}
+                className="btn-secondary p-2 disabled:opacity-50" 
+                title="Undo"
+              >
+                <RotateCcw size={16} />
+              </button>
+              <button 
+                onClick={handleRedo} 
+                disabled={historyIndex >= history.length - 1}
+                className="btn-secondary p-2 disabled:opacity-50" 
+                title="Redo"
+              >
+                <RefreshCw size={16} />
+              </button>
+            </div>
+
+            {/* X Preview Toggle */}
             <div className="flex items-center gap-2">
               <button 
-                onClick={() => setShowTwitterPreview(!showTwitterPreview)}
+                onClick={() => setShowXPreview(!showXPreview)}
                 className={`text-sm px-3 py-1 rounded border flex items-center gap-1 ${
-                  showTwitterPreview 
-                    ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                  showXPreview 
+                    ? 'bg-black text-white' 
                     : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
                 }`}
-                title="Toggle Twitter Preview"
+                title="Toggle X Preview"
               >
-                <span className="text-sm">𝕏</span>
-                {showTwitterPreview ? 'Hide Preview' : 'Show Preview'}
+                <span className="text-sm font-bold">𝕏</span>
+                {showXPreview ? 'Hide Preview' : 'Show Preview'}
               </button>
             </div>
 
@@ -1551,10 +1731,13 @@ export default function AnnotationModal({
           {/* Canvas Container */}
           <div ref={canvasContainerRef} className="flex-1 overflow-hidden bg-gray-200 flex items-center justify-center p-4 relative">
             {/* Regular Editor Mode - Always present */}
-            <div className={showTwitterPreview ? 'hidden' : 'block'}>
-              {isLoading && (
+            <div className={showXPreview ? 'hidden' : 'block'}>
+              {(isLoading || isCropping) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-                  <Loader2 className="animate-spin text-blue-500" size={48} />
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="animate-spin text-blue-500" size={48} />
+                    {isCropping && <p className="text-gray-600">Cropping image at full resolution...</p>}
+                  </div>
                 </div>
               )}
               
@@ -1583,10 +1766,10 @@ export default function AnnotationModal({
               </div>
             </div>
 
-            {/* Twitter Preview Mode */}
-            {showTwitterPreview && (
+            {/* X Preview Mode */}
+            {showXPreview && (
               <div className="h-full w-full overflow-auto flex items-center justify-center p-4">
-                <div className="bg-black rounded-lg p-6 max-w-2xl w-full max-h-full overflow-auto">
+                <div className="bg-black rounded-lg p-6 w-full max-w-[598px] max-h-full overflow-auto">
                   <div className="bg-black rounded-lg p-4">
                   <div className="flex items-start space-x-3">
                     {/* Profile Picture */}
@@ -1607,7 +1790,7 @@ export default function AnnotationModal({
                           {userProfile?.displayName || 'Your Name'}
                         </span>
                         <span className="text-gray-500 text-[15px]">
-                          @{userProfile?.twitterHandle || 'username'}
+                          @{userProfile?.xHandle || userProfile?.username || 'username'}
                         </span>
                         <span className="text-gray-500">·</span>
                         <span className="text-gray-500 text-[15px]">now</span>
@@ -1617,12 +1800,12 @@ export default function AnnotationModal({
                         Your thread post content will appear here with the edited image below.
                       </div>
                       
-                      {/* Twitter-formatted Image Preview */}
+                      {/* X-formatted Image Preview */}
                       {currentImage && (
                         <div className="mb-3">
                           <img 
                             src={currentImage} 
-                            alt="Twitter Preview"
+                            alt="X Preview"
                             className="w-full rounded-2xl"
                             style={{
                               aspectRatio: cropAspectRatio === 'twitter-single' ? '16/9' : 
@@ -1661,13 +1844,52 @@ export default function AnnotationModal({
                   </div>
                 </div>
                 
-                  <div className="text-center mt-4 text-white text-sm opacity-75">
-                    👆 Preview of how your image will appear on Twitter/X
+                  <div className="text-center mt-4 text-white/70 text-sm">
+                    Preview of how your image will appear on X
                   </div>
                 </div>
               </div>
             )}
           </div>
+          
+          {/* X (Twitter) Quality Warnings - Bottom Left Popup */}
+          {imageQualityWarnings.length > 0 && (
+            <div className="absolute bottom-4 left-4 max-w-md z-20">
+              <div className={`bg-white/95 backdrop-blur-sm rounded-lg shadow-xl border border-gray-200 transition-all duration-300 ${
+                showWarnings ? 'max-h-[400px]' : 'max-h-[52px]'
+              } overflow-hidden`}>
+                <button 
+                  onClick={() => setShowWarnings(!showWarnings)}
+                  className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="text-black font-bold text-lg">𝕏</span>
+                    <span className="text-sm font-medium text-gray-800">
+                      Display Analysis ({imageQualityWarnings.length})
+                    </span>
+                  </div>
+                  <span className="text-gray-600 text-sm">
+                    {showWarnings ? '▼' : '▲'}
+                  </span>
+                </button>
+                
+                {showWarnings && (
+                  <div className="px-4 pb-3 border-t border-gray-200 max-h-[340px] overflow-y-auto">
+                    <div className="text-xs text-gray-600 mt-2 mb-3 italic">
+                      How your image will appear in X timeline feeds vs. expanded view
+                    </div>
+                    <div className="space-y-2">
+                      {imageQualityWarnings.map((warning, index) => (
+                        <div key={index} className="text-xs text-gray-700 p-2 bg-gray-50 rounded-md">
+                          {warning}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </Dialog.Panel>
       </div>
     </Dialog>

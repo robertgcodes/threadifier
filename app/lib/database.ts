@@ -51,7 +51,7 @@ export interface SavedThread {
     useHashtags: boolean;
     useNumbering: boolean;
   };
-  status: 'draft' | 'published';
+  status: string; // Now supports custom statuses
   createdAt: Timestamp;
   updatedAt: Timestamp;
   publishedAt?: Timestamp;
