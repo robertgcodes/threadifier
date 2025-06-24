@@ -6,7 +6,9 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 interface PricingTier {
   id: string;
@@ -107,6 +109,10 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
     setLoading(tier.id);
 
     try {
+      if (!stripePromise) {
+        throw new Error('Stripe is not configured. Please add your Stripe publishable key to the environment variables.');
+      }
+
       const priceId = isYearly ? tier.stripePriceIdYearly : tier.stripePriceId;
       
       const response = await fetch('/api/create-checkout-session', {
