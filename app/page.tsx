@@ -1489,9 +1489,8 @@ function Page() {
         {/* Credits Display */}
         <div className="flex items-center gap-3">
           <CreditCounter
-            credits={fullUserProfile?.credits?.available || 0}
             premiumCredits={fullUserProfile?.credits?.premiumCredits || 0}
-            freeCredits={0}
+            hasUnlimitedBasic={(fullUserProfile?.credits?.premiumCredits || 0) === 0}
             onCreditUsed={creditJustUsed}
             usingPremium={(fullUserProfile?.credits?.premiumCredits || 0) > 0}
           />

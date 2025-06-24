@@ -5,15 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChevronDown, Infinity } from 'lucide-react';
 
 interface CreditCounterProps {
-  credits: number;
-  premiumCredits?: number;
-  freeCredits?: number;
+  premiumCredits: number;
+  hasUnlimitedBasic: boolean;
   onCreditUsed?: boolean;
   className?: string;
   usingPremium?: boolean;
 }
 
-export default function CreditCounter({ credits, premiumCredits = 0, freeCredits = 0, onCreditUsed = false, className = '', usingPremium = false }: CreditCounterProps) {
+export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = false, onCreditUsed = false, className = '', usingPremium = false }: CreditCounterProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showPulse, setShowPulse] = useState(false);
 
@@ -27,7 +26,6 @@ export default function CreditCounter({ credits, premiumCredits = 0, freeCredits
     }
   }, [onCreditUsed]);
 
-  const hasUnlimitedBasic = premiumCredits === 0;
   const bgColor = premiumCredits > 0 ? 'bg-blue-50 hover:bg-blue-100' : 'bg-gray-50 hover:bg-gray-100';
   const iconColor = premiumCredits > 0 ? 'text-blue-600' : 'text-gray-600';
   const textColor = premiumCredits > 0 ? 'text-blue-900' : 'text-gray-900';
