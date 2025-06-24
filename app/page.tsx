@@ -2921,12 +2921,18 @@ function Page() {
     };
 
     const handleProfileSave = async () => {
+      console.log('Save button clicked');
+      console.log('User profile state:', userProfile);
+      console.log('User uid:', user?.uid);
+      
       if (!user?.uid) {
         toast.error('Unable to save profile. Please try again.');
         return;
       }
 
+      setIsSaving(true);
       try {
+        console.log('Saving profile to Firebase...');
         // Save to Firebase
         await updateUserProfile(user.uid, {
           displayName: userProfile.displayName,
@@ -2961,6 +2967,8 @@ function Page() {
       } catch (error) {
         console.error('Error saving profile:', error);
         toast.error('Failed to save profile. Please try again.');
+      } finally {
+        setIsSaving(false);
       }
     };
 
@@ -3330,10 +3338,20 @@ function Page() {
                   <div className="flex gap-3 pt-4">
                     <button
                       onClick={handleProfileSave}
-                      className="btn-primary flex items-center gap-2"
+                      disabled={isSaving}
+                      className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Save className="w-4 h-4" />
-                      Save Changes
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          Save Changes
+                        </>
+                      )}
                     </button>
                     {isAdmin && (
                       <button

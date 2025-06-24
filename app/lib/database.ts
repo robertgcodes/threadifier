@@ -674,15 +674,37 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
 };
 
 export const updateUserProfile = async (uid: string, updates: Partial<UserProfile>): Promise<void> => {
+  console.log('updateUserProfile called with:', { uid, updates });
   const userRef = doc(firestore, 'users', uid);
   
   // Remove fields that shouldn't be updated directly
   const { uid: _, email: __, createdAt: ___, ...safeUpdates } = updates;
   
-  await updateDoc(userRef, {
-    ...safeUpdates,
-    updatedAt: serverTimestamp()
-  });
+  try {
+    // Check if document exists first
+    const docSnap = await getDoc(userRef);
+    
+    if (!docSnap.exists()) {
+      console.log('User document does not exist, creating it...');
+      // If document doesn't exist, create it with setDoc
+      await setDoc(userRef, {
+        uid,
+        ...safeUpdates,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      // If document exists, update it
+      await updateDoc(userRef, {
+        ...safeUpdates,
+        updatedAt: serverTimestamp()
+      });
+    }
+    console.log('Profile updated successfully');
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
 };
 
 // Thread Operations
