@@ -2890,7 +2890,53 @@ function Page() {
   };
 
   const renderProfileView = () => {
-    const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const compressImage = (dataUrl: string, maxWidth: number = 300): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+
+          // Calculate new dimensions
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > maxWidth) {
+            height = (maxWidth / width) * height;
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Convert to compressed JPEG
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error('Could not compress image'));
+              return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve(reader.result as string);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          }, 'image/jpeg', 0.8); // 80% quality
+        };
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+    };
+
+    const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (file) {
         if (file.size > 5 * 1024 * 1024) { // 5MB limit
@@ -2899,22 +2945,38 @@ function Page() {
         }
         
         const reader = new FileReader();
-        reader.onload = (e) => {
-          const newAvatar = e.target?.result as string;
-          setUserProfile(prev => ({
-            ...prev,
-            avatar: newAvatar
-          }));
-          
-          // Also update fullUserProfile immediately for preview components
-          if (fullUserProfile) {
-            setFullUserProfile(prev => prev ? {
+        reader.onload = async (e) => {
+          try {
+            const originalDataUrl = e.target?.result as string;
+            
+            // Compress the image
+            const compressedAvatar = await compressImage(originalDataUrl, 300);
+            
+            // Check compressed size
+            const sizeInBytes = new Blob([compressedAvatar]).size;
+            if (sizeInBytes > 900000) { // 900KB to be safe (Firestore limit is ~1MB)
+              toast.error('Image is too large. Please use a smaller image.');
+              return;
+            }
+            
+            setUserProfile(prev => ({
               ...prev,
-              avatar: newAvatar
-            } : null);
+              avatar: compressedAvatar
+            }));
+            
+            // Also update fullUserProfile immediately for preview components
+            if (fullUserProfile) {
+              setFullUserProfile(prev => prev ? {
+                ...prev,
+                avatar: compressedAvatar
+              } : null);
+            }
+            
+            toast.success('Profile picture updated!');
+          } catch (error) {
+            console.error('Error processing image:', error);
+            toast.error('Failed to process image. Please try another one.');
           }
-          
-          toast.success('Profile picture updated!');
         };
         reader.readAsDataURL(file);
       }
@@ -2933,13 +2995,33 @@ function Page() {
       setIsSaving(true);
       try {
         console.log('Saving profile to Firebase...');
+        
+        // Check avatar size and compress if needed
+        let avatarToSave = userProfile.avatar;
+        if (avatarToSave) {
+          const sizeInBytes = new Blob([avatarToSave]).size;
+          if (sizeInBytes > 900000) { // 900KB to be safe
+            console.log('Avatar too large, compressing...');
+            try {
+              avatarToSave = await compressImage(avatarToSave, 300);
+              // Update local state with compressed version
+              setUserProfile(prev => ({ ...prev, avatar: avatarToSave }));
+            } catch (error) {
+              console.error('Failed to compress avatar:', error);
+              toast.error('Failed to compress profile picture. Please upload a smaller image.');
+              setIsSaving(false);
+              return;
+            }
+          }
+        }
+        
         // Save to Firebase
         await updateUserProfile(user.uid, {
           displayName: userProfile.displayName,
           username: userProfile.username,
           xHandle: userProfile.xHandle,
           instagramHandle: userProfile.instagramHandle,
-          avatar: userProfile.avatar || undefined,
+          avatar: avatarToSave || undefined,
           darkMode: userProfile.darkMode,
           globalAIInstructions: userProfile.globalAIInstructions,
           customThreadStatuses: userProfile.customThreadStatuses,
