@@ -1494,12 +1494,14 @@ function Page() {
         
         {/* Credits Display */}
         <div className="flex items-center gap-3">
-          <CreditCounter
-            premiumCredits={fullUserProfile?.credits?.premiumCredits ? Number(fullUserProfile.credits.premiumCredits) : 0}
-            hasUnlimitedBasic={!fullUserProfile?.credits?.premiumCredits || fullUserProfile.credits.premiumCredits === 0}
-            onCreditUsed={creditJustUsed}
-            usingPremium={!!fullUserProfile?.credits?.premiumCredits && fullUserProfile.credits.premiumCredits > 0}
-          />
+          {fullUserProfile && (
+            <CreditCounter
+              premiumCredits={fullUserProfile?.credits?.premiumCredits ? Number(fullUserProfile.credits.premiumCredits) : 0}
+              hasUnlimitedBasic={!fullUserProfile?.credits?.premiumCredits || fullUserProfile.credits.premiumCredits === 0}
+              onCreditUsed={creditJustUsed}
+              usingPremium={!!fullUserProfile?.credits?.premiumCredits && fullUserProfile.credits.premiumCredits > 0}
+            />
+          )}
           
           {/* User Profile */}
           <button 
@@ -1918,7 +1920,7 @@ function Page() {
               </Tab.Panel>
               <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
                  {/* Show notice for basic tier users without premium credits */}
-                 {user && (fullUserProfile?.credits?.premiumCredits || 0) === 0 && (
+                 {user && String(fullUserProfile?.credits?.premiumCredits || 0) === '0' && (
                    <FreeTierNotice 
                      referralCode={fullUserProfile?.referralCode}
                      hasTrialCredits={false}
@@ -2039,7 +2041,7 @@ function Page() {
                                       <span className="text-sm font-medium text-blue-900">AI Recommended Images</span>
                                     </div>
                                     <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                                      {postImageSuggestions.find(s => s.postIndex === index)?.recommendedPages.length || 0} suggestions
+                                      {String(postImageSuggestions.find(s => s.postIndex === index)?.recommendedPages.length || 0)} suggestions
                                     </span>
                                   </div>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -2851,13 +2853,13 @@ function Page() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium text-blue-900">Available Credits</span>
                           <span className="text-2xl font-bold text-blue-900">
-                            {fullUserProfile?.credits?.available || 0}
+                            {String(fullUserProfile?.credits?.available || 0)}
                           </span>
                         </div>
                         <div className="text-xs text-blue-700 space-y-1">
-                          <p>Lifetime credits earned: {fullUserProfile?.credits?.lifetime || 0}</p>
-                          <p>Credits from referrals: {fullUserProfile?.credits?.referralCredits || 0}</p>
-                          <p>People referred: {fullUserProfile?.referralCount || 0}</p>
+                          <p>Lifetime credits earned: {String(fullUserProfile?.credits?.lifetime || 0)}</p>
+                          <p>Credits from referrals: {String(fullUserProfile?.credits?.referralCredits || 0)}</p>
+                          <p>People referred: {String(fullUserProfile?.referralCount || 0)}</p>
                         </div>
                         {fullUserProfile?.subscription?.plan === 'free' && (
                           <button
