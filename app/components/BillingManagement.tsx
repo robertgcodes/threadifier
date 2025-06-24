@@ -235,7 +235,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             You have unlimited access to the basic tier.
           </p>
-          {!!userProfile?.credits?.premiumCredits && userProfile.credits.premiumCredits > 0 ? (
+          {userProfile?.credits?.premiumCredits && userProfile.credits.premiumCredits > 0 ? (
             <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4 mb-4">
               <p className="text-blue-900 dark:text-blue-100 font-medium">✨ You have {String(userProfile.credits.premiumCredits)} premium trial credits remaining!</p>
               <p className="text-blue-700 dark:text-blue-300 text-sm mt-1">These give you access to Claude Sonnet AI with no referral message.</p>
@@ -403,8 +403,8 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Expires</span>
                     <span className="font-medium text-gray-900 dark:text-gray-100">
-                      {billingDetails.customer.invoice_settings.default_payment_method.card.exp_month}/
-                      {billingDetails.customer.invoice_settings.default_payment_method.card.exp_year}
+                      {String(billingDetails.customer.invoice_settings.default_payment_method.card.exp_month)}/
+                      {String(billingDetails.customer.invoice_settings.default_payment_method.card.exp_year)}
                     </span>
                   </div>
                 </>
