@@ -5,7 +5,11 @@ import { signInWithEmail, signUpWithEmail } from '../lib/auth';
 import { Twitter, Loader2, Sparkles, FileText, Image as ImageIcon, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function LoginScreen() {
+interface LoginScreenProps {
+  onBack?: () => void;
+}
+
+export default function LoginScreen({ onBack }: LoginScreenProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -63,6 +67,19 @@ export default function LoginScreen() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
       <div className="max-w-md w-full space-y-8">
+        {/* Back Button */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="text-gray-600 hover:text-gray-900 flex items-center space-x-2 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>Back to Homepage</span>
+          </button>
+        )}
+        
         {/* Logo and Header */}
         <div className="text-center">
           <div className="mx-auto h-20 w-20 rounded-full bg-blue-600 flex items-center justify-center mb-4">

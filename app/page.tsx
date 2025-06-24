@@ -44,6 +44,7 @@ import BillingManagement from './components/BillingManagement';
 import CreditCounter from './components/CreditCounter';
 import FreeTierNotice from './components/FreeTierNotice';
 import InstagramCarouselPreview from './components/InstagramCarouselPreview';
+import Homepage from './components/Homepage';
 import { Tab } from '@headlessui/react';
 import { PageSuggestion, PostImageSuggestion } from './types';
 import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread, getUserProfile, getUserMonthlyUsage, checkCredits, useCredits, UserProfile, updateUserProfile } from './lib/database';
@@ -219,9 +220,18 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
 function Page() {
   const { user } = useAuth();
   
-  // Show login screen if user is not authenticated
+  const [showAuth, setShowAuth] = useState(false);
+  
+  // Show homepage if user is not authenticated
   if (!user) {
-    return <LoginScreen />;
+    if (showAuth) {
+      return <LoginScreen onBack={() => setShowAuth(false)} />;
+    }
+    
+    return <Homepage 
+      onLogin={() => setShowAuth(true)}
+      onSignup={() => setShowAuth(true)}
+    />;
   }
 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
