@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { firestore } from '../../lib/firebase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
         // Update user profile with subscription info and add credits
         const userRef = doc(firestore, 'users', userId);
-        const userDoc = await firestore.collection('users').doc(userId).get();
+        const userDoc = await getDoc(userRef);
         const currentCredits = userDoc.data()?.credits?.available || 0;
         
         await updateDoc(userRef, {
