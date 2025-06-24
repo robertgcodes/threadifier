@@ -41,6 +41,7 @@ import LoginScreen from './components/LoginScreen';
 import AdminPanel from './components/AdminPanel';
 import PricingTable from './components/PricingTable';
 import SubscriptionRecovery from './components/SubscriptionRecovery';
+import BillingManagement from './components/BillingManagement';
 import { Tab } from '@headlessui/react';
 import { PageSuggestion, PostImageSuggestion } from './types';
 import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread, getUserProfile, getUserMonthlyUsage, checkCredits, useCredits, UserProfile, updateUserProfile } from './lib/database';
@@ -1450,11 +1451,15 @@ function Page() {
         
         {/* Credits Display */}
         <div className="flex items-center gap-3">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-1">
+          <button
+            onClick={() => setCurrentView('billing')}
+            className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-1 hover:bg-blue-100 transition-colors cursor-pointer"
+            title="Manage billing"
+          >
             <span className="text-sm font-medium text-blue-900">
               {fullUserProfile?.credits?.available || 0} credits
             </span>
-          </div>
+          </button>
           
           {/* User Profile */}
           <button 
@@ -2434,23 +2439,70 @@ function Page() {
     </main>
   );
 
-  const renderBillingView = () => (
-    <main className="p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Billing & Plans</h1>
-          <button
-            onClick={() => setCurrentView('main')}
-            className="btn-secondary"
-          >
-            Back to Home
-          </button>
+  const renderBillingView = () => {
+    const [billingTab, setBillingTab] = useState<'manage' | 'plans'>('manage');
+    const isSubscribed = fullUserProfile?.subscription?.plan && fullUserProfile.subscription.plan !== 'free';
+
+    return (
+      <main className="p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Billing & Plans</h1>
+            <button
+              onClick={() => setCurrentView('main')}
+              className="btn-secondary"
+            >
+              Back to Home
+            </button>
+          </div>
+          
+          {/* Show tabs for subscribed users */}
+          {isSubscribed && (
+            <div className="border-b border-gray-200 mb-8">
+              <nav className="-mb-px flex space-x-8">
+                <button
+                  onClick={() => setBillingTab('manage')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    billingTab === 'manage'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Manage Subscription
+                </button>
+                <button
+                  onClick={() => setBillingTab('plans')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    billingTab === 'plans'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  View All Plans
+                </button>
+              </nav>
+            </div>
+          )}
+          
+          {/* Show appropriate content based on subscription status and selected tab */}
+          {isSubscribed && billingTab === 'manage' ? (
+            <BillingManagement 
+              userProfile={fullUserProfile} 
+              onUpdateProfile={async () => {
+                // Refresh user profile after subscription changes
+                if (user?.uid) {
+                  const updatedProfile = await getUserProfile(user.uid);
+                  setFullUserProfile(updatedProfile);
+                }
+              }}
+            />
+          ) : (
+            <PricingTable currentPlan={fullUserProfile?.subscription?.plan || 'free'} />
+          )}
         </div>
-        
-        <PricingTable currentPlan={fullUserProfile?.subscription?.plan || 'free'} />
-      </div>
-    </main>
-  );
+      </main>
+    );
+  };
 
   const renderProfileView = () => {
     const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
