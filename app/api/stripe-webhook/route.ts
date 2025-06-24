@@ -38,9 +38,8 @@ export async function POST(req: NextRequest) {
         }
 
         // Get the subscription
-        const subscription = await stripe.subscriptions.retrieve(
-          session.subscription as string
-        );
+        const subscriptionId = session.subscription as string;
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any;
 
         // Determine the plan based on the price
         let plan: 'professional' | 'team' = 'professional';
@@ -77,7 +76,7 @@ export async function POST(req: NextRequest) {
             cancelAtPeriodEnd: subscription.cancel_at_period_end,
           },
           'credits.available': currentCredits + initialCredits,
-          'credits.lifetime': (userDoc.data()?.credits?.lifetime || 0) + initialCredits,
+          'credits.lifetime': ((userDoc.data() as any)?.credits?.lifetime || 0) + initialCredits,
           'credits.lastRefreshDate': serverTimestamp(),
           'settings.autoAppendReferral': false, // Disable auto-append for paid users
           updatedAt: serverTimestamp(),
