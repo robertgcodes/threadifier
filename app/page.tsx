@@ -2136,7 +2136,7 @@ function Page() {
                               </button>
                             </div>
                              <div className="absolute bottom-0 w-full bg-black/50 text-white text-xs text-center py-0.5">
-                                Page {index + 1}
+                                Page {String(index + 1)}
                               </div>
                           </div>
                         ))}
@@ -4015,7 +4015,7 @@ function Page() {
                             <span>Jun 22, 2025</span>
                             <span>·</span>
                             <span className="font-bold text-gray-700">
-                              {(Math.floor(Math.random() * 50) + 10)}K Views
+                              {String(Math.floor(Math.random() * 50) + 10)}K Views
                             </span>
                           </div>
                         )}
@@ -4026,21 +4026,21 @@ function Page() {
                             <div className={`p-2 rounded-full group-hover:${xPreviewMode === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'}`}>
                               <MessageCircle className="w-5 h-5" />
                             </div>
-                            <span className="text-[13px]">{Math.floor(Math.random() * 50) + 12}</span>
+                            <span className="text-[13px]">{String(Math.floor(Math.random() * 50) + 12)}</span>
                           </button>
                           
                           <button className="flex items-center space-x-2 text-gray-500 hover:text-green-400 transition-colors group">
                             <div className={`p-2 rounded-full group-hover:${xPreviewMode === 'dark' ? 'bg-green-900/20' : 'bg-green-100'}`}>
                               <Repeat2 className="w-5 h-5" />
                             </div>
-                            <span className="text-[13px]">{Math.floor(Math.random() * 30) + 5}</span>
+                            <span className="text-[13px]">{String(Math.floor(Math.random() * 30) + 5)}</span>
                           </button>
                           
                           <button className="flex items-center space-x-2 text-gray-500 hover:text-red-400 transition-colors group">
                             <div className={`p-2 rounded-full group-hover:${xPreviewMode === 'dark' ? 'bg-red-900/20' : 'bg-red-100'}`}>
                               <Heart className="w-5 h-5" />
                             </div>
-                            <span className="text-[13px]">{Math.floor(Math.random() * 200) + 45}</span>
+                            <span className="text-[13px]">{String(Math.floor(Math.random() * 200) + 45)}</span>
                           </button>
                           
                           <button className="text-gray-500 hover:text-blue-400 transition-colors group">

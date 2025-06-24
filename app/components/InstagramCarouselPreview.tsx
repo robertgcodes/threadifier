@@ -393,7 +393,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
           className="w-full btn-primary flex items-center justify-center gap-2"
         >
           <Download className="w-4 h-4" />
-          Download All {posts.length} Carousel Images
+          Download All {String(posts.length)} Carousel Images
         </button>
       </div>
     </div>
