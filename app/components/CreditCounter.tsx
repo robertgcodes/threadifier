@@ -95,7 +95,7 @@ export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = 
 
       {/* Floating notification when credit is used */}
       <AnimatePresence>
-        {showPulse && !hasUnlimitedBasic && (
+        {showPulse && !hasUnlimitedBasic ? (
           <motion.div
             initial={{ y: 0, opacity: 1 }}
             animate={{ y: -30, opacity: 0 }}
@@ -107,11 +107,11 @@ export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = 
               -1 {usingPremium ? 'premium' : 'basic'}
             </div>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
 
       {/* Tooltip on hover when collapsed */}
-      {!isExpanded && (
+      {!isExpanded ? (
         <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 opacity-0 hover:opacity-100 pointer-events-none transition-opacity">
           <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
             {hasUnlimitedBasic ? (
@@ -121,7 +121,7 @@ export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = 
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1528,14 +1528,14 @@ function Page() {
         
         {/* Credits Display */}
         <div className="flex items-center gap-3">
-          {fullUserProfile && (
+          {fullUserProfile ? (
             <CreditCounter
               premiumCredits={fullUserProfile?.credits?.premiumCredits ? Number(fullUserProfile.credits.premiumCredits) : 0}
               hasUnlimitedBasic={!fullUserProfile?.credits?.premiumCredits || fullUserProfile.credits.premiumCredits === 0}
               onCreditUsed={creditJustUsed}
               usingPremium={!!fullUserProfile?.credits?.premiumCredits && fullUserProfile.credits.premiumCredits > 0}
             />
-          )}
+          ) : null}
           
           {/* Dark Mode Toggle */}
           <button
@@ -4110,7 +4110,7 @@ function Page() {
       </header>
       
       {/* Low Credits Banner */}
-      {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.available <= 5 && fullUserProfile.credits.available > 0 && (
+      {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.available <= 5 && fullUserProfile.credits.available > 0 ? (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-4 py-3">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
@@ -4132,10 +4132,10 @@ function Page() {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
       
       {/* Out of Credits Banner */}
-      {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.available === 0 && (
+      {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.available === 0 ? (
         <div className="bg-red-50 border-b border-red-200 px-4 py-3">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
@@ -4165,10 +4165,10 @@ function Page() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
       
       {/* Progress Bar */}
-      {isProcessing && (
+      {isProcessing ? (
         <div className="h-1 bg-gray-200 relative overflow-hidden">
           <div className="h-full bg-blue-500 absolute top-0 left-0 animate-pulse" 
                style={{
@@ -4177,14 +4177,14 @@ function Page() {
                }}>
           </div>
         </div>
-      )}
+      ) : null}
       
       {/* Conditional rendering based on currentView */}
-      {currentView === 'main' && renderMainView()}
-      {currentView === 'myThreads' && renderMyThreadsView()}
-      {currentView === 'customPrompts' && renderCustomPromptsView()}
-      {currentView === 'templates' && renderTemplatesView()}
-      {currentView === 'billing' && renderBillingView()}
+      {currentView === 'main' ? renderMainView() : null}
+      {currentView === 'myThreads' ? renderMyThreadsView() : null}
+      {currentView === 'customPrompts' ? renderCustomPromptsView() : null}
+      {currentView === 'templates' ? renderTemplatesView() : null}
+      {currentView === 'billing' ? renderBillingView() : null}
       {currentView === 'profile' && renderProfileView()}
 
 
