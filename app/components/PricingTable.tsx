@@ -47,7 +47,7 @@ const pricingTiers: PricingTier[] = [
     id: 'professional',
     name: 'Professional',
     price: 29,
-    priceYearly: 290, // 2 months free
+    priceYearly: 290,
     description: 'For legal professionals and content creators',
     features: [
       '500 premium credits per month',
@@ -68,7 +68,7 @@ const pricingTiers: PricingTier[] = [
     id: 'team',
     name: 'Team',
     price: 79,
-    priceYearly: 790, // 2 months free
+    priceYearly: 790,
     description: 'For law firms and content teams',
     features: [
       '2000 premium credits per month',
@@ -166,7 +166,7 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
             }`}
           >
             Yearly
-            <span className="ml-1 text-green-600 text-xs font-semibold">Save {String(17)}%</span>
+            <span className="ml-1 text-green-600 text-xs font-semibold">Save 17%</span>
           </button>
         </div>
       </div>
@@ -196,12 +196,12 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
               
               <div className="mt-6">
                 <span className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-                  {tier.price === 0 ? 'Free' : `$${isYearly ? Math.floor(tier.priceYearly / 12) : tier.price}`}
+                  {tier.price === 0 ? 'Free' : `$${String(isYearly ? Math.floor(tier.priceYearly / 12) : tier.price)}`}
                 </span>
                 {tier.price > 0 ? <span className="text-gray-600 dark:text-gray-400">/month</span> : null}
                 {isYearly && tier.priceYearly > 0 ? (
                   <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                    Billed ${tier.priceYearly} yearly
+                    Billed ${String(tier.priceYearly)} yearly
                   </p>
                 ) : null}
               </div>
