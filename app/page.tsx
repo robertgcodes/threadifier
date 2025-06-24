@@ -1458,12 +1458,10 @@ function Page() {
         
         {/* Credits Display */}
         <div className="flex items-center gap-3">
-          <div onClick={() => setCurrentView('billing')} className="cursor-pointer">
-            <CreditCounter
-              credits={fullUserProfile?.credits?.available || 0}
-              onCreditUsed={creditJustUsed}
-            />
-          </div>
+          <CreditCounter
+            credits={fullUserProfile?.credits?.available || 0}
+            onCreditUsed={creditJustUsed}
+          />
           
           {/* User Profile */}
           <button 

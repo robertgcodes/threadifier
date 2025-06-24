@@ -569,11 +569,6 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
                 <AlertCircle className="w-4 h-4 mr-1" />
                 Email: support@threadifier.com
               </a>
-              {userProfile.subscription?.plan === 'team' && (
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Phone:</span> 1-800-THREADS (Priority Support)
-                </p>
-              )}
             </div>
           </div>
         </div>

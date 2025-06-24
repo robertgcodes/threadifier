@@ -64,7 +64,15 @@ export async function POST(req: NextRequest) {
         // Update user profile with subscription info and add credits
         const userRef = doc(firestore, 'users', userId);
         const userDoc = await getDoc(userRef);
-        const currentCredits = userDoc.data()?.credits?.available || 0;
+        const userData = userDoc.data();
+        const currentCredits = userData?.credits?.available || 0;
+        
+        // Check if this subscription has already been processed
+        if (userData?.subscription?.stripeSubscriptionId === subscription.id && 
+            userData?.subscription?.status === 'active') {
+          console.log(`Subscription ${subscription.id} already processed for user ${userId}`);
+          break;
+        }
         
         await updateDoc(userRef, {
           subscription: {
@@ -76,7 +84,7 @@ export async function POST(req: NextRequest) {
             cancelAtPeriodEnd: subscription.cancel_at_period_end,
           },
           'credits.available': currentCredits + initialCredits,
-          'credits.lifetime': ((userDoc.data() as any)?.credits?.lifetime || 0) + initialCredits,
+          'credits.lifetime': ((userData as any)?.credits?.lifetime || 0) + initialCredits,
           'credits.lastRefreshDate': serverTimestamp(),
           'settings.autoAppendReferral': false, // Disable auto-append for paid users
           updatedAt: serverTimestamp(),

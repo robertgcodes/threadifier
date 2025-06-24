@@ -100,12 +100,12 @@ export default function BillingSuccessPage() {
   const features = isProfessional ? [
     { icon: Sparkles, title: "500 Monthly Credits", description: "Generate up to 500 threads every month" },
     { icon: Zap, title: "No Referral Message", description: "Your threads are clean and professional" },
-    { icon: Shield, title: "Priority Support", description: "Get help faster with priority email support" },
+    { icon: Shield, title: "One-Click X Posting", description: "Post directly to X without copy/paste" },
     { icon: HeadphonesIcon, title: "Custom AI Instructions", description: "Personalize AI to match your style" },
   ] : [
     { icon: Sparkles, title: "2000 Monthly Credits", description: "Generate up to 2000 threads every month" },
     { icon: Zap, title: "Team Collaboration", description: "Work with up to 3 team members" },
-    { icon: Shield, title: "Phone Support", description: "Direct phone line for immediate help" },
+    { icon: Shield, title: "Priority Email Support", description: "Get faster responses from our team" },
     { icon: HeadphonesIcon, title: "Analytics Dashboard", description: "Track your team's performance" },
   ];
 
@@ -195,7 +195,6 @@ export default function BillingSuccessPage() {
             <a href="mailto:support@threadifier.com" className="text-blue-600 hover:underline">
               support@threadifier.com
             </a>
-            {isTeam && ' or call us at 1-800-THREADS'}
           </p>
         </div>
       </div>
