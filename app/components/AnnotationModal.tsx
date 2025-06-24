@@ -1880,7 +1880,7 @@ export default function AnnotationModal({
                     </div>
                     <div className="space-y-2">
                       {imageQualityWarnings.map((warning, index) => (
-                        <div key={index} className="text-xs text-gray-700 p-2 bg-gray-50 rounded-md">
+                        <div key={`annotation-${index}`} className="text-xs text-gray-700 p-2 bg-gray-50 rounded-md">
                           {warning}
                         </div>
                       ))}

@@ -1792,7 +1792,7 @@ function Page() {
                 <div className="space-y-1">
                   {aiReasoningLogs.map((log, index) => (
                     <div 
-                      key={index} 
+                      key={`log-${index}`} 
                       className="text-gray-700 leading-relaxed border-l-2 border-blue-400 pl-2 py-1"
                     >
                       {log}
@@ -2796,7 +2796,7 @@ function Page() {
                         </p>
                         <div className="space-y-2">
                           {(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted']).map((status, index) => (
-                            <div key={index} className="flex gap-2">
+                            <div key={`status-${index}`} className="flex gap-2">
                               <input
                                 type="text"
                                 value={status}
