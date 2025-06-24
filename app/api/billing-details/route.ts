@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     // Fetch upcoming invoice
     let upcomingInvoice = null;
     try {
-      const upcoming = await stripe.invoices.retrieveUpcoming({
+      const upcoming = await stripe.invoices.upcoming({
         customer: customerId,
       });
       upcomingInvoice = {
