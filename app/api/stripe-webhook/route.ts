@@ -4,7 +4,7 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore } from '../../lib/firebase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia',
+  apiVersion: '2025-05-28.basil',
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
