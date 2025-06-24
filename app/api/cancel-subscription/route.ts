@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
       success: true,
       subscription: {
         id: subscription.id,
-        cancel_at_period_end: subscription.cancel_at_period_end,
-        current_period_end: subscription.current_period_end,
+        cancel_at_period_end: (subscription as any).cancel_at_period_end,
+        current_period_end: (subscription as any).current_period_end,
       },
     });
   } catch (error) {
