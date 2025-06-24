@@ -63,7 +63,7 @@ export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = 
                 </>
               ) : (
                 <>
-                  <span className={`text-sm font-medium ${textColor}`}>{premiumCredits}</span>
+                  <span className={`text-sm font-medium ${textColor}`}>{String(premiumCredits || 0)}</span>
                   <span className={`text-xs ${subTextColor}`}>premium</span>
                 </>
               )}
@@ -117,7 +117,7 @@ export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = 
             {hasUnlimitedBasic ? (
               <>Unlimited basic tier (AI: Claude Haiku)</>
             ) : (
-              <>{premiumCredits} premium credits (AI: Claude Sonnet)</>
+              <>{String(premiumCredits || 0)} premium credits (AI: Claude Sonnet)</>
             )}
           </div>
         </div>
