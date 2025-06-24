@@ -101,7 +101,7 @@ const SortableThreadRow: React.FC<SortableThreadRowProps> = ({ post, ...props })
     setNodeRef,
     transform,
     transition,
-  } = useSortable({id: post.id});
+  } = useSortable({id: post.id.toString()});
 
   const style = {
     transform: CSS.Transform.toString(transform),
