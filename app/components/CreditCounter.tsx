@@ -2,15 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ChevronDown } from 'lucide-react';
+import { Sparkles, ChevronDown, Infinity } from 'lucide-react';
 
 interface CreditCounterProps {
   credits: number;
+  premiumCredits?: number;
+  freeCredits?: number;
   onCreditUsed?: boolean;
   className?: string;
+  usingPremium?: boolean;
 }
 
-export default function CreditCounter({ credits, onCreditUsed = false, className = '' }: CreditCounterProps) {
+export default function CreditCounter({ credits, premiumCredits = 0, freeCredits = 0, onCreditUsed = false, className = '', usingPremium = false }: CreditCounterProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showPulse, setShowPulse] = useState(false);
 
@@ -24,15 +27,26 @@ export default function CreditCounter({ credits, onCreditUsed = false, className
     }
   }, [onCreditUsed]);
 
+  const hasUnlimitedBasic = premiumCredits === 0;
+  const bgColor = premiumCredits > 0 ? 'bg-blue-50 hover:bg-blue-100' : 'bg-gray-50 hover:bg-gray-100';
+  const iconColor = premiumCredits > 0 ? 'text-blue-600' : 'text-gray-600';
+  const textColor = premiumCredits > 0 ? 'text-blue-900' : 'text-gray-900';
+  const subTextColor = premiumCredits > 0 ? 'text-blue-700' : 'text-gray-700';
+  const pulseColor = usingPremium ? 'bg-blue-400' : 'bg-gray-400';
+
   return (
     <div className={`relative ${className}`}>
       <motion.button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="relative bg-blue-50 hover:bg-blue-100 rounded-full px-3 py-1.5 flex items-center gap-2 transition-all duration-200 ease-out"
+        className={`relative ${bgColor} rounded-full px-3 py-1.5 flex items-center gap-2 transition-all duration-200 ease-out ${showPulse && usingPremium ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}`}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
-        <Sparkles className="w-4 h-4 text-blue-600" />
+        {hasUnlimitedBasic ? (
+          <Infinity className={`w-4 h-4 ${iconColor}`} />
+        ) : (
+          <Sparkles className={`w-4 h-4 ${iconColor}`} />
+        )}
         
         <AnimatePresence mode="wait">
           {isExpanded ? (
@@ -44,9 +58,18 @@ export default function CreditCounter({ credits, onCreditUsed = false, className
               transition={{ duration: 0.2 }}
               className="flex items-center gap-1"
             >
-              <span className="text-sm font-medium text-blue-900">{credits}</span>
-              <span className="text-xs text-blue-700">credits</span>
-              <ChevronDown className="w-3 h-3 text-blue-600 rotate-180" />
+              {hasUnlimitedBasic ? (
+                <>
+                  <span className={`text-sm font-medium ${textColor}`}>Unlimited</span>
+                  <span className={`text-xs ${subTextColor}`}>basic</span>
+                </>
+              ) : (
+                <>
+                  <span className={`text-sm font-medium ${textColor}`}>{premiumCredits}</span>
+                  <span className={`text-xs ${subTextColor}`}>premium</span>
+                </>
+              )}
+              <ChevronDown className={`w-3 h-3 ${iconColor} rotate-180`} />
             </motion.div>
           ) : (
             <motion.div
@@ -56,7 +79,7 @@ export default function CreditCounter({ credits, onCreditUsed = false, className
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <ChevronDown className="w-3 h-3 text-blue-600" />
+              <ChevronDown className={`w-3 h-3 ${iconColor}`} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -64,7 +87,7 @@ export default function CreditCounter({ credits, onCreditUsed = false, className
         {/* Pulse animation when credit is used */}
         {showPulse && (
           <motion.div
-            className="absolute inset-0 rounded-full bg-blue-400"
+            className={`absolute inset-0 rounded-full ${pulseColor}`}
             initial={{ scale: 1, opacity: 0.5 }}
             animate={{ scale: 1.5, opacity: 0 }}
             transition={{ duration: 0.6 }}
@@ -74,7 +97,7 @@ export default function CreditCounter({ credits, onCreditUsed = false, className
 
       {/* Floating notification when credit is used */}
       <AnimatePresence>
-        {showPulse && (
+        {showPulse && !hasUnlimitedBasic && (
           <motion.div
             initial={{ y: 0, opacity: 1 }}
             animate={{ y: -30, opacity: 0 }}
@@ -82,8 +105,8 @@ export default function CreditCounter({ credits, onCreditUsed = false, className
             transition={{ duration: 1.5 }}
             className="absolute top-0 left-1/2 transform -translate-x-1/2 pointer-events-none"
           >
-            <div className="bg-blue-600 text-white text-xs rounded-full px-2 py-1 whitespace-nowrap">
-              -1 credit
+            <div className={`${usingPremium ? 'bg-blue-600' : 'bg-gray-600'} text-white text-xs rounded-full px-2 py-1 whitespace-nowrap`}>
+              -1 {usingPremium ? 'premium' : 'basic'}
             </div>
           </motion.div>
         )}
@@ -93,7 +116,11 @@ export default function CreditCounter({ credits, onCreditUsed = false, className
       {!isExpanded && (
         <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 opacity-0 hover:opacity-100 pointer-events-none transition-opacity">
           <div className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
-            {credits} credits remaining
+            {hasUnlimitedBasic ? (
+              <>Unlimited basic tier (AI: Claude Haiku)</>
+            ) : (
+              <>{premiumCredits} premium credits (AI: Claude Sonnet)</>
+            )}
           </div>
         </div>
       )}

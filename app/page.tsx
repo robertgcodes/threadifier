@@ -43,6 +43,7 @@ import PricingTable from './components/PricingTable';
 import SubscriptionRecovery from './components/SubscriptionRecovery';
 import BillingManagement from './components/BillingManagement';
 import CreditCounter from './components/CreditCounter';
+import FreeTierNotice from './components/FreeTierNotice';
 import { Tab } from '@headlessui/react';
 import { PageSuggestion, PostImageSuggestion } from './types';
 import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread, getUserProfile, getUserMonthlyUsage, checkCredits, useCredits, UserProfile, updateUserProfile } from './lib/database';
@@ -610,7 +611,8 @@ function Page() {
           threadPosts,
           pageTexts,
           customInstructions,
-          globalAIInstructions: userProfile.globalAIInstructions
+          globalAIInstructions: userProfile.globalAIInstructions,
+          userId: user?.uid // Pass user ID for model selection
         }),
       });
 
@@ -655,14 +657,18 @@ function Page() {
       return;
     }
     
-    // Check if user has credits
+    // Check user's credit status
     if (user) {
-      const availableCredits = await checkCredits(user.uid);
-      if (availableCredits <= 0) {
-        toast.error("You're out of credits! Share your referral link to earn more.");
-        return;
+      const creditInfo = await checkCredits(user.uid);
+      
+      // Log credit status
+      if (creditInfo.premium > 0) {
+        addReasoningLog(`💳 You have ${creditInfo.premium} premium credits available`);
+        addReasoningLog(`🚀 Using Claude Sonnet (best AI model)`);
+      } else {
+        addReasoningLog(`♾️ You have unlimited basic tier access`);
+        addReasoningLog(`🤖 Using Claude Haiku (basic AI model)`);
       }
-      addReasoningLog(`💳 You have ${availableCredits} credits available`);
     }
     
     // Clear previous logs and start fresh
@@ -688,7 +694,8 @@ function Page() {
           useEmojis,
           useHashtags,
           useNumbering,
-          globalAIInstructions: userProfile.globalAIInstructions
+          globalAIInstructions: userProfile.globalAIInstructions,
+          userId: user?.uid // Pass user ID for model selection
         }),
       });
 
@@ -735,8 +742,12 @@ function Page() {
       
       let threadPosts = posts.thread;
       
-      // Check if we should append referral message for free users
-      if (user && fullUserProfile?.subscription?.plan === 'free' && fullUserProfile?.settings?.autoAppendReferral) {
+      // Check if we should append referral message
+      // Only append if user is on basic tier (no premium credits)
+      const hasPremiumCredits = (fullUserProfile?.credits?.premiumCredits || 0) > 0;
+      const shouldAppendReferral = user && !hasPremiumCredits && fullUserProfile?.settings?.autoAppendReferral;
+      
+      if (shouldAppendReferral) {
         const referralLink = `https://threadifier.com?ref=${fullUserProfile.referralCode}`;
         const referralMessage = fullUserProfile.settings?.referralMessage || 
           `\n\n---\n✨ I made this thread using @Threadifier - turn your docs into viral threads! Get 100 free credits: ${referralLink}`;
@@ -744,7 +755,7 @@ function Page() {
         // Append to last post
         if (threadPosts.length > 0) {
           threadPosts[threadPosts.length - 1] += referralMessage;
-          addReasoningLog("🔗 Added referral message to thread");
+          addReasoningLog("🔗 Added referral message to thread (basic tier)");
         }
       }
       
@@ -763,11 +774,17 @@ function Page() {
         try {
           await incrementThreadUsage(user.uid);
           
-          // Deduct credits
-          const creditUsed = await useCredits(user.uid, 1);
-          if (creditUsed) {
-            const remainingCredits = (fullUserProfile?.credits?.available || 0) - 1;
-            addReasoningLog(`💳 1 credit used. ${remainingCredits} credits remaining`);
+          // Use credits (will deduct premium if available, otherwise use unlimited basic)
+          const creditResult = await useCredits(user.uid, 1);
+          if (creditResult.success) {
+            const premiumCredits = fullUserProfile?.credits?.premiumCredits || 0;
+            
+            if (creditResult.creditType === 'premium') {
+              const newPremiumCredits = Math.max(0, premiumCredits - 1);
+              addReasoningLog(`💳 1 premium credit used. ${newPremiumCredits} premium credits remaining`);
+            } else {
+              addReasoningLog(`🆓 Generated with unlimited basic tier`);
+            }
             
             // Trigger credit animation
             setCreditJustUsed(true);
@@ -775,11 +792,15 @@ function Page() {
             
             // Update local state
             if (fullUserProfile) {
+              const newPremiumCredits = creditResult.creditType === 'premium' ? 
+                Math.max(0, premiumCredits - 1) : premiumCredits;
+              
               setFullUserProfile({
                 ...fullUserProfile,
                 credits: {
                   ...fullUserProfile.credits!,
-                  available: remainingCredits,
+                  available: newPremiumCredits,
+                  premiumCredits: newPremiumCredits,
                   used: (fullUserProfile.credits?.used || 0) + 1,
                 }
               });
@@ -1331,6 +1352,15 @@ function Page() {
       return;
     }
 
+    // Check if user has premium credits for X posting
+    const hasPremiumCredits = (fullUserProfile?.credits?.premiumCredits || 0) > 0;
+    const isPaidPlan = fullUserProfile?.subscription?.plan !== 'free';
+    
+    if (!hasPremiumCredits && !isPaidPlan) {
+      toast.error('Direct X posting requires premium credits. Earn credits by referring friends!');
+      return;
+    }
+
     setIsPostingToX(true);
     addReasoningLog('🐦 Starting to post thread to X...');
 
@@ -1460,7 +1490,10 @@ function Page() {
         <div className="flex items-center gap-3">
           <CreditCounter
             credits={fullUserProfile?.credits?.available || 0}
+            premiumCredits={fullUserProfile?.credits?.premiumCredits || 0}
+            freeCredits={0}
             onCreditUsed={creditJustUsed}
+            usingPremium={(fullUserProfile?.credits?.premiumCredits || 0) > 0}
           />
           
           {/* User Profile */}
@@ -1879,6 +1912,14 @@ function Page() {
                  </div>
               </Tab.Panel>
               <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+                 {/* Show notice for basic tier users without premium credits */}
+                 {user && (fullUserProfile?.credits?.premiumCredits || 0) === 0 && (
+                   <FreeTierNotice 
+                     referralCode={fullUserProfile?.referralCode}
+                     hasTrialCredits={false}
+                   />
+                 )}
+                 
                  <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}

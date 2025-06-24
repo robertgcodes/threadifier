@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { CreditCard, Calendar, Download, AlertCircle, Check, Loader2, RefreshCw, X } from 'lucide-react';
+import { CreditCard, Calendar, Download, AlertCircle, Check, Loader2, RefreshCw, X, Infinity } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
 import toast from 'react-hot-toast';
 import { UserProfile } from '../lib/database';
@@ -232,9 +232,23 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Subscription</h3>
-          <p className="text-gray-600 mb-6">
-            You're currently on the free plan. Upgrade to access premium features and more credits.
+          <p className="text-gray-600 mb-4">
+            You have unlimited access to the basic tier.
           </p>
+          {userProfile?.credits?.premiumCredits && userProfile.credits.premiumCredits > 0 ? (
+            <div className="bg-blue-50 rounded-lg p-4 mb-4">
+              <p className="text-blue-900 font-medium">✨ You have {userProfile.credits.premiumCredits} premium trial credits remaining!</p>
+              <p className="text-blue-700 text-sm mt-1">These give you access to Claude Sonnet AI with no referral message.</p>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Infinity className="w-5 h-5 text-blue-600" />
+                <p className="text-blue-900 font-medium">Unlimited Basic Tier Active</p>
+              </div>
+              <p className="text-blue-700 text-sm">Generate unlimited threads with Claude Haiku AI. Upgrade for Claude Sonnet!</p>
+            </div>
+          )}
           <button
             onClick={() => window.location.href = '/?view=billing'}
             className="btn-primary"
@@ -253,16 +267,22 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
         <h2 className="text-xl font-semibold text-gray-900 mb-6">Current Usage</h2>
         <div className="grid md:grid-cols-3 gap-6">
           <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">
-              {userProfile.credits?.available || 0}
+            <div className="text-3xl font-bold text-purple-600">
+              {userProfile.credits?.premiumCredits || 0}
             </div>
-            <p className="text-sm text-gray-600 mt-1">Credits Available</p>
+            <p className="text-sm text-gray-600 mt-1">Premium Credits</p>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-gray-900">
-              {userProfile.credits?.used || 0}
+            <div className="text-3xl font-bold text-blue-600 flex items-center justify-center gap-2">
+              {(userProfile.credits?.premiumCredits || 0) === 0 ? (
+                <>
+                  <Infinity className="w-8 h-8" />
+                </>
+              ) : (
+                <span>Basic</span>
+              )}
             </div>
-            <p className="text-sm text-gray-600 mt-1">Credits Used</p>
+            <p className="text-sm text-gray-600 mt-1">Basic Tier Access</p>
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold text-green-600">
@@ -332,9 +352,15 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
                 {getStatusBadge(userProfile.subscription.status)}
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">Credits</span>
-                <span className="font-medium text-gray-900">
-                  {userProfile.credits?.available || 0} available
+                <span className="text-gray-600">Premium Credits</span>
+                <span className="font-medium text-purple-600">
+                  {userProfile.credits?.premiumCredits || 0}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Basic Tier</span>
+                <span className="font-medium text-blue-600">
+                  {(userProfile.credits?.premiumCredits || 0) === 0 ? 'Unlimited' : 'Available'}
                 </span>
               </div>
               {billingDetails?.subscription && (

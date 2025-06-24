@@ -43,18 +43,20 @@ export async function POST(req: NextRequest) {
     }
 
     const userData = userDoc.data();
-    const currentCredits = userData.credits?.available || 0;
-    let newCredits = currentCredits;
+    const currentPremiumCredits = userData.credits?.premiumCredits || 0;
+    
+    let newPremiumCredits = currentPremiumCredits;
 
+    // Apply the action to premium credits
     switch (action) {
       case 'add':
-        newCredits = currentCredits + amount;
+        newPremiumCredits = currentPremiumCredits + amount;
         break;
       case 'subtract':
-        newCredits = Math.max(0, currentCredits - amount);
+        newPremiumCredits = Math.max(0, currentPremiumCredits - amount);
         break;
       case 'set':
-        newCredits = Math.max(0, amount);
+        newPremiumCredits = Math.max(0, amount);
         break;
       default:
         return NextResponse.json(
@@ -65,7 +67,8 @@ export async function POST(req: NextRequest) {
 
     // Update user credits
     await updateDoc(userRef, {
-      'credits.available': newCredits,
+      'credits.available': newPremiumCredits, // Keep for backward compatibility
+      'credits.premiumCredits': newPremiumCredits,
       'credits.lifetime': action === 'add' 
         ? (userData.credits?.lifetime || 0) + amount 
         : userData.credits?.lifetime || 0,
@@ -73,12 +76,18 @@ export async function POST(req: NextRequest) {
     });
 
     // Log admin action (you might want to create a separate collection for this)
-    console.log(`Admin action by ${adminEmail}: ${action} ${amount} credits for user ${userId}. Reason: ${reason || 'No reason provided'}`);
+    console.log(`Admin action by ${adminEmail}: ${action} ${amount} premium credits for user ${userId}. Reason: ${reason || 'No reason provided'}`);
 
     return NextResponse.json({
       success: true,
-      previousCredits: currentCredits,
-      newCredits: newCredits,
+      previousCredits: {
+        premium: currentPremiumCredits,
+        hasUnlimitedBasic: currentPremiumCredits === 0,
+      },
+      newCredits: {
+        premium: newPremiumCredits,
+        hasUnlimitedBasic: newPremiumCredits === 0,
+      },
       action: action,
       amount: amount,
       adminEmail: adminEmail,

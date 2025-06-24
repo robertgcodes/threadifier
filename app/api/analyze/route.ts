@@ -51,6 +51,8 @@ export async function POST(req: Request) {
     }
 
     // Check user subscription and limits
+    let usingPremiumModel = true; // Default to premium
+    
     if (userId) {
       const userProfile = await getUserProfile(userId);
       const subscription = userProfile?.subscription || { plan: 'free', status: 'active' };
@@ -62,6 +64,11 @@ export async function POST(req: Request) {
           code: 'SUBSCRIPTION_INACTIVE' 
         }, { status: 403 });
       }
+      
+      // Determine if user should use premium model
+      const hasPremiumCredits = (userProfile?.credits?.premiumCredits || 0) > 0;
+      const isPaidPlan = subscription.plan !== 'free';
+      usingPremiumModel = isPaidPlan || hasPremiumCredits;
       
       // Check usage limits
       const documentStats = {
@@ -134,8 +141,11 @@ export async function POST(req: Request) {
     // Handle thread generation
     let threadResponse = null;
     if (!suggestPages && !suggestPostImages) {
+      // Use different models based on credit type
+      const model = usingPremiumModel ? 'claude-3-5-sonnet-20241022' : 'claude-3-haiku-20240307';
+      
       const msg = await anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
+        model,
         max_tokens: 2048,
         system: systemPrompt,
         messages: [
@@ -230,7 +240,7 @@ export async function POST(req: Request) {
       });
 
       const suggestionMsg = await anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
+        model: usingPremiumModel ? 'claude-3-5-sonnet-20241022' : 'claude-3-haiku-20240307',
         max_tokens: 3000,
         system: suggestionPrompt,
         messages: [
@@ -357,7 +367,7 @@ export async function POST(req: Request) {
       });
 
       const postImageMsg = await anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
+        model: usingPremiumModel ? 'claude-3-5-sonnet-20241022' : 'claude-3-haiku-20240307',
         max_tokens: 4000,
         system: postImagePrompt,
         messages: [

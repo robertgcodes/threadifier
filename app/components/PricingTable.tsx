@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, X, Infinity } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -24,22 +24,23 @@ interface PricingTier {
 const pricingTiers: PricingTier[] = [
   {
     id: 'free',
-    name: 'Starter',
+    name: 'Basic',
     price: 0,
     priceYearly: 0,
-    description: 'Perfect for trying out Threadifier',
+    description: 'Generate unlimited threads with basic AI',
     features: [
-      '100 free credits on signup',
-      'Earn 100 credits per referral',
-      'Basic thread generation',
+      'Unlimited thread generation',
+      'Claude Haiku AI (basic model)',
+      'Direct X posting capability',
       'Save unlimited threads',
-      'Standard support',
-      'Auto-append referral message',
+      'Image editing & annotations',
+      'Custom AI instructions',
+      '100 premium trial credits on signup',
+      'Earn 100 premium credits per referral',
     ],
     limitations: [
-      'Limited to earned credits',
-      'Referral message required',
-      'No priority support',
+      'Auto-appended referral message',
+      'Basic AI model (less creative)',
     ],
   },
   {
@@ -49,13 +50,12 @@ const pricingTiers: PricingTier[] = [
     priceYearly: 290, // 2 months free
     description: 'For legal professionals and content creators',
     features: [
-      '500 credits per month',
+      '500 premium credits per month',
+      'Claude Sonnet AI (best model)',
+      'No referral message',
       'Rollover up to 1000 credits',
-      'No referral message required',
-      'Custom AI instructions',
-      'Direct X posting',
-      'Image editing & annotations',
-      'AI image suggestions',
+      'Everything in Basic tier',
+      'AI-powered image suggestions',
       'Custom thread statuses',
       'Priority email support',
     ],
@@ -71,7 +71,8 @@ const pricingTiers: PricingTier[] = [
     priceYearly: 790, // 2 months free
     description: 'For law firms and content teams',
     features: [
-      '2000 credits per month',
+      '2000 premium credits per month',
+      'Claude Sonnet AI (best model)',
       'Rollover up to 5000 credits',
       'Everything in Professional',
       '3 team members',
@@ -258,23 +259,54 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
       </div>
 
       {/* Credits Explanation */}
-      <div className="mt-12 max-w-3xl mx-auto bg-blue-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">What are credits?</h3>
-        <p className="text-gray-700 mb-3">
-          1 credit = 1 thread generation. Credits are deducted when you generate a thread from your document.
+      <div className="mt-12 max-w-3xl mx-auto bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">How Credits Work</h3>
+        
+        <div className="grid md:grid-cols-2 gap-4 mb-4">
+          <div className="bg-white rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Infinity className="w-5 h-5 text-blue-600" />
+              <h4 className="font-semibold text-gray-900">Basic Tier (Unlimited)</h4>
+            </div>
+            <ul className="space-y-1 text-sm text-gray-600">
+              <li>• Claude Haiku AI model</li>
+              <li>• Auto-appended referral link</li>
+              <li>• Full X posting capability</li>
+              <li>• All core features included</li>
+            </ul>
+          </div>
+          
+          <div className="bg-white rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Check className="w-5 h-5 text-green-500" />
+              <h4 className="font-semibold text-gray-900">Premium Credits</h4>
+            </div>
+            <ul className="space-y-1 text-sm text-gray-600">
+              <li>• Claude Sonnet AI (best model)</li>
+              <li>• No referral message</li>
+              <li>• 100 trial credits for new users</li>
+              <li>• Earn 100 per referral</li>
+            </ul>
+          </div>
+        </div>
+        
+        <p className="text-sm text-gray-700 mb-3">
+          <strong>New users get 100 premium trial credits</strong> to experience the full power of Claude Sonnet AI.
+          After that, you have unlimited access to the basic tier!
         </p>
+        
         <ul className="space-y-2 text-sm text-gray-600">
           <li className="flex items-start">
             <Check className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-            <span>Free users start with 100 credits and earn 100 more for each referral</span>
+            <span>Refer friends to earn 100 premium credits per signup</span>
           </li>
           <li className="flex items-start">
             <Check className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-            <span>Paid plans receive monthly credits that can rollover (up to plan limits)</span>
+            <span>Premium credits from paid plans can rollover each month</span>
           </li>
           <li className="flex items-start">
             <Check className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-            <span>Image editing, saving threads, and viewing threads do NOT use credits</span>
+            <span>Image editing, saving, and viewing threads are always free</span>
           </li>
         </ul>
       </div>

@@ -14,6 +14,7 @@ export default function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
   const [userId, setUserId] = useState('');
   const [action, setAction] = useState<'add' | 'subtract' | 'set'>('add');
   const [amount, setAmount] = useState(100);
+  // Only premium credits now - no free credits
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -60,8 +61,8 @@ export default function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
       }
 
       toast.success(
-        `Successfully ${action === 'add' ? 'added' : action === 'subtract' ? 'removed' : 'set'} ${amount} credits. 
-        User now has ${data.newCredits} credits.`
+        `Successfully ${action === 'add' ? 'added' : action === 'subtract' ? 'removed' : 'set'} ${amount} premium credits. 
+        User now has ${data.newCredits.premium} premium credits. ${data.newCredits.hasUnlimitedBasic ? '(Unlimited basic tier active)' : ''}`
       );
 
       // Reset form
@@ -135,6 +136,13 @@ export default function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
                 Set
               </button>
             </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-900">
+              <strong>Credit System:</strong> Users have unlimited basic tier access when premium credits = 0.
+              Premium credits enable Claude Sonnet AI without referral messages.
+            </p>
           </div>
 
           <div>

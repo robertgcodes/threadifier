@@ -40,11 +40,14 @@ export interface UserProfile {
   
   // Credit system
   credits?: {
-    available: number; // Current credits available
+    available: number; // Current credits available (deprecated - use premiumCredits)
     lifetime: number; // Total credits ever received
     used: number; // Total credits used
     referralCredits: number; // Credits earned from referrals
     lastRefreshDate?: Timestamp; // Last time monthly credits were added
+    // New credit types
+    premiumCredits: number; // Premium credits (from trial, purchase, or subscription)
+    trialUsed: boolean; // Whether the 100 trial credits have been used
   };
   
   // Settings
@@ -170,12 +173,14 @@ export const createUserProfile = async (user: any, referralCode?: string): Promi
         referredBy: referralCode || null,
         referralCount: 0,
         
-        // Credit system - 100 free credits on signup
+        // Credit system - 100 premium trial credits on signup
         credits: {
-          available: 100,
+          available: 100, // Keep for backward compatibility
           lifetime: 100,
           used: 0,
           referralCredits: 0,
+          premiumCredits: 100, // 100 premium trial credits
+          trialUsed: false,
         },
         
         // Settings
@@ -481,60 +486,88 @@ export const creditReferrer = async (referralCode: string): Promise<void> => {
       const referrerId = referrerDoc.id;
       
       // Add 100 credits to referrer
+      const referrerData = referrerDoc.data();
+      const referrerHasTrialCredits = (referrerData.credits?.premiumCredits || 0) > 0 || referrerData.subscription?.plan !== 'free';
+      
+      // Always give premium credits for referrals
       await updateDoc(doc(firestore, 'users', referrerId), {
-        'credits.available': referrerDoc.data().credits?.available + 100 || 100,
-        'credits.lifetime': referrerDoc.data().credits?.lifetime + 100 || 100,
-        'credits.referralCredits': referrerDoc.data().credits?.referralCredits + 100 || 100,
-        'referralCount': (referrerDoc.data().referralCount || 0) + 1,
+        'credits.available': (referrerData.credits?.available || 0) + 100,
+        'credits.premiumCredits': (referrerData.credits?.premiumCredits || 0) + 100,
+        'credits.lifetime': (referrerData.credits?.lifetime || 0) + 100,
+        'credits.referralCredits': (referrerData.credits?.referralCredits || 0) + 100,
+        'referralCount': (referrerData.referralCount || 0) + 1,
         updatedAt: serverTimestamp(),
       });
       
-      console.log(`Credited 100 threads to referrer: ${referrerId}`);
+      console.log(`Credited 100 premium threads to referrer: ${referrerId}`);
     }
   } catch (error) {
     console.error('Error crediting referrer:', error);
   }
 };
 
-export const useCredits = async (userId: string, amount: number = 1): Promise<boolean> => {
+export const useCredits = async (userId: string, amount: number = 1): Promise<{ success: boolean; creditType: 'premium' | 'basic' }> => {
   const userRef = doc(firestore, 'users', userId);
   const userDoc = await getDoc(userRef);
   
-  if (!userDoc.exists()) return false;
+  if (!userDoc.exists()) return { success: false, creditType: 'basic' };
   
   const userData = userDoc.data() as UserProfile;
-  const currentCredits = userData.credits?.available || 0;
+  const premiumCredits = userData.credits?.premiumCredits || 0;
   
-  if (currentCredits < amount) {
-    return false; // Not enough credits
+  // Determine credit type based on premium credits availability
+  let creditType: 'premium' | 'basic' = premiumCredits > 0 ? 'premium' : 'basic';
+  let newPremiumCredits = premiumCredits;
+  
+  if (creditType === 'premium') {
+    // Deduct from premium credits
+    newPremiumCredits = Math.max(0, premiumCredits - amount);
   }
+  // For basic tier, we don't deduct anything - it's unlimited
   
-  // Deduct credits
+  // Check if trial credits are depleted
+  const trialUsed = userData.credits?.trialUsed || false;
+  const shouldMarkTrialUsed = !trialUsed && userData.subscription?.plan === 'free' && newPremiumCredits < 100;
+  
+  // Update credits
   await updateDoc(userRef, {
-    'credits.available': currentCredits - amount,
+    'credits.available': newPremiumCredits, // Keep for backward compatibility
+    'credits.premiumCredits': newPremiumCredits,
     'credits.used': (userData.credits?.used || 0) + amount,
+    'credits.trialUsed': shouldMarkTrialUsed || trialUsed,
     updatedAt: serverTimestamp(),
   });
   
-  return true;
+  return { success: true, creditType };
 };
 
-export const checkCredits = async (userId: string): Promise<number> => {
+export const checkCredits = async (userId: string): Promise<{ hasUnlimitedBasic: boolean; premium: number; trialUsed: boolean }> => {
   const userDoc = await getUserProfile(userId);
-  return userDoc?.credits?.available || 0;
+  const premiumCredits = userDoc?.credits?.premiumCredits || 0;
+  const trialUsed = userDoc?.credits?.trialUsed || false;
+  
+  return {
+    hasUnlimitedBasic: premiumCredits === 0, // When no premium credits, user has unlimited basic
+    premium: premiumCredits,
+    trialUsed
+  };
 };
 
-export const addCredits = async (userId: string, amount: number, source: 'purchase' | 'referral' | 'bonus' = 'bonus'): Promise<void> => {
+export const addCredits = async (userId: string, amount: number, source: 'purchase' | 'referral' | 'bonus' | 'subscription' = 'bonus'): Promise<void> => {
   const userRef = doc(firestore, 'users', userId);
   const userDoc = await getDoc(userRef);
   
   if (userDoc.exists()) {
     const userData = userDoc.data() as UserProfile;
+    
     const updates: any = {
       'credits.available': (userData.credits?.available || 0) + amount,
       'credits.lifetime': (userData.credits?.lifetime || 0) + amount,
       updatedAt: serverTimestamp(),
     };
+    
+    // Always add as premium credits regardless of source
+    updates['credits.premiumCredits'] = (userData.credits?.premiumCredits || 0) + amount;
     
     if (source === 'referral') {
       updates['credits.referralCredits'] = (userData.credits?.referralCredits || 0) + amount;
@@ -597,14 +630,15 @@ export const refreshMonthlyCredits = async (userId: string): Promise<void> => {
       break;
   }
   
-  const currentCredits = userData.credits?.available || 0;
-  const newCredits = Math.min(currentCredits + monthlyCredits, maxRollover);
+  const currentPremiumCredits = userData.credits?.premiumCredits || 0;
+  const newPremiumCredits = Math.min(currentPremiumCredits + monthlyCredits, maxRollover);
   
   await updateDoc(userRef, {
-    'credits.available': newCredits,
+    'credits.available': newPremiumCredits, // Keep for backward compatibility
+    'credits.premiumCredits': newPremiumCredits,
     'credits.lastRefreshDate': serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
   
-  console.log(`Refreshed credits for user ${userId}: ${currentCredits} -> ${newCredits}`);
+  console.log(`Refreshed premium credits for user ${userId}: ${currentPremiumCredits} -> ${newPremiumCredits}`);
 };
