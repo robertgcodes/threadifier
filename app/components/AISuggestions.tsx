@@ -23,17 +23,17 @@ export default function AISuggestions({
 
   const getConfidenceColor = (confidence: string) => {
     switch (confidence) {
-      case 'high': return 'text-green-600 bg-green-50';
-      case 'medium': return 'text-yellow-600 bg-yellow-50';
-      case 'low': return 'text-orange-600 bg-orange-50';
-      default: return 'text-gray-600 bg-gray-50';
+      case 'high': return 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/20';
+      case 'medium': return 'text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/20';
+      case 'low': return 'text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-900/20';
+      default: return 'text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-800';
     }
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    return 'text-orange-600';
+    if (score >= 80) return 'text-green-600 dark:text-green-400';
+    if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-orange-600 dark:text-orange-400';
   };
 
   if (isLoading) {
@@ -41,8 +41,8 @@ export default function AISuggestions({
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         <div className="text-center">
-          <h3 className="text-lg font-medium text-gray-900">Analyzing Pages...</h3>
-          <p className="text-sm text-gray-500 mt-1">AI is reviewing your document to find the best pages for your thread</p>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Analyzing Pages...</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">AI is reviewing your document to find the best pages for your thread</p>
         </div>
       </div>
     );
@@ -51,9 +51,9 @@ export default function AISuggestions({
   if (!suggestions || suggestions.length === 0) {
     return (
       <div className="text-center py-12">
-        <Sparkles className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">No suggestions yet</h3>
-        <p className="mt-1 text-sm text-gray-500">
+        <Sparkles className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No suggestions yet</h3>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Upload a document and generate suggestions to see AI-recommended pages
         </p>
       </div>
@@ -63,12 +63,12 @@ export default function AISuggestions({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
         <div className="flex items-start space-x-3">
-          <Sparkles className="h-5 w-5 text-blue-500 mt-0.5" />
+          <Sparkles className="h-5 w-5 text-blue-500 dark:text-blue-400 mt-0.5" />
           <div>
-            <h3 className="text-sm font-medium text-blue-900">AI Suggestions</h3>
-            <p className="text-sm text-blue-700 mt-1">
+            <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100">AI Suggestions</h3>
+            <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
               {customInstructions 
                 ? `Based on your focus: "${customInstructions}"`
                 : "AI-recommended pages for your thread"
@@ -85,7 +85,7 @@ export default function AISuggestions({
           .map((suggestion, index) => (
             <div
               key={suggestion.pageNumber}
-              className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md dark:hover:shadow-gray-900/30 transition-shadow"
             >
               {/* Main Content */}
               <div className="p-4">
@@ -93,7 +93,7 @@ export default function AISuggestions({
                   <div className="flex-1">
                     {/* Page Number & Score */}
                     <div className="flex items-center space-x-3 mb-2">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
                         Page {suggestion.pageNumber}
                       </span>
                       <span className={`text-sm font-medium ${getScoreColor(suggestion.relevanceScore)}`}>
@@ -105,18 +105,18 @@ export default function AISuggestions({
                     </div>
 
                     {/* Suggested Post */}
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
                       {suggestion.suggestedPost}
                     </h4>
 
                     {/* Key Quotes Preview */}
                     {suggestion.keyQuotes && suggestion.keyQuotes.length > 0 && (
                       <div className="mb-3">
-                        <p className="text-xs text-gray-500 mb-1">Key quotes:</p>
-                        <p className="text-sm text-gray-700 italic">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Key quotes:</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 italic">
                           "{suggestion.keyQuotes[0]}"
                           {suggestion.keyQuotes.length > 1 && (
-                            <span className="text-gray-400"> + {suggestion.keyQuotes.length - 1} more</span>
+                            <span className="text-gray-400 dark:text-gray-500"> + {suggestion.keyQuotes.length - 1} more</span>
                           )}
                         </p>
                       </div>
@@ -197,7 +197,7 @@ export default function AISuggestions({
       </div>
 
       {/* Footer */}
-      <div className="text-center text-xs text-gray-500 border-t pt-4">
+      <div className="text-center text-xs text-gray-500 dark:text-gray-400 border-t dark:border-gray-700 pt-4">
         Found {suggestions.length} relevant page{suggestions.length !== 1 ? 's' : ''} for your thread
       </div>
     </div>

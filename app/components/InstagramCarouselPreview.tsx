@@ -294,7 +294,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
                   onClick={prevSlide}
                   className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
                 >
-                  <ChevronLeft className="w-5 h-5 text-gray-900" />
+                  <ChevronLeft className="w-5 h-5 text-gray-900 dark:text-gray-100" />
                 </button>
               )}
               {currentSlide < posts.length - 1 && (
@@ -302,7 +302,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
                   onClick={nextSlide}
                   className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
                 >
-                  <ChevronRight className="w-5 h-5 text-gray-900" />
+                  <ChevronRight className="w-5 h-5 text-gray-900 dark:text-gray-100" />
                 </button>
               )}
             </>
@@ -374,7 +374,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
       <div className="max-w-[470px] mx-auto space-y-4">
         <div className="bg-gray-50 rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-900">Full Thread Text</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Full Thread Text</h3>
             <button
               onClick={handleCopyText}
               className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
