@@ -2632,7 +2632,7 @@ function Page() {
                 
                 <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                   <div className="flex items-center gap-4">
-                    <span>{thread.posts.length} posts</span>
+                    <span>{String(thread.posts.length)} posts</span>
                     <span>{thread.createdAt?.toDate ? thread.createdAt.toDate().toLocaleDateString() : 'Unknown date'}</span>
                   </div>
                   {thread.originalPdfName && (
@@ -3638,8 +3638,8 @@ function Page() {
         <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           <div className="flex items-center gap-4">
             <span>Created: {prompt.createdAt?.toDate ? prompt.createdAt.toDate().toLocaleDateString() : 'Unknown'}</span>
-            <span>Posts: {prompt.settings.numPosts}</span>
-            <span>Chars: {prompt.settings.charLimit}</span>
+            <span>Posts: {String(prompt.settings.numPosts)}</span>
+            <span>Chars: {String(prompt.settings.charLimit)}</span>
           </div>
         </div>
         
@@ -4070,7 +4070,7 @@ function Page() {
         <div className="bg-gray-50 rounded-lg p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-gray-900">{posts.length}</div>
+              <div className="text-2xl font-bold text-gray-900">{String(posts.length)}</div>
               <div className="text-sm text-gray-600">Tweets</div>
             </div>
             <div>
