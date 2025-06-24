@@ -236,6 +236,21 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
       data.referralCode = newReferralCode;
     }
     
+    // Initialize credits for existing users if missing
+    if (!data.credits?.premiumCredits && data.credits?.premiumCredits !== 0) {
+      const existingCredits = data.credits?.available || 0;
+      await updateDoc(userRef, {
+        'credits.premiumCredits': existingCredits,
+        'credits.trialUsed': existingCredits < 100,
+        updatedAt: serverTimestamp()
+      });
+      data.credits = {
+        ...data.credits!,
+        premiumCredits: existingCredits,
+        trialUsed: existingCredits < 100
+      };
+    }
+    
     return data;
   }
   return null;
