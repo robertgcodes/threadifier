@@ -2881,9 +2881,9 @@ function Page() {
                 }
               }}
             />
-          ) : (
+          ) : billingTab === 'plans' || !isSubscribed ? (
             <PricingTable currentPlan={fullUserProfile?.subscription?.plan || 'free'} />
-          )}
+          ) : null}
         </div>
       </main>
     );

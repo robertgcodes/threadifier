@@ -520,6 +520,37 @@ Tips:
         addCallToAction: true,
         threadStyle: 'analytical'
       }
+    },
+    {
+      name: "🏴‍☠️ Make Me a Pirate!",
+      instructions: `Ahoy matey! Transform any landlubber's document into a swashbucklin' thread that'd make Blackbeard himself proud! Ye'll be speakin' like a true pirate of the high seas, arr!
+
+Structure:
+- Post 1: "Ahoy me hearties! Gather 'round fer a tale..." (introduce the topic)
+- Posts 2-3: The meat of yer message, but with pirate flair
+- Posts 4-5: More details, peppered with "arr", "matey", "savvy?"
+- Post 6: A twist or revelation worthy of the seven seas
+- Final post: "Fair winds and followin' seas!" (call to action)
+
+Example: "Avast ye scurvy dogs! I've discovered treasure in these here documents... 🏴‍☠️⚓ 🧵"
+
+Pirate speak tips:
+- Replace "you" with "ye"
+- Replace "your" with "yer"
+- Add "arr", "ahoy", "avast" liberally
+- Use "me" instead of "my" ("me ship", "me crew")
+- End sentences with "savvy?" or "arr!"
+- Mention treasure, ships, rum, and the high seas
+- Call people "matey", "landlubber", or "scallywag"`,
+      settings: {
+        charLimit: 280,
+        numPosts: 7,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: false,
+        addCallToAction: true,
+        threadStyle: 'conversational'
+      }
     }
   ];
 
