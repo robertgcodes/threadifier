@@ -120,7 +120,7 @@ export default function AISuggestions({
                           )}
                         </p>
                       </div>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* Action Buttons */}
