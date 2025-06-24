@@ -166,7 +166,7 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
             }`}
           >
             Yearly
-            <span className="ml-1 text-green-600 text-xs font-semibold">Save 17%</span>
+            <span className="ml-1 text-green-600 text-xs font-semibold">Save {String(17)}%</span>
           </button>
         </div>
       </div>

@@ -4185,10 +4185,10 @@ function Page() {
       {currentView === 'customPrompts' ? renderCustomPromptsView() : null}
       {currentView === 'templates' ? renderTemplatesView() : null}
       {currentView === 'billing' ? renderBillingView() : null}
-      {currentView === 'profile' && renderProfileView()}
+      {currentView === 'profile' ? renderProfileView() : null}
 
 
-      {isImagePickerOpen && (
+      {isImagePickerOpen ? (
         <ImagePickerModal
           isOpen={isImagePickerOpen}
           onClose={handleCloseImagePicker}
@@ -4196,9 +4196,9 @@ function Page() {
           pageImages={pageImages}
           markedUpImages={markedUpImages}
         />
-      )}
+      ) : null}
 
-      {isAnnotationModalOpen && (
+      {isAnnotationModalOpen ? (
           <AnnotationModal
             isOpen={isAnnotationModalOpen}
             onClose={closeMagnify}
@@ -4209,7 +4209,7 @@ function Page() {
             editingMarkedUpImage={editingMarkedUpImage}
             userProfile={userProfile}
           />
-      )}
+      ) : null}
 
       <NewPromptModal />
 
