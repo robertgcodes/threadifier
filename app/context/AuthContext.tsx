@@ -23,7 +23,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Create user profile in Firestore if user just signed in
       if (user) {
         try {
-          await createUserProfile(user);
+          // Check for referral code in URL
+          const urlParams = new URLSearchParams(window.location.search);
+          const referralCode = urlParams.get('ref');
+          
+          await createUserProfile(user, referralCode || undefined);
+          
+          // Clear referral code from URL after processing
+          if (referralCode) {
+            urlParams.delete('ref');
+            const newUrl = window.location.pathname + 
+              (urlParams.toString() ? '?' + urlParams.toString() : '');
+            window.history.replaceState({}, '', newUrl);
+          }
         } catch (error) {
           console.error('Error creating user profile:', error);
         }

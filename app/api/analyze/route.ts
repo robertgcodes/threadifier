@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
+import { getUserProfile, getUserMonthlyUsage } from '../../lib/database';
+import { checkUsageLimits, estimateApiCost, USAGE_LIMITS } from '../../lib/usage-limits';
 
 // Initialize the Anthropic client with the API key from environment variables
 const anthropic = new Anthropic({
@@ -21,6 +23,7 @@ export async function POST(req: Request) {
       pageTexts = [],
       suggestPostImages = false,
       threadPosts = [],
+      userId, // Pass from frontend
     } = await req.json();
 
     console.log('API Request received:', {
@@ -45,6 +48,40 @@ export async function POST(req: Request) {
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json({ error: 'Anthropic API key not configured' }, { status: 500 });
+    }
+
+    // Check user subscription and limits
+    if (userId) {
+      const userProfile = await getUserProfile(userId);
+      const subscription = userProfile?.subscription || { plan: 'free', status: 'active' };
+      
+      // Check if subscription is active
+      if (subscription.status !== 'active' && subscription.status !== 'trialing') {
+        return NextResponse.json({ 
+          error: 'Your subscription is not active. Please update your billing.', 
+          code: 'SUBSCRIPTION_INACTIVE' 
+        }, { status: 403 });
+      }
+      
+      // Check usage limits
+      const documentStats = {
+        pages: pageTexts.length || 1,
+        characters: text?.length || pageTexts.join('').length || 0,
+        requestedPosts: numPosts,
+      };
+      
+      const limitCheck = await checkUsageLimits(userId, subscription.plan, documentStats);
+      
+      if (!limitCheck.allowed) {
+        return NextResponse.json({ 
+          error: limitCheck.reason,
+          code: 'USAGE_LIMIT_EXCEEDED',
+          estimatedCost: limitCheck.estimatedCost,
+        }, { status: 403 });
+      }
+      
+      // Log estimated cost for monitoring
+      console.log(`User ${userId} - Estimated API cost: $${limitCheck.estimatedCost?.toFixed(4)}`);
     }
 
     // Build dynamic system prompt

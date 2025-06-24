@@ -23,15 +23,42 @@ export interface UserProfile {
   photoURL?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  subscription?: {
-    plan: 'free' | 'pro' | 'enterprise';
-    status: 'active' | 'cancelled' | 'past_due';
-    currentPeriodEnd?: Timestamp;
+  
+  // Referral system
+  referralCode?: string; // Unique code for this user
+  referredBy?: string; // Who referred them
+  referralCount?: number; // How many people they've referred
+  
+  // Credit system
+  credits?: {
+    available: number; // Current credits available
+    lifetime: number; // Total credits ever received
+    used: number; // Total credits used
+    referralCredits: number; // Credits earned from referrals
+    lastRefreshDate?: Timestamp; // Last time monthly credits were added
   };
+  
+  // Settings
+  settings?: {
+    autoAppendReferral: boolean; // Auto-append referral message
+    referralMessage?: string; // Custom referral message
+  };
+  
+  subscription?: {
+    plan: 'free' | 'professional' | 'team' | 'enterprise';
+    status: 'active' | 'cancelled' | 'past_due' | 'trialing';
+    currentPeriodEnd?: Timestamp;
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    cancelAtPeriodEnd?: boolean;
+  };
+  
   usage?: {
     threadsGenerated: number;
     monthlyThreads: number;
     lastResetDate: Timestamp;
+    totalApiCost?: number;
+    monthlyApiCost?: number;
   };
 }
 
@@ -84,10 +111,19 @@ export interface CustomPrompt {
   updatedAt: Timestamp;
 }
 
+// Generate a unique referral code
+const generateReferralCode = (uid: string): string => {
+  // Take first 4 chars of uid and add random suffix
+  const prefix = uid.substring(0, 4).toUpperCase();
+  const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `${prefix}-${suffix}`;
+};
+
 // User Profile Operations
-export const createUserProfile = async (user: any): Promise<void> => {
+export const createUserProfile = async (user: any, referralCode?: string): Promise<void> => {
   console.log("=== CREATE USER PROFILE START ===");
   console.log("Creating profile for user:", user.uid);
+  console.log("Referral code:", referralCode);
   
   try {
     const userRef = doc(firestore, 'users', user.uid);
@@ -99,6 +135,10 @@ export const createUserProfile = async (user: any): Promise<void> => {
     
     if (!userDoc.exists()) {
       console.log("Creating new user document...");
+      
+      // Generate unique referral code for this user
+      const userReferralCode = generateReferralCode(user.uid);
+      
       const userData = {
         uid: user.uid,
         email: user.email,
@@ -106,10 +146,30 @@ export const createUserProfile = async (user: any): Promise<void> => {
         photoURL: user.photoURL,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        
+        // Referral system
+        referralCode: userReferralCode,
+        referredBy: referralCode || null,
+        referralCount: 0,
+        
+        // Credit system - 100 free credits on signup
+        credits: {
+          available: 100,
+          lifetime: 100,
+          used: 0,
+          referralCredits: 0,
+        },
+        
+        // Settings
+        settings: {
+          autoAppendReferral: true, // Default on for free users
+        },
+        
         subscription: {
           plan: 'free',
           status: 'active'
         },
+        
         usage: {
           threadsGenerated: 0,
           monthlyThreads: 0,
@@ -120,6 +180,11 @@ export const createUserProfile = async (user: any): Promise<void> => {
       
       await setDoc(userRef, userData);
       console.log("User profile created successfully");
+      
+      // If referred by someone, credit the referrer
+      if (referralCode) {
+        await creditReferrer(referralCode);
+      }
     } else {
       console.log("User profile already exists, skipping creation");
     }
@@ -136,7 +201,19 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
   const userDoc = await getDoc(userRef);
   
   if (userDoc.exists()) {
-    return userDoc.data() as UserProfile;
+    const data = userDoc.data() as UserProfile;
+    
+    // Generate referral code if missing (for existing users)
+    if (!data.referralCode) {
+      const newReferralCode = generateReferralCode(uid);
+      await updateDoc(userRef, {
+        referralCode: newReferralCode,
+        updatedAt: serverTimestamp()
+      });
+      data.referralCode = newReferralCode;
+    }
+    
+    return data;
   }
   return null;
 };
@@ -291,16 +368,29 @@ export const deleteCustomPrompt = async (promptId: string): Promise<void> => {
 };
 
 // Usage tracking
-export const incrementThreadUsage = async (userId: string): Promise<void> => {
+export const incrementThreadUsage = async (
+  userId: string, 
+  apiCost: number = 0
+): Promise<void> => {
   const userRef = doc(firestore, 'users', userId);
   const userDoc = await getDoc(userRef);
   
   if (userDoc.exists()) {
     const userData = userDoc.data() as UserProfile;
+    
+    // Check if we need to reset monthly counters
+    const lastReset = userData.usage?.lastResetDate?.toDate();
+    const now = new Date();
+    const shouldReset = !lastReset || 
+      (lastReset.getMonth() !== now.getMonth() || 
+       lastReset.getFullYear() !== now.getFullYear());
+    
     const newUsage = {
       threadsGenerated: (userData.usage?.threadsGenerated || 0) + 1,
-      monthlyThreads: (userData.usage?.monthlyThreads || 0) + 1,
-      lastResetDate: userData.usage?.lastResetDate || serverTimestamp()
+      monthlyThreads: shouldReset ? 1 : (userData.usage?.monthlyThreads || 0) + 1,
+      lastResetDate: shouldReset ? serverTimestamp() : userData.usage?.lastResetDate,
+      totalApiCost: (userData.usage?.totalApiCost || 0) + apiCost,
+      monthlyApiCost: shouldReset ? apiCost : (userData.usage?.monthlyApiCost || 0) + apiCost,
     };
     
     await updateDoc(userRef, {
@@ -308,4 +398,183 @@ export const incrementThreadUsage = async (userId: string): Promise<void> => {
       updatedAt: serverTimestamp()
     });
   }
+};
+
+// Get user's current usage for the month
+export const getUserMonthlyUsage = async (userId: string): Promise<{
+  threadsUsed: number;
+  apiCostUsed: number;
+}> => {
+  const userRef = doc(firestore, 'users', userId);
+  const userDoc = await getDoc(userRef);
+  
+  if (userDoc.exists()) {
+    const userData = userDoc.data() as UserProfile;
+    
+    // Check if we need to reset monthly counters
+    const lastReset = userData.usage?.lastResetDate?.toDate();
+    const now = new Date();
+    const shouldReset = !lastReset || 
+      (lastReset.getMonth() !== now.getMonth() || 
+       lastReset.getFullYear() !== now.getFullYear());
+    
+    if (shouldReset) {
+      // Reset monthly counters
+      await updateDoc(userRef, {
+        'usage.monthlyThreads': 0,
+        'usage.monthlyApiCost': 0,
+        'usage.lastResetDate': serverTimestamp(),
+      });
+      
+      return { threadsUsed: 0, apiCostUsed: 0 };
+    }
+    
+    return {
+      threadsUsed: userData.usage?.monthlyThreads || 0,
+      apiCostUsed: userData.usage?.monthlyApiCost || 0,
+    };
+  }
+  
+  return { threadsUsed: 0, apiCostUsed: 0 };
+};
+
+// Credit system functions
+export const creditReferrer = async (referralCode: string): Promise<void> => {
+  try {
+    // Find user with this referral code
+    const usersRef = collection(firestore, 'users');
+    const q = query(usersRef, where('referralCode', '==', referralCode));
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      const referrerDoc = querySnapshot.docs[0];
+      const referrerId = referrerDoc.id;
+      
+      // Add 100 credits to referrer
+      await updateDoc(doc(firestore, 'users', referrerId), {
+        'credits.available': referrerDoc.data().credits?.available + 100 || 100,
+        'credits.lifetime': referrerDoc.data().credits?.lifetime + 100 || 100,
+        'credits.referralCredits': referrerDoc.data().credits?.referralCredits + 100 || 100,
+        'referralCount': (referrerDoc.data().referralCount || 0) + 1,
+        updatedAt: serverTimestamp(),
+      });
+      
+      console.log(`Credited 100 threads to referrer: ${referrerId}`);
+    }
+  } catch (error) {
+    console.error('Error crediting referrer:', error);
+  }
+};
+
+export const useCredits = async (userId: string, amount: number = 1): Promise<boolean> => {
+  const userRef = doc(firestore, 'users', userId);
+  const userDoc = await getDoc(userRef);
+  
+  if (!userDoc.exists()) return false;
+  
+  const userData = userDoc.data() as UserProfile;
+  const currentCredits = userData.credits?.available || 0;
+  
+  if (currentCredits < amount) {
+    return false; // Not enough credits
+  }
+  
+  // Deduct credits
+  await updateDoc(userRef, {
+    'credits.available': currentCredits - amount,
+    'credits.used': (userData.credits?.used || 0) + amount,
+    updatedAt: serverTimestamp(),
+  });
+  
+  return true;
+};
+
+export const checkCredits = async (userId: string): Promise<number> => {
+  const userDoc = await getUserProfile(userId);
+  return userDoc?.credits?.available || 0;
+};
+
+export const addCredits = async (userId: string, amount: number, source: 'purchase' | 'referral' | 'bonus' = 'bonus'): Promise<void> => {
+  const userRef = doc(firestore, 'users', userId);
+  const userDoc = await getDoc(userRef);
+  
+  if (userDoc.exists()) {
+    const userData = userDoc.data() as UserProfile;
+    const updates: any = {
+      'credits.available': (userData.credits?.available || 0) + amount,
+      'credits.lifetime': (userData.credits?.lifetime || 0) + amount,
+      updatedAt: serverTimestamp(),
+    };
+    
+    if (source === 'referral') {
+      updates['credits.referralCredits'] = (userData.credits?.referralCredits || 0) + amount;
+    }
+    
+    await updateDoc(userRef, updates);
+  }
+};
+
+// Get user by referral code
+export const getUserByReferralCode = async (referralCode: string): Promise<UserProfile | null> => {
+  const usersRef = collection(firestore, 'users');
+  const q = query(usersRef, where('referralCode', '==', referralCode));
+  const querySnapshot = await getDocs(q);
+  
+  if (!querySnapshot.empty) {
+    return querySnapshot.docs[0].data() as UserProfile;
+  }
+  
+  return null;
+};
+
+// Handle monthly credit refresh for paid plans
+export const refreshMonthlyCredits = async (userId: string): Promise<void> => {
+  const userRef = doc(firestore, 'users', userId);
+  const userDoc = await getDoc(userRef);
+  
+  if (!userDoc.exists()) return;
+  
+  const userData = userDoc.data() as UserProfile;
+  const plan = userData.subscription?.plan;
+  
+  if (!plan || plan === 'free') return;
+  
+  // Check if it's time to refresh (first of the month or subscription renewal)
+  const now = new Date();
+  const lastRefresh = userData.credits?.lastRefreshDate?.toDate();
+  
+  if (lastRefresh && 
+      lastRefresh.getMonth() === now.getMonth() && 
+      lastRefresh.getFullYear() === now.getFullYear()) {
+    return; // Already refreshed this month
+  }
+  
+  let monthlyCredits = 0;
+  let maxRollover = 0;
+  
+  switch (plan) {
+    case 'professional':
+      monthlyCredits = 500;
+      maxRollover = 1000;
+      break;
+    case 'team':
+      monthlyCredits = 2000;
+      maxRollover = 5000;
+      break;
+    case 'enterprise':
+      monthlyCredits = 10000;
+      maxRollover = 20000;
+      break;
+  }
+  
+  const currentCredits = userData.credits?.available || 0;
+  const newCredits = Math.min(currentCredits + monthlyCredits, maxRollover);
+  
+  await updateDoc(userRef, {
+    'credits.available': newCredits,
+    'credits.lastRefreshDate': serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  
+  console.log(`Refreshed credits for user ${userId}: ${currentCredits} -> ${newCredits}`);
 };

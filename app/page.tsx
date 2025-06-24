@@ -38,10 +38,12 @@ import ImagePickerModal from './components/ImagePickerModal';
 import AnnotationModal from './components/AnnotationModal';
 import AISuggestions from './components/AISuggestions';
 import LoginScreen from './components/LoginScreen';
+import AdminPanel from './components/AdminPanel';
 import { Tab } from '@headlessui/react';
 import { PageSuggestion, PostImageSuggestion } from './types';
-import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread } from './lib/database';
+import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread, getUserProfile, getUserMonthlyUsage, checkCredits, useCredits, UserProfile } from './lib/database';
 import { uploadImagesToStorage, uploadMarkedUpImagesToStorage } from './lib/storage';
+import { checkUsageLimits, estimateApiCost, USAGE_LIMITS } from './lib/usage-limits';
 
 export const dynamic = 'force-dynamic';
 
@@ -326,6 +328,13 @@ function Page() {
       customThreadStatuses: ['Draft', 'Needs Review', 'Ready to Post', 'Posted'],
     };
   });
+  
+  // Full user profile from database
+  const [fullUserProfile, setFullUserProfile] = useState<UserProfile | null>(null);
+  
+  // Admin panel
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const isAdmin = user?.email === 'robert@spotlightlawyer.com'; // Add your email here
   
   // X Preview settings
   const [xPreviewMode, setXPreviewMode] = useState<'dark' | 'light'>('dark');
@@ -640,6 +649,16 @@ function Page() {
       return;
     }
     
+    // Check if user has credits
+    if (user) {
+      const availableCredits = await checkCredits(user.uid);
+      if (availableCredits <= 0) {
+        toast.error("You're out of credits! Share your referral link to earn more.");
+        return;
+      }
+      addReasoningLog(`💳 You have ${availableCredits} credits available`);
+    }
+    
     // Clear previous logs and start fresh
     clearReasoningLogs();
     setIsAnalyzing(true);
@@ -708,7 +727,22 @@ function Page() {
 
       addReasoningLog(`✅ Text thread generated successfully with ${posts.thread.length} posts`);
       
-      const newThread = posts.thread.map((postText: string, index: number) => ({
+      let threadPosts = posts.thread;
+      
+      // Check if we should append referral message for free users
+      if (user && fullUserProfile?.subscription?.plan === 'free' && fullUserProfile?.settings?.autoAppendReferral) {
+        const referralLink = `https://threadifier.com?ref=${fullUserProfile.referralCode}`;
+        const referralMessage = fullUserProfile.settings?.referralMessage || 
+          `\n\n---\n✨ I made this thread using @Threadifier - turn your docs into viral threads! Get 100 free credits: ${referralLink}`;
+        
+        // Append to last post
+        if (threadPosts.length > 0) {
+          threadPosts[threadPosts.length - 1] += referralMessage;
+          addReasoningLog("🔗 Added referral message to thread");
+        }
+      }
+      
+      const newThread = threadPosts.map((postText: string, index: number) => ({
         id: index + 1,
         text: postText,
       }));
@@ -716,12 +750,31 @@ function Page() {
       setGeneratedThread(newThread);
       toast.success("Thread analyzed and generated successfully!");
       
-      addReasoningLog("📊 Recording usage analytics...");
+      addReasoningLog("📊 Recording usage and deducting credits...");
       
-      // Track usage
+      // Track usage and deduct credits
       if (user) {
         try {
           await incrementThreadUsage(user.uid);
+          
+          // Deduct credits
+          const creditUsed = await useCredits(user.uid, 1);
+          if (creditUsed) {
+            const remainingCredits = (fullUserProfile?.credits?.available || 0) - 1;
+            addReasoningLog(`💳 1 credit used. ${remainingCredits} credits remaining`);
+            
+            // Update local state
+            if (fullUserProfile) {
+              setFullUserProfile({
+                ...fullUserProfile,
+                credits: {
+                  ...fullUserProfile.credits!,
+                  available: remainingCredits,
+                  used: (fullUserProfile.credits?.used || 0) + 1,
+                }
+              });
+            }
+          }
         } catch (error) {
           console.error("Error tracking usage:", error);
         }
@@ -1135,6 +1188,19 @@ function Page() {
       }
     }
   }, [user]);
+  
+  // Load full user profile from database
+  useEffect(() => {
+    if (user?.uid) {
+      getUserProfile(user.uid).then(profile => {
+        if (profile) {
+          setFullUserProfile(profile);
+        }
+      }).catch(error => {
+        console.error('Error loading user profile:', error);
+      });
+    }
+  }, [user]);
 
   // Check X authentication status on mount
   useEffect(() => {
@@ -1344,25 +1410,34 @@ function Page() {
           </button>
         </nav>
         
-        {/* User Profile */}
-        <button 
-          onClick={() => setCurrentView('profile')}
-          className="flex items-center gap-3 hover:bg-gray-50 rounded-lg p-2 transition-colors"
-        >
-          <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center">
-            {userProfile.avatar ? (
-              <img src={userProfile.avatar} alt="Profile" className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <span className="text-white text-sm font-medium">
-                {userProfile.displayName?.charAt(0)?.toUpperCase() || user.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
-              </span>
-            )}
+        {/* Credits Display */}
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-1">
+            <span className="text-sm font-medium text-blue-900">
+              {fullUserProfile?.credits?.available || 0} credits
+            </span>
           </div>
-          <div className="hidden sm:block text-left">
-            <p className="text-sm font-medium text-gray-900">{userProfile.displayName || user.displayName || user.email}</p>
-            <p className="text-xs text-gray-500">@{userProfile.xHandle}</p>
-          </div>
-        </button>
+          
+          {/* User Profile */}
+          <button 
+            onClick={() => setCurrentView('profile')}
+            className="flex items-center gap-3 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+          >
+            <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center">
+              {userProfile.avatar ? (
+                <img src={userProfile.avatar} alt="Profile" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <span className="text-white text-sm font-medium">
+                  {userProfile.displayName?.charAt(0)?.toUpperCase() || user.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
+                </span>
+              )}
+            </div>
+            <div className="hidden sm:block text-left">
+              <p className="text-sm font-medium text-gray-900">{userProfile.displayName || user.displayName || user.email}</p>
+              <p className="text-xs text-gray-500">@{userProfile.xHandle}</p>
+            </div>
+          </button>
+        </div>
       </div>
     );
   };
@@ -2607,6 +2682,116 @@ function Page() {
                     </div>
                   </div>
 
+                  <div className="border-t pt-6 mt-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Referral System</h3>
+                    
+                    <div className="space-y-4">
+                      {/* Credits Display */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-blue-900">Available Credits</span>
+                          <span className="text-2xl font-bold text-blue-900">
+                            {fullUserProfile?.credits?.available || 0}
+                          </span>
+                        </div>
+                        <div className="text-xs text-blue-700 space-y-1">
+                          <p>Lifetime credits earned: {fullUserProfile?.credits?.lifetime || 0}</p>
+                          <p>Credits from referrals: {fullUserProfile?.credits?.referralCredits || 0}</p>
+                          <p>People referred: {fullUserProfile?.referralCount || 0}</p>
+                        </div>
+                      </div>
+                      
+                      {/* User ID for Support */}
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-600">User ID (for support)</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(user?.uid || '');
+                              toast.success('User ID copied!');
+                            }}
+                            className="text-xs text-blue-600 hover:text-blue-700"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-800 font-mono mt-1">{user?.uid}</p>
+                      </div>
+
+                      {/* Referral Link */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Your Referral Link
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={`https://threadifier.com?ref=${fullUserProfile?.referralCode || 'loading...'}`}
+                            readOnly
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
+                          />
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(`https://threadifier.com?ref=${fullUserProfile?.referralCode}`);
+                              toast.success('Referral link copied!');
+                            }}
+                            className="btn-secondary flex items-center gap-1"
+                          >
+                            <CopyIcon className="w-4 h-4" />
+                            Copy
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Share this link to earn 100 credits for each person who signs up!
+                        </p>
+                      </div>
+
+                      {/* Auto-append Settings */}
+                      {fullUserProfile?.subscription?.plan === 'free' && (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <label className="text-sm font-medium text-gray-700">Auto-append Referral</label>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Automatically add referral message to your threads
+                              </p>
+                              <p className="text-xs text-green-600 font-medium mt-1">
+                                💰 Earn 100 free credits for every signup!
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                toast.info('This feature is automatically enabled for free users. You earn 100 credits for each referral!');
+                              }}
+                              className="relative inline-flex h-6 w-11 items-center rounded-full bg-blue-600 cursor-not-allowed opacity-75"
+                            >
+                              <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-6" />
+                            </button>
+                          </div>
+                          
+                          <div className="mt-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Custom Referral Message (optional)
+                            </label>
+                            <textarea
+                              value={fullUserProfile?.settings?.referralMessage || ''}
+                              onChange={(e) => {
+                                // This would need to be saved to database
+                                toast.info('Custom message will be saved in next update');
+                              }}
+                              rows={3}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                              placeholder="Leave empty to use default message"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Default: "✨ I made this thread using @Threadifier - turn your docs into viral threads! Get 100 free credits: [your link]"
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex gap-3 pt-4">
                     <button
                       onClick={handleProfileSave}
@@ -2615,6 +2800,14 @@ function Page() {
                       <Save className="w-4 h-4" />
                       Save Changes
                     </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => setShowAdminPanel(true)}
+                        className="btn-secondary text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                      >
+                        Admin Panel
+                      </button>
+                    )}
                     <button
                       onClick={() => signOut()}
                       className="btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -3233,6 +3426,64 @@ function Page() {
         <AuthDisplay />
       </header>
       
+      {/* Low Credits Banner */}
+      {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.available <= 5 && fullUserProfile.credits.available > 0 && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="flex items-center gap-3">
+              <span className="text-yellow-800 text-sm font-medium">
+                ⚠️ You only have {fullUserProfile.credits.available} credit{fullUserProfile.credits.available === 1 ? '' : 's'} left!
+              </span>
+              <span className="text-yellow-600 text-sm">
+                Share your referral link to earn 100 more credits.
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`https://threadifier.com?ref=${fullUserProfile.referralCode}`);
+                toast.success('Referral link copied!');
+              }}
+              className="text-sm bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 transition-colors"
+            >
+              Copy Referral Link
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Out of Credits Banner */}
+      {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.available === 0 && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-3">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="flex items-center gap-3">
+              <span className="text-red-800 text-sm font-medium">
+                ❌ You're out of credits!
+              </span>
+              <span className="text-red-600 text-sm">
+                Share your referral link or upgrade to continue using Threadifier.
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`https://threadifier.com?ref=${fullUserProfile.referralCode}`);
+                  toast.success('Referral link copied!');
+                }}
+                className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors"
+              >
+                Copy Referral Link
+              </button>
+              <button
+                onClick={() => setCurrentView('billing')}
+                className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors"
+              >
+                Upgrade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Progress Bar */}
       {isProcessing && (
         <div className="h-1 bg-gray-200 relative overflow-hidden">
@@ -3447,6 +3698,9 @@ NEXT_PUBLIC_APP_URL=${typeof window !== 'undefined' ? window.location.origin : '
           </Dialog.Panel>
         </div>
       </Dialog>
+
+      {/* Admin Panel */}
+      <AdminPanel isOpen={showAdminPanel} onClose={() => setShowAdminPanel(false)} />
 
     </div>
   );
