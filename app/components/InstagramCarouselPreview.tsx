@@ -111,6 +111,8 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
       }
 
       function drawRestOfPost() {
+        if (!ctx) return;
+        
         // Username and handle
         const textStartX = startX + profileSize + 16;
         
