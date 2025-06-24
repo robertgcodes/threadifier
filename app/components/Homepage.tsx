@@ -404,34 +404,34 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
             <div className="bg-gray-900 p-8 rounded-2xl text-white relative border-2 border-gray-700">
               <h4 className="text-2xl font-bold mb-2">Team</h4>
               <p className="text-4xl font-bold mb-4">
-                $149<span className="text-lg font-normal opacity-80">/month</span>
+                $79<span className="text-lg font-normal opacity-80">/month</span>
               </p>
-              <p className="opacity-90 mb-6">For growing teams</p>
+              <p className="opacity-90 mb-6">For law firms and content teams</p>
               
               <ul className="space-y-3 mb-8">
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <span>2000 premium credits per month</span>
+                </li>
                 <li className="flex items-start">
                   <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
                   <span>Everything in Professional</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
-                  <span>5 team member seats</span>
+                  <span>3 team members included</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
-                  <span>Shared thread library</span>
+                  <span>Shared templates & prompts</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
-                  <span>Team collaboration tools</span>
+                  <span>Team analytics dashboard</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
-                  <span>Priority support</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
-                  <span>Admin dashboard & controls</span>
+                  <span>Priority phone support</span>
                 </li>
               </ul>
 
