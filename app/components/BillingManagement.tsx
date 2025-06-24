@@ -237,7 +237,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
           </p>
           {userProfile?.credits?.premiumCredits && userProfile.credits.premiumCredits > 0 ? (
             <div className="bg-blue-50 rounded-lg p-4 mb-4">
-              <p className="text-blue-900 font-medium">✨ You have {userProfile.credits.premiumCredits} premium trial credits remaining!</p>
+              <p className="text-blue-900 font-medium">✨ You have {String(userProfile.credits.premiumCredits)} premium trial credits remaining!</p>
               <p className="text-blue-700 text-sm mt-1">These give you access to Claude Sonnet AI with no referral message.</p>
             </div>
           ) : (

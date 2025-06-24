@@ -883,8 +883,14 @@ function Page() {
     if (over && active.id !== over.id) {
        if (active.data.current?.type === 'post') {
         setGeneratedThread((items) => {
-          const oldIndex = items.findIndex(item => item.id === Number(active.id));
-          const newIndex = items.findIndex(item => item.id === Number(over.id));
+          const activeId = parseInt(String(active.id), 10);
+          const overId = parseInt(String(over.id), 10);
+          if (isNaN(activeId) || isNaN(overId)) {
+            console.error('Invalid drag IDs:', active.id, over.id);
+            return items;
+          }
+          const oldIndex = items.findIndex(item => item.id === activeId);
+          const newIndex = items.findIndex(item => item.id === overId);
           if (oldIndex === -1 || newIndex === -1) {
             return items;
           }
@@ -2092,7 +2098,7 @@ function Page() {
                             <div className="bg-white p-4 rounded-lg shadow-lg border border-legal-200 h-full">
                               <SortablePostItem 
                                 post={activeItem} 
-                                index={generatedThread.findIndex(p => p.id === Number(activeId))} 
+                                index={generatedThread.findIndex(p => p.id === parseInt(String(activeId), 10))} 
                                 generatedThread={generatedThread}
                                 dragHandleListeners={{}}
                                 setDragHandleRef={() => {}}

@@ -1435,7 +1435,7 @@ export default function AnnotationModal({
                     <ChevronLeft size={16} />
                   </button>
                   <span className="text-sm text-gray-600">
-                    {currentPageIdx !== null ? currentPageIdx + 1 : 0} of {pageImages.length}
+                    {String(currentPageIdx !== null ? currentPageIdx + 1 : 0)} of {String(pageImages.length)}
                   </span>
                   <button 
                     onClick={() => {
@@ -1865,7 +1865,7 @@ export default function AnnotationModal({
                   <div className="flex items-center space-x-2">
                     <span className="text-black font-bold text-lg">𝕏</span>
                     <span className="text-sm font-medium text-gray-800">
-                      Display Analysis ({imageQualityWarnings.length})
+                      Display Analysis ({String(imageQualityWarnings.length)})
                     </span>
                   </div>
                   <span className="text-gray-600 text-sm">
