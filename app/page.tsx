@@ -2187,9 +2187,9 @@ function Page() {
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                   >
-                    <div className="bg-white p-6 rounded-lg shadow-sm border border-legal-200">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm dark:shadow-gray-900/20 border border-legal-200 dark:border-gray-700">
                       <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold text-legal-800">Generated Thread</h2>
+                        <h2 className="text-xl font-bold text-legal-800 dark:text-gray-100">Generated Thread</h2>
                         <div className="flex gap-2">
                           <button onClick={addPost} className="btn-secondary flex items-center"><PlusCircle className="w-4 h-4 mr-1"/>Add Post</button>
                           <button 
@@ -2225,8 +2225,8 @@ function Page() {
                             )}
                           </button>
                           
-                          {/* X (Twitter) Integration */}
-                          {xAuthStatus.authenticated ? (
+                          {/* X (Twitter) Integration - Post button only shown if authenticated */}
+                          {xAuthStatus.authenticated && (
                             <button 
                               onClick={postThreadToX} 
                               disabled={isPostingToX || generatedThread.length === 0}
@@ -2243,16 +2243,6 @@ function Page() {
                                   Post to X
                                 </>
                               )}
-                            </button>
-                          ) : (
-                            <button
-                              onClick={connectToX}
-                              className="btn-secondary flex items-center border-blue-400 text-blue-700 hover:bg-blue-50"
-                            >
-                              <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                              </svg>
-                              Connect X
                             </button>
                           )}
                           

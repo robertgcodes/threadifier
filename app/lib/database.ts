@@ -788,33 +788,43 @@ export const getUserCustomPrompts = async (userId: string): Promise<CustomPrompt
     const promptsRef = collection(firestore, 'customPrompts');
     console.log("Collection reference created:", promptsRef);
     
-    // Query for both user's custom prompts and default prompts
+    // Simply get all prompts for this user (includes both custom and default)
     const userPromptsQuery = query(
       promptsRef,
       where('userId', '==', userId)
     );
     
-    console.log("Executing getDocs for user prompts...");
-    const userPromptsSnapshot = await getDocs(userPromptsQuery);
-    console.log("User prompts count:", userPromptsSnapshot.docs.length);
+    console.log("Executing getDocs for all user prompts...");
+    const querySnapshot = await getDocs(userPromptsQuery);
+    console.log("Total prompts count:", querySnapshot.docs.length);
     
-    // Also get default prompts (where isDefault is true and userId matches)
-    const defaultPromptsQuery = query(
-      promptsRef,
-      where('userId', '==', userId),
-      where('isDefault', '==', true)
-    );
+    const prompts = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      console.log("Prompt:", data.name, "isDefault:", data.isDefault);
+      return {
+        id: doc.id,
+        ...data
+      } as CustomPrompt;
+    });
     
-    console.log("Executing getDocs for default prompts...");
-    const defaultPromptsSnapshot = await getDocs(defaultPromptsQuery);
-    console.log("Default prompts count:", defaultPromptsSnapshot.docs.length);
-    
-    // Combine all prompts
-    const allDocs = [...userPromptsSnapshot.docs];
-    const prompts = allDocs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as CustomPrompt));
+    // If no default prompts exist, create them
+    const defaultPromptsCount = prompts.filter(p => p.isDefault).length;
+    if (defaultPromptsCount === 0) {
+      console.log("No default prompts found, creating them...");
+      try {
+        await createDefaultPrompts(userId);
+        // Refetch prompts after creating defaults
+        const newSnapshot = await getDocs(userPromptsQuery);
+        const newPrompts = newSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as CustomPrompt));
+        prompts.push(...newPrompts.filter(p => p.isDefault));
+        console.log("Default prompts created successfully");
+      } catch (error) {
+        console.error("Error creating default prompts:", error);
+      }
+    }
     
     // Sort by isDefault first (defaults at top), then by updatedAt
     prompts.sort((a, b) => {
@@ -829,6 +839,8 @@ export const getUserCustomPrompts = async (userId: string): Promise<CustomPrompt
     });
     
     console.log("All prompts mapped and sorted:", prompts.length);
+    console.log("Default prompts:", prompts.filter(p => p.isDefault).length);
+    console.log("Custom prompts:", prompts.filter(p => !p.isDefault).length);
     console.log("=== GET USER CUSTOM PROMPTS SUCCESS ===");
     return prompts;
   } catch (error) {

@@ -76,10 +76,10 @@ const ThreadEditor: React.FC<ThreadEditorProps> = ({
       >
         <SortableContext items={generatedThread.map(p => p.id)} strategy={verticalListSortingStrategy}>
           {generatedThread.length > 0 && (
-            <div className="sticky top-8 z-10 bg-legal-50/95 backdrop-blur-sm py-2 rounded-lg border border-legal-200">
+            <div className="sticky top-8 z-10 bg-legal-50/95 dark:bg-gray-800/95 backdrop-blur-sm py-2 rounded-lg border border-legal-200 dark:border-gray-700">
               <div className="grid grid-cols-2 gap-4">
-                <h2 className="text-xl font-semibold text-legal-700 px-4">Edit Your Thread</h2>
-                <h2 className="text-xl font-semibold text-legal-700 px-4">Image Lane</h2>
+                <h2 className="text-xl font-semibold text-legal-700 dark:text-gray-100 px-4">Edit Your Thread</h2>
+                <h2 className="text-xl font-semibold text-legal-700 dark:text-gray-100 px-4">Image Lane</h2>
               </div>
             </div>
           )}
