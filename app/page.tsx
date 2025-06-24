@@ -2870,20 +2870,25 @@ function Page() {
           )}
           
           {/* Show appropriate content based on subscription status and selected tab */}
-          {isSubscribed && billingTab === 'manage' ? (
-            <BillingManagement 
-              userProfile={fullUserProfile} 
-              onUpdateProfile={async () => {
-                // Refresh user profile after subscription changes
-                if (user?.uid) {
-                  const updatedProfile = await getUserProfile(user.uid);
-                  setFullUserProfile(updatedProfile);
-                }
-              }}
-            />
-          ) : billingTab === 'plans' || !isSubscribed ? (
-            <PricingTable currentPlan={fullUserProfile?.subscription?.plan || 'free'} />
-          ) : null}
+          {(() => {
+            if (isSubscribed && billingTab === 'manage') {
+              return (
+                <BillingManagement 
+                  userProfile={fullUserProfile} 
+                  onUpdateProfile={async () => {
+                    // Refresh user profile after subscription changes
+                    if (user?.uid) {
+                      const updatedProfile = await getUserProfile(user.uid);
+                      setFullUserProfile(updatedProfile);
+                    }
+                  }}
+                />
+              );
+            } else if (billingTab === 'plans' || !isSubscribed) {
+              return <PricingTable currentPlan={fullUserProfile?.subscription?.plan || 'free'} />;
+            }
+            return null;
+          })()}
         </div>
       </main>
     );
