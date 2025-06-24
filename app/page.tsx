@@ -393,12 +393,15 @@ function Page() {
     setAiReasoningLogs([]);
   };
   
-  // Auto-scroll to bottom of logs
+  // Auto-scroll to bottom of logs only when actively analyzing
   const logsEndRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [aiReasoningLogs]);
+    // Only auto-scroll if we're actively analyzing content
+    if (isAnalyzing && aiReasoningLogs.length > 0) {
+      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [aiReasoningLogs, isAnalyzing]);
   
   const onDrop = (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
