@@ -1492,7 +1492,7 @@ function Page() {
             }}
             className={`text-sm transition-colors ${currentView === 'customPrompts' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
           >
-            Custom Prompts
+            Prompts
           </button>
           <button 
             onClick={() => setCurrentView('templates')}
@@ -1729,7 +1729,7 @@ function Page() {
                   <option value="">Select a saved prompt...</option>
                   {customPrompts.map((prompt) => (
                     <option key={prompt.id} value={prompt.id}>
-                      {prompt.name}
+                      {prompt.name}{prompt.isDefault ? ' (Default)' : ''}
                     </option>
                   ))}
                 </select>
@@ -1803,7 +1803,7 @@ function Page() {
           </div>
 
           {/* AI Activity Log - Claude Code Style */}
-          <div className="bg-white rounded-lg shadow-sm border border-legal-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/20 border border-legal-200 dark:border-gray-700">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${isAnalyzing ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
@@ -1876,7 +1876,7 @@ function Page() {
                 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
                 ${selected ? 'bg-white dark:bg-gray-800 shadow' : 'text-blue-100 dark:text-blue-200 hover:bg-white/[0.12] dark:hover:bg-gray-700/50 hover:text-white'}`
               }>
-                Document & Exhibits
+                Documents
               </Tab>
               <Tab className={({ selected }) =>
                 `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700 dark:text-blue-300
@@ -1893,17 +1893,17 @@ function Page() {
                 AI Suggestions
               </Tab>
               <Tab className={({ selected }) =>
-                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5
                 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 flex items-center justify-center gap-2
-                ${selected ? 'bg-white shadow' : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'}`
+                ${selected ? 'bg-white dark:bg-gray-800 shadow text-blue-700 dark:text-blue-300' : 'text-blue-100 dark:text-blue-200 hover:bg-white/[0.12] dark:hover:bg-gray-700/50 hover:text-white'}`
               }>
                 <X className="w-4 h-4" />
                 X Preview
               </Tab>
               <Tab className={({ selected }) =>
-                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5
                 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 flex items-center justify-center gap-2
-                ${selected ? 'bg-white shadow' : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'}`
+                ${selected ? 'bg-white dark:bg-gray-800 shadow text-blue-700 dark:text-blue-300' : 'text-blue-100 dark:text-blue-200 hover:bg-white/[0.12] dark:hover:bg-gray-700/50 hover:text-white'}`
               }>
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
@@ -2721,7 +2721,7 @@ function Page() {
     <main className="p-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Custom Prompts</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Prompts</h1>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowNewPromptModal(true)}
@@ -2774,8 +2774,8 @@ function Page() {
         {customPrompts.length === 0 ? (
           <div className="text-center py-12">
             <Edit className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No custom prompts yet</h3>
-            <p className="text-gray-500 mb-6">Create your first custom prompt</p>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No prompts yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-6">Loading default prompts...</p>
             <button
               onClick={() => setShowNewPromptModal(true)}
               className="btn-primary"
@@ -2978,8 +2978,8 @@ function Page() {
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Profile Picture */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile Picture</h2>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/20 border border-gray-200 dark:border-gray-700 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Profile Picture</h2>
                 <div className="flex flex-col items-center">
                   <div className="w-32 h-32 bg-blue-600 rounded-full flex items-center justify-center mb-4 overflow-hidden">
                     {userProfile.avatar ? (
@@ -3009,8 +3009,8 @@ function Page() {
 
             {/* Profile Information */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-6">Profile Information</h2>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/20 border border-gray-200 dark:border-gray-700 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Profile Information</h2>
                 
                 <div className="space-y-6">
                   <div>
@@ -3460,16 +3460,23 @@ function Page() {
     };
 
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/20 border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-start justify-between mb-4">
           {isEditing ? (
             <input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="text-lg font-semibold text-gray-900 border-b border-gray-300 bg-transparent outline-none flex-1"
+              className="text-lg font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-300 dark:border-gray-600 bg-transparent outline-none flex-1"
             />
           ) : (
-            <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{prompt.name}</h3>
+            <div className="flex items-center gap-2 flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{prompt.name}</h3>
+              {prompt.isDefault && (
+                <span className="px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+                  Default
+                </span>
+              )}
+            </div>
           )}
           <div className="flex gap-2 ml-4">
             {isEditing ? (
@@ -3521,7 +3528,7 @@ function Page() {
           </div>
         </div>
         
-        <div className="text-sm text-gray-500 mb-4">
+        <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           <div className="flex items-center gap-4">
             <span>Created: {prompt.createdAt?.toDate ? prompt.createdAt.toDate().toLocaleDateString() : 'Unknown'}</span>
             <span>Posts: {prompt.settings.numPosts}</span>
@@ -3533,10 +3540,10 @@ function Page() {
           <textarea
             value={editInstructions}
             onChange={(e) => setEditInstructions(e.target.value)}
-            className="w-full h-32 p-2 border border-gray-300 rounded text-sm resize-none"
+            className="w-full h-32 p-2 border border-gray-300 dark:border-gray-600 rounded text-sm resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           />
         ) : (
-          <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded border line-clamp-3">
+          <div className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 p-3 rounded border border-gray-200 dark:border-gray-700 line-clamp-3">
             {prompt.instructions || 'No instructions'}
           </div>
         )}

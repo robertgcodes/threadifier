@@ -788,30 +788,47 @@ export const getUserCustomPrompts = async (userId: string): Promise<CustomPrompt
     const promptsRef = collection(firestore, 'customPrompts');
     console.log("Collection reference created:", promptsRef);
     
-    // Use simple query without orderBy to avoid index requirements
-    const q = query(
+    // Query for both user's custom prompts and default prompts
+    const userPromptsQuery = query(
       promptsRef,
       where('userId', '==', userId)
     );
-    console.log("Query created:", q);
     
-    console.log("Executing getDocs...");
-    const querySnapshot = await getDocs(q);
-    console.log("Query executed successfully, docs count:", querySnapshot.docs.length);
+    console.log("Executing getDocs for user prompts...");
+    const userPromptsSnapshot = await getDocs(userPromptsQuery);
+    console.log("User prompts count:", userPromptsSnapshot.docs.length);
     
-    const prompts = querySnapshot.docs.map(doc => ({
+    // Also get default prompts (where isDefault is true and userId matches)
+    const defaultPromptsQuery = query(
+      promptsRef,
+      where('userId', '==', userId),
+      where('isDefault', '==', true)
+    );
+    
+    console.log("Executing getDocs for default prompts...");
+    const defaultPromptsSnapshot = await getDocs(defaultPromptsQuery);
+    console.log("Default prompts count:", defaultPromptsSnapshot.docs.length);
+    
+    // Combine all prompts
+    const allDocs = [...userPromptsSnapshot.docs];
+    const prompts = allDocs.map(doc => ({
       id: doc.id,
       ...doc.data()
     } as CustomPrompt));
     
-    // Sort by updatedAt in JavaScript to avoid index requirements
+    // Sort by isDefault first (defaults at top), then by updatedAt
     prompts.sort((a, b) => {
+      // Default prompts come first
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      
+      // Then sort by date
       const timeA = a.updatedAt?.toDate ? a.updatedAt.toDate().getTime() : 0;
       const timeB = b.updatedAt?.toDate ? b.updatedAt.toDate().getTime() : 0;
       return timeB - timeA; // Descending order (newest first)
     });
     
-    console.log("Custom prompts mapped and sorted:", prompts);
+    console.log("All prompts mapped and sorted:", prompts.length);
     console.log("=== GET USER CUSTOM PROMPTS SUCCESS ===");
     return prompts;
   } catch (error) {
