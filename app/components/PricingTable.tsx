@@ -146,13 +146,13 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
     <div className="py-12">
       {/* Billing Toggle */}
       <div className="flex justify-center mb-12">
-        <div className="bg-gray-100 p-1 rounded-lg flex items-center">
+        <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-lg flex items-center">
           <button
             onClick={() => setIsYearly(false)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               !isYearly 
-                ? 'bg-white text-gray-900 shadow-sm' 
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
             }`}
           >
             Monthly
@@ -161,8 +161,8 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
             onClick={() => setIsYearly(true)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               isYearly 
-                ? 'bg-white text-gray-900 shadow-sm' 
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
             }`}
           >
             Yearly
@@ -176,10 +176,10 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
         {pricingTiers.map((tier) => (
           <div
             key={tier.id}
-            className={`relative bg-white rounded-2xl shadow-lg border-2 transition-all ${
+            className={`relative bg-white dark:bg-gray-800 rounded-2xl shadow-lg border-2 transition-all ${
               tier.recommended 
                 ? 'border-blue-500 scale-105' 
-                : 'border-gray-200 hover:border-gray-300'
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
             }`}
           >
             {tier.recommended && (
@@ -191,17 +191,17 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
             )}
 
             <div className="p-8">
-              <h3 className="text-2xl font-bold text-gray-900">{tier.name}</h3>
-              <p className="mt-2 text-gray-600">{tier.description}</p>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{tier.name}</h3>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">{tier.description}</p>
               
               <div className="mt-6">
-                <span className="text-4xl font-bold text-gray-900">
-                  ${isYearly ? Math.floor(tier.priceYearly / 12) : tier.price}
+                <span className="text-4xl font-bold text-gray-900 dark:text-gray-100">
+                  ${String(isYearly ? Math.floor(tier.priceYearly / 12) : tier.price)}
                 </span>
-                <span className="text-gray-600">/month</span>
+                <span className="text-gray-600 dark:text-gray-400">/month</span>
                 {isYearly && tier.priceYearly > 0 && (
-                  <p className="text-sm text-green-600 mt-1">
-                    Billed ${tier.priceYearly} yearly
+                  <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                    Billed ${String(tier.priceYearly)} yearly
                   </p>
                 )}
               </div>
@@ -211,10 +211,10 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
                 disabled={loading !== null || currentPlan === tier.id}
                 className={`mt-6 w-full py-3 px-4 rounded-lg font-medium transition-colors ${
                   currentPlan === tier.id
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     : tier.recommended
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-900 text-white hover:bg-gray-800'
+                    : 'bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-800 dark:hover:bg-gray-600'
                 } disabled:opacity-50`}
               >
                 {loading === tier.id ? (
@@ -229,24 +229,24 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
               </button>
 
               <div className="mt-8 space-y-4">
-                <h4 className="font-semibold text-gray-900">Includes:</h4>
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100">Includes:</h4>
                 <ul className="space-y-3">
                   {tier.features.map((feature) => (
                     <li key={feature} className="flex items-start">
                       <Check className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 text-sm">{feature}</span>
+                      <span className="text-gray-700 dark:text-gray-300 text-sm">{feature}</span>
                     </li>
                   ))}
                 </ul>
                 
                 {tier.limitations.length > 0 && (
                   <>
-                    <h4 className="font-semibold text-gray-900 mt-6">Not included:</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 mt-6">Not included:</h4>
                     <ul className="space-y-3">
                       {tier.limitations.map((limitation) => (
                         <li key={limitation} className="flex items-start">
-                          <X className="w-5 h-5 text-gray-400 mr-2 flex-shrink-0 mt-0.5" />
-                          <span className="text-gray-500 text-sm">{limitation}</span>
+                          <X className="w-5 h-5 text-gray-400 dark:text-gray-500 mr-2 flex-shrink-0 mt-0.5" />
+                          <span className="text-gray-500 dark:text-gray-400 text-sm">{limitation}</span>
                         </li>
                       ))}
                     </ul>
@@ -259,16 +259,16 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
       </div>
 
       {/* Credits Explanation */}
-      <div className="mt-12 max-w-3xl mx-auto bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">How Credits Work</h3>
+      <div className="mt-12 max-w-3xl mx-auto bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">How Credits Work</h3>
         
         <div className="grid md:grid-cols-2 gap-4 mb-4">
-          <div className="bg-white rounded-lg p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Infinity className="w-5 h-5 text-blue-600" />
-              <h4 className="font-semibold text-gray-900">Basic Tier (Unlimited)</h4>
+              <Infinity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <h4 className="font-semibold text-gray-900 dark:text-gray-100">Basic Tier (Unlimited)</h4>
             </div>
-            <ul className="space-y-1 text-sm text-gray-600">
+            <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
               <li>• Claude Haiku AI model</li>
               <li>• Auto-appended referral link</li>
               <li>• Full X posting capability</li>
@@ -276,12 +276,12 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
             </ul>
           </div>
           
-          <div className="bg-white rounded-lg p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Check className="w-5 h-5 text-green-500" />
-              <h4 className="font-semibold text-gray-900">Premium Credits</h4>
+              <Check className="w-5 h-5 text-green-500 dark:text-green-400" />
+              <h4 className="font-semibold text-gray-900 dark:text-gray-100">Premium Credits</h4>
             </div>
-            <ul className="space-y-1 text-sm text-gray-600">
+            <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
               <li>• Claude Sonnet AI (best model)</li>
               <li>• No referral message</li>
               <li>• 100 trial credits for new users</li>
@@ -290,22 +290,22 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
           </div>
         </div>
         
-        <p className="text-sm text-gray-700 mb-3">
+        <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
           <strong>New users get 100 premium trial credits</strong> to experience the full power of Claude Sonnet AI.
           After that, you have unlimited access to the basic tier!
         </p>
         
-        <ul className="space-y-2 text-sm text-gray-600">
+        <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
           <li className="flex items-start">
-            <Check className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+            <Check className="w-4 h-4 text-green-500 dark:text-green-400 mr-2 flex-shrink-0 mt-0.5" />
             <span>Refer friends to earn 100 premium credits per signup</span>
           </li>
           <li className="flex items-start">
-            <Check className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+            <Check className="w-4 h-4 text-green-500 dark:text-green-400 mr-2 flex-shrink-0 mt-0.5" />
             <span>Premium credits from paid plans can rollover each month</span>
           </li>
           <li className="flex items-start">
-            <Check className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+            <Check className="w-4 h-4 text-green-500 dark:text-green-400 mr-2 flex-shrink-0 mt-0.5" />
             <span>Image editing, saving, and viewing threads are always free</span>
           </li>
         </ul>

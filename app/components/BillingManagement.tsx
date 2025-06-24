@@ -200,17 +200,17 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      active: { bg: 'bg-green-100', text: 'text-green-800', label: 'Active' },
-      cancelled: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Cancelled' },
-      past_due: { bg: 'bg-red-100', text: 'text-red-800', label: 'Past Due' },
-      trialing: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Trial' },
-      paused: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Paused' }
+      active: { bg: 'bg-green-100 dark:bg-green-900', text: 'text-green-800 dark:text-green-200', label: 'Active' },
+      cancelled: { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-200', label: 'Cancelled' },
+      past_due: { bg: 'bg-red-100 dark:bg-red-900', text: 'text-red-800 dark:text-red-200', label: 'Past Due' },
+      trialing: { bg: 'bg-blue-100 dark:bg-blue-900', text: 'text-blue-800 dark:text-blue-200', label: 'Trial' },
+      paused: { bg: 'bg-yellow-100 dark:bg-yellow-900', text: 'text-yellow-800 dark:text-yellow-200', label: 'Paused' }
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.active;
     
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text} dark:bg-opacity-20`}>
         {config.label}
       </span>
     );
@@ -218,9 +218,9 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
         <div className="flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
         </div>
       </div>
     );
@@ -228,25 +228,25 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
 
   if (!userProfile?.subscription || userProfile.subscription.plan === 'free') {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
         <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Subscription</h3>
-          <p className="text-gray-600 mb-4">
+          <AlertCircle className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Active Subscription</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
             You have unlimited access to the basic tier.
           </p>
           {userProfile?.credits?.premiumCredits && userProfile.credits.premiumCredits > 0 ? (
-            <div className="bg-blue-50 rounded-lg p-4 mb-4">
-              <p className="text-blue-900 font-medium">✨ You have {String(userProfile.credits.premiumCredits)} premium trial credits remaining!</p>
-              <p className="text-blue-700 text-sm mt-1">These give you access to Claude Sonnet AI with no referral message.</p>
+            <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4 mb-4">
+              <p className="text-blue-900 dark:text-blue-100 font-medium">✨ You have {String(userProfile.credits.premiumCredits)} premium trial credits remaining!</p>
+              <p className="text-blue-700 dark:text-blue-300 text-sm mt-1">These give you access to Claude Sonnet AI with no referral message.</p>
             </div>
           ) : (
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-4">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 rounded-lg p-4 mb-4">
               <div className="flex items-center gap-2 mb-2">
-                <Infinity className="w-5 h-5 text-blue-600" />
-                <p className="text-blue-900 font-medium">Unlimited Basic Tier Active</p>
+                <Infinity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <p className="text-blue-900 dark:text-blue-100 font-medium">Unlimited Basic Tier Active</p>
               </div>
-              <p className="text-blue-700 text-sm">Generate unlimited threads with Claude Haiku AI. Upgrade for Claude Sonnet!</p>
+              <p className="text-blue-700 dark:text-blue-300 text-sm">Generate unlimited threads with Claude Haiku AI. Upgrade for Claude Sonnet!</p>
             </div>
           )}
           <button
@@ -263,14 +263,14 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
   return (
     <div className="space-y-6">
       {/* Usage Statistics */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Current Usage</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Current Usage</h2>
         <div className="grid md:grid-cols-3 gap-6">
           <div className="text-center">
             <div className="text-3xl font-bold text-purple-600">
               {String(userProfile.credits?.premiumCredits || 0)}
             </div>
-            <p className="text-sm text-gray-600 mt-1">Premium Credits</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Premium Credits</p>
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold text-blue-600 flex items-center justify-center gap-2">
@@ -282,19 +282,19 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
                 <span>Basic</span>
               )}
             </div>
-            <p className="text-sm text-gray-600 mt-1">Basic Tier Access</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Basic Tier Access</p>
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold text-green-600">
               {String(userProfile.usage?.monthlyThreads || 0)}
             </div>
-            <p className="text-sm text-gray-600 mt-1">Threads This Month</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Threads This Month</p>
           </div>
         </div>
         
         {/* Progress Bar */}
         <div className="mt-6">
-          <div className="flex justify-between text-sm text-gray-600 mb-2">
+          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
             <span>Monthly Credit Usage</span>
             <span>{String(userProfile.credits?.used || 0)} / {
               userProfile.subscription?.plan === 'professional' ? '500' :
@@ -302,9 +302,9 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
               '10'
             }</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
             <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
               style={{ 
                 width: `${Math.min(
                   ((userProfile.credits?.used || 0) / (
@@ -321,15 +321,15 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
       </div>
 
       {/* Current Subscription */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-1">Current Subscription</h2>
-            <p className="text-gray-600">Manage your subscription and billing details</p>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-1">Current Subscription</h2>
+            <p className="text-gray-600 dark:text-gray-400">Manage your subscription and billing details</p>
           </div>
           <button
             onClick={fetchBillingDetails}
-            className={`p-2 text-gray-400 hover:text-gray-600 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            className={`p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors ${refreshing ? 'animate-spin' : ''}`}
             disabled={refreshing}
           >
             <RefreshCw className="w-5 h-5" />
@@ -339,34 +339,34 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
         <div className="grid md:grid-cols-2 gap-6">
           {/* Plan Details */}
           <div>
-            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Plan Details</h3>
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Plan Details</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">Plan</span>
-                <span className="font-medium text-gray-900 capitalize">
+                <span className="text-gray-600 dark:text-gray-400">Plan</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
                   {userProfile.subscription.plan}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">Status</span>
+                <span className="text-gray-600 dark:text-gray-400">Status</span>
                 {getStatusBadge(userProfile.subscription.status)}
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">Premium Credits</span>
+                <span className="text-gray-600 dark:text-gray-400">Premium Credits</span>
                 <span className="font-medium text-purple-600">
                   {String(userProfile.credits?.premiumCredits || 0)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">Basic Tier</span>
+                <span className="text-gray-600 dark:text-gray-400">Basic Tier</span>
                 <span className="font-medium text-blue-600">
                   {(userProfile.credits?.premiumCredits || 0) === 0 ? 'Unlimited' : 'Available'}
                 </span>
               </div>
               {billingDetails?.subscription && (
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Amount</span>
-                  <span className="font-medium text-gray-900">
+                  <span className="text-gray-600 dark:text-gray-400">Amount</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
                     {formatCurrency(
                       billingDetails.subscription.items.data[0]?.price.unit_amount || 0,
                       billingDetails.subscription.items.data[0]?.price.currency || 'usd'
@@ -379,12 +379,12 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
 
           {/* Billing Info */}
           <div>
-            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Billing Information</h3>
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Billing Information</h3>
             <div className="space-y-3">
               {billingDetails?.upcomingInvoice && (
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Next billing date</span>
-                  <span className="font-medium text-gray-900">
+                  <span className="text-gray-600 dark:text-gray-400">Next billing date</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
                     {formatDate(billingDetails.subscription.current_period_end)}
                   </span>
                 </div>
@@ -392,17 +392,17 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
               {billingDetails?.customer?.invoice_settings?.default_payment_method && (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Payment method</span>
+                    <span className="text-gray-600 dark:text-gray-400">Payment method</span>
                     <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium text-gray-900">
+                      <CreditCard className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
                         {billingDetails.customer.invoice_settings.default_payment_method.card.brand} •••• {billingDetails.customer.invoice_settings.default_payment_method.card.last4}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Expires</span>
-                    <span className="font-medium text-gray-900">
+                    <span className="text-gray-600 dark:text-gray-400">Expires</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
                       {billingDetails.customer.invoice_settings.default_payment_method.card.exp_month}/
                       {billingDetails.customer.invoice_settings.default_payment_method.card.exp_year}
                     </span>
@@ -414,7 +414,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-6 pt-6 border-t border-gray-200 flex flex-wrap gap-3">
+        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-3">
           <button
             onClick={handleUpdatePaymentMethod}
             className="btn-secondary"
@@ -447,45 +447,45 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
       </div>
 
       {/* Billing History */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Billing History</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Billing History</h2>
         
         {billingDetails?.invoices && billingDetails.invoices.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Invoice
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {billingDetails.invoices.map((invoice) => (
                   <tr key={invoice.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                       {formatDate(invoice.created)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                       {invoice.number || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                       {formatCurrency(invoice.amount_paid, invoice.currency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                         <Check className="w-3 h-3 mr-1" />
                         Paid
                       </span>
@@ -495,7 +495,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
                         href={invoice.invoice_pdf}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-900 inline-flex items-center gap-1"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 inline-flex items-center gap-1"
                       >
                         <Download className="w-4 h-4" />
                         Download
@@ -508,35 +508,35 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
           </div>
         ) : (
           <div className="text-center py-8">
-            <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No billing history available yet</p>
+            <Calendar className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">No billing history available yet</p>
           </div>
         )}
       </div>
 
       {/* Cancel Subscription Modal */}
       <Dialog open={showCancelModal} onClose={() => setShowCancelModal(false)} className="relative z-50">
-        <Dialog.Backdrop className="fixed inset-0 bg-black/30" />
+        <Dialog.Backdrop className="fixed inset-0 bg-black/30 dark:bg-black/50" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
-            <Dialog.Title className="text-lg font-semibold text-gray-900 mb-4">
+          <Dialog.Panel className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full">
+            <Dialog.Title className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Cancel Subscription
             </Dialog.Title>
             
             <div className="space-y-4">
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-400">
                 Are you sure you want to cancel your subscription? You'll lose access to:
               </p>
               
-              <ul className="list-disc list-inside space-y-2 text-gray-600">
+              <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-400">
                 <li>Monthly credit allowance</li>
                 <li>One-click posting to X/Twitter</li>
                 <li>Priority support</li>
                 <li>Advanced analytics and features</li>
               </ul>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <p className="text-sm text-amber-800">
+              <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg p-4">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
                   Your subscription will remain active until {billingDetails?.subscription.current_period_end ? formatDate(billingDetails.subscription.current_period_end) : 'the end of your billing period'}.
                   You can reactivate anytime before then.
                 </p>
@@ -570,12 +570,12 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
       </Dialog>
 
       {/* Support Section */}
-      <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Need Help?</h3>
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Need Help?</h3>
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <h4 className="font-medium text-gray-900 mb-2">Common Questions</h4>
-            <ul className="space-y-2 text-sm text-gray-600">
+            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Common Questions</h4>
+            <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <li>• Credits refresh monthly on your billing date</li>
               <li>• Unused credits don't roll over to the next month</li>
               <li>• You can change plans anytime - changes take effect immediately</li>
@@ -583,14 +583,14 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
             </ul>
           </div>
           <div>
-            <h4 className="font-medium text-gray-900 mb-2">Contact Support</h4>
-            <p className="text-sm text-gray-600 mb-3">
+            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Contact Support</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
               Have a billing question? We're here to help!
             </p>
             <div className="space-y-2">
               <a 
                 href="mailto:support@threadifier.com?subject=Billing%20Question"
-                className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm"
+                className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm"
               >
                 <AlertCircle className="w-4 h-4 mr-1" />
                 Email: support@threadifier.com

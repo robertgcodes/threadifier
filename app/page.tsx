@@ -1488,7 +1488,6 @@ function Page() {
           <button 
             onClick={() => {
               setCurrentView('customPrompts');
-              loadCustomPrompts();
             }}
             className={`text-sm transition-colors ${currentView === 'customPrompts' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
           >
