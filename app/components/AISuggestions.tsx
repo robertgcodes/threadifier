@@ -110,7 +110,7 @@ export default function AISuggestions({
                     </h4>
 
                     {/* Key Quotes Preview */}
-                    {suggestion.keyQuotes && suggestion.keyQuotes.length > 0 && (
+                    {suggestion.keyQuotes && suggestion.keyQuotes.length > 0 ? (
                       <div className="mb-3">
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Key quotes:</p>
                         <p className="text-sm text-gray-700 dark:text-gray-300 italic">

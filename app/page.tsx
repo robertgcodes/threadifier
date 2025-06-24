@@ -2826,7 +2826,7 @@ function Page() {
   );
 
   const renderBillingView = () => {
-    const isSubscribed = fullUserProfile?.subscription?.plan && fullUserProfile.subscription.plan !== 'free';
+    const isSubscribed = !!(fullUserProfile?.subscription?.plan && fullUserProfile.subscription.plan !== 'free');
 
     return (
       <main className="p-8">
@@ -2842,7 +2842,7 @@ function Page() {
           </div>
           
           {/* Show tabs for subscribed users */}
-          {isSubscribed && (
+          {isSubscribed ? (
             <div className="border-b border-gray-200 mb-8">
               <nav className="-mb-px flex space-x-8">
                 <button
@@ -2867,7 +2867,7 @@ function Page() {
                 </button>
               </nav>
             </div>
-          )}
+          ) : null}
           
           {/* Show appropriate content based on subscription status and selected tab */}
           {(() => {

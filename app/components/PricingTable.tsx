@@ -182,13 +182,13 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
                 : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
             }`}
           >
-            {tier.recommended && (
+            {tier.recommended ? (
               <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                 <span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
                   RECOMMENDED
                 </span>
               </div>
-            )}
+            ) : null}
 
             <div className="p-8">
               <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{tier.name}</h3>
@@ -199,11 +199,11 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
                   ${String(isYearly ? Math.floor(tier.priceYearly / 12) : tier.price)}
                 </span>
                 <span className="text-gray-600 dark:text-gray-400">/month</span>
-                {isYearly && tier.priceYearly > 0 && (
+                {isYearly && tier.priceYearly > 0 ? (
                   <p className="text-sm text-green-600 dark:text-green-400 mt-1">
                     Billed ${String(tier.priceYearly)} yearly
                   </p>
-                )}
+                ) : null}
               </div>
 
               <button
@@ -239,7 +239,7 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
                   ))}
                 </ul>
                 
-                {tier.limitations.length > 0 && (
+                {tier.limitations.length > 0 ? (
                   <>
                     <h4 className="font-semibold text-gray-900 dark:text-gray-100 mt-6">Not included:</h4>
                     <ul className="space-y-3">
@@ -251,7 +251,7 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
                       ))}
                     </ul>
                   </>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
