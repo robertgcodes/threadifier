@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
-import { Loader2, X, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon, Crop, Image as ImageIcon, BookOpen, DownloadCloud, CheckCircle, SortAsc, Send, MoreHorizontal, MessageCircle, Repeat2, Heart, Share, User, Camera, Moon, Sun, Bookmark } from "lucide-react";
+import { Loader2, X, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon, Crop, Image as ImageIcon, BookOpen, DownloadCloud, CheckCircle, SortAsc, Send, MoreHorizontal, MessageCircle, Repeat2, Heart, Share, User, Camera, Moon, Sun, Bookmark, Square } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -44,6 +44,7 @@ import SubscriptionRecovery from './components/SubscriptionRecovery';
 import BillingManagement from './components/BillingManagement';
 import CreditCounter from './components/CreditCounter';
 import FreeTierNotice from './components/FreeTierNotice';
+import InstagramCarouselPreview from './components/InstagramCarouselPreview';
 import { Tab } from '@headlessui/react';
 import { PageSuggestion, PostImageSuggestion } from './types';
 import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread, getUserProfile, getUserMonthlyUsage, checkCredits, useCredits, UserProfile, updateUserProfile } from './lib/database';
@@ -345,6 +346,8 @@ function Page() {
   
   // X Preview settings
   const [xPreviewMode, setXPreviewMode] = useState<'dark' | 'light'>('dark');
+  // Instagram Preview settings
+  const [instagramDarkMode, setInstagramDarkMode] = useState(false);
   
   // Apply dark mode to document
   useEffect(() => {
@@ -1853,6 +1856,18 @@ function Page() {
                 <X className="w-4 h-4" />
                 X Preview
               </Tab>
+              <Tab className={({ selected }) =>
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700
+                ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 flex items-center justify-center gap-2
+                ${selected ? 'bg-white shadow' : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'}`
+              }>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                </svg>
+                Instagram
+              </Tab>
             </Tab.List>
             <Tab.Panels className="mt-2">
               <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
@@ -2166,6 +2181,15 @@ function Page() {
                   pageImages={pageImages}
                   markedUpImages={markedUpImages}
                   user={user}
+                />
+              </Tab.Panel>
+              <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+                <InstagramCarouselPreview 
+                  posts={generatedThread}
+                  userProfile={fullUserProfile}
+                  user={user}
+                  isDarkMode={instagramDarkMode}
+                  onDarkModeToggle={() => setInstagramDarkMode(!instagramDarkMode)}
                 />
               </Tab.Panel>
             </Tab.Panels>
@@ -3410,12 +3434,13 @@ function Page() {
         </div>
 
         {/* X Thread Interface - Authentic Structure */}
-        <div className={`rounded-lg overflow-hidden max-h-[70vh] overflow-y-auto ${
-          xPreviewMode === 'dark' 
-            ? 'bg-black' 
-            : 'bg-white border border-gray-200'
-        }`}>
-          <div className="space-y-0">
+        <div className="flex justify-center">
+          <div className={`rounded-lg overflow-hidden max-h-[70vh] overflow-y-auto w-full max-w-[600px] ${
+            xPreviewMode === 'dark' 
+              ? 'bg-black' 
+              : 'bg-white border border-gray-200'
+          }`}>
+            <div className="space-y-0">
             {posts.map((post, index) => {
               const imageUrl = getImageForPost(post.id);
               const isMainPost = index === 0;
@@ -3554,6 +3579,7 @@ function Page() {
                 </div>
               );
             })}
+            </div>
           </div>
         </div>
 
