@@ -25,7 +25,7 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
     },
     {
       question: "How do the 100 free premium credits work?",
-      answer: "Every new user receives 100 premium credits to try our advanced Claude Sonnet AI model. Each thread generation uses 1 credit. You can earn 100 more credits for each friend you refer. Once credits are exhausted, you can continue with the Basic plan or upgrade to Professional for unlimited premium generation."
+      answer: "Every new user receives 100 premium credits to try our advanced Claude Sonnet AI model. Each thread generation uses 1 credit. You can earn 100 more credits for each friend you refer. Credits expire after 90 days to encourage active usage. Once credits are exhausted, you can continue with the Basic plan or upgrade to Professional for unlimited premium generation."
     },
     {
       question: "Can I use Threadifier for both X (Twitter) and Instagram?",
@@ -310,7 +310,7 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {/* Basic Plan */}
             <div className="bg-gray-50 dark:bg-gray-800 p-8 rounded-2xl">
               <h4 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Basic</h4>
@@ -399,6 +399,49 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
                 Start Free Trial
               </button>
             </div>
+
+            {/* Team Plan */}
+            <div className="bg-gray-900 p-8 rounded-2xl text-white relative border-2 border-gray-700">
+              <h4 className="text-2xl font-bold mb-2">Team</h4>
+              <p className="text-4xl font-bold mb-4">
+                $149<span className="text-lg font-normal opacity-80">/month</span>
+              </p>
+              <p className="opacity-90 mb-6">For growing teams</p>
+              
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <span>Everything in Professional</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <span>5 team member seats</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <span>Shared thread library</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <span>Team collaboration tools</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <span>Priority support</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <span>Admin dashboard & controls</span>
+                </li>
+              </ul>
+
+              <button
+                onClick={onSignup}
+                className="w-full bg-gray-700 text-white py-3 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+              >
+                Contact Sales
+              </button>
+            </div>
           </div>
 
           {/* Credits Explanation */}
@@ -414,7 +457,7 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
               <li>• <strong>100 free credits</strong> on signup - that's 100 premium threads!</li>
               <li>• <strong>1 credit = 1 thread</strong> with our advanced AI</li>
               <li>• <strong>Earn 100 credits</strong> for each friend who signs up with your referral</li>
-              <li>• <strong>Never expire</strong> - use them whenever you need premium quality</li>
+              <li>• <strong>Credits expire after 90 days</strong> - use them while they're fresh!</li>
               <li>• <strong>Upgrade to Professional</strong> for unlimited premium threads</li>
             </ul>
           </div>

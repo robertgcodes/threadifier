@@ -335,7 +335,7 @@ function Page() {
     }
     
     return {
-      displayName: user?.displayName || '',
+      displayName: user?.displayName || user?.email?.split('@')[0] || '',
       username: user?.email?.split('@')[0] || '',
       xHandle: user?.email?.split('@')[0] || '',
       instagramHandle: user?.email?.split('@')[0] || '',
@@ -1251,7 +1251,7 @@ function Page() {
           // Merge Firebase profile data with local state
           setUserProfile(prev => ({
             ...prev,
-            displayName: profile.displayName || prev.displayName || user.displayName || '',
+            displayName: profile.displayName || prev.displayName || user.displayName || user.email?.split('@')[0] || '',
             username: profile.username || prev.username || user.email?.split('@')[0] || '',
             xHandle: profile.xHandle || prev.xHandle || user.email?.split('@')[0] || '',
             instagramHandle: profile.instagramHandle || prev.instagramHandle || user.email?.split('@')[0] || '',
