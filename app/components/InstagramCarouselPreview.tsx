@@ -48,89 +48,134 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
       ctx.fillStyle = canvasDarkMode ? '#111827' : '#FFFFFF';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      // Content padding
+      const padding = 80;
+      const contentWidth = canvas.width - (padding * 2);
+      const startX = padding;
+      let currentY = 240; // Start position for content
+
       // Profile section
-      const profileY = 100;
+      const profileSize = 56;
       
-      // Profile picture placeholder
-      ctx.fillStyle = '#3B82F6';
-      ctx.beginPath();
-      ctx.arc(140, profileY + 40, 40, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // Profile initial
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 32px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const initial = userProfile.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || 'U';
-      ctx.fillText(initial, 140, profileY + 40);
-
-      // Username
-      ctx.fillStyle = canvasDarkMode ? '#FFFFFF' : '#000000';
-      ctx.font = 'bold 28px Arial';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      const displayName = userProfile.displayName || user?.displayName || 'User';
-      ctx.fillText(displayName, 200, profileY + 20);
-      
-      // Handle
-      ctx.fillStyle = canvasDarkMode ? '#9CA3AF' : '#6B7280';
-      ctx.font = '24px Arial';
-      const handle = `@${userProfile?.instagramHandle || userProfile?.xHandle || user?.email?.split('@')[0] || 'username'}`;
-      ctx.fillText(handle, 200, profileY + 55);
-
-      // Quote text
-      ctx.fillStyle = canvasDarkMode ? '#FFFFFF' : '#000000';
-      ctx.font = '32px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      // Word wrap the text
-      const words = post.text.split(' ');
-      const lines = [];
-      let currentLine = '';
-      const maxWidth = 880;
-      
-      words.forEach(word => {
-        const testLine = currentLine + word + ' ';
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width > maxWidth && currentLine) {
-          lines.push(currentLine.trim());
-          currentLine = word + ' ';
-        } else {
-          currentLine = testLine;
-        }
-      });
-      if (currentLine) {
-        lines.push(currentLine.trim());
+      // Profile picture
+      if (userProfile?.avatar) {
+        // Load and draw avatar image
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          // Draw circular mask
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(startX + profileSize/2, currentY + profileSize/2, profileSize/2, 0, 2 * Math.PI);
+          ctx.clip();
+          ctx.drawImage(img, startX, currentY, profileSize, profileSize);
+          ctx.restore();
+          
+          // Continue with the rest of the drawing
+          drawRestOfPost();
+        };
+        img.onerror = () => {
+          // Fallback to placeholder if image fails to load
+          ctx.fillStyle = '#3B82F6';
+          ctx.beginPath();
+          ctx.arc(startX + profileSize/2, currentY + profileSize/2, profileSize/2, 0, 2 * Math.PI);
+          ctx.fill();
+          
+          // Profile initial
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const initial = userProfile?.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || 'U';
+          ctx.fillText(initial, startX + profileSize/2, currentY + profileSize/2);
+          
+          drawRestOfPost();
+        };
+        img.src = userProfile.avatar;
+      } else {
+        // Profile picture placeholder
+        ctx.fillStyle = '#3B82F6';
+        ctx.beginPath();
+        ctx.arc(startX + profileSize/2, currentY + profileSize/2, profileSize/2, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Profile initial
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const initial = userProfile?.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || 'U';
+        ctx.fillText(initial, startX + profileSize/2, currentY + profileSize/2);
+        
+        drawRestOfPost();
       }
 
-      // Draw text lines
-      const lineHeight = 45;
-      const textStartY = (canvas.height - lines.length * lineHeight) / 2 + 50;
-      
-      lines.forEach((line, i) => {
-        ctx.fillText(line, canvas.width / 2, textStartY + i * lineHeight);
-      });
+      function drawRestOfPost() {
+        // Username and handle
+        const textStartX = startX + profileSize + 16;
+        
+        // Username
+        ctx.fillStyle = canvasDarkMode ? '#FFFFFF' : '#000000';
+        ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        const displayName = userProfile?.displayName || user?.displayName || 'User';
+        ctx.fillText(displayName, textStartX, currentY + 8);
+        
+        // Handle
+        ctx.fillStyle = canvasDarkMode ? '#9CA3AF' : '#6B7280';
+        ctx.font = '18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial';
+        const handle = `@${userProfile?.instagramHandle || userProfile?.xHandle || user?.email?.split('@')[0] || 'username'}`;
+        ctx.fillText(handle, textStartX, currentY + 32);
 
-      // Post number
-      ctx.fillStyle = canvasDarkMode ? '#9CA3AF' : '#6B7280';
-      ctx.font = '24px Arial';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(`${index + 1}/${posts.length}`, canvas.width - 50, canvas.height - 50);
+        // Move down for post text
+        currentY += profileSize + 24;
 
-      // Convert to blob and download
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `instagram-carousel-${index + 1}.png`;
-          a.click();
-          URL.revokeObjectURL(url);
+        // Post text
+        ctx.fillStyle = canvasDarkMode ? '#FFFFFF' : '#000000';
+        ctx.font = '28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        
+        // Word wrap the text
+        const words = post.text.split(' ');
+        const lines = [];
+        let currentLine = '';
+        const maxWidth = contentWidth;
+        
+        words.forEach(word => {
+          const testLine = currentLine + word + ' ';
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxWidth && currentLine) {
+            lines.push(currentLine.trim());
+            currentLine = word + ' ';
+          } else {
+            currentLine = testLine;
+          }
+        });
+        if (currentLine) {
+          lines.push(currentLine.trim());
         }
-      });
+
+        // Draw text lines
+        const lineHeight = 40;
+        
+        lines.forEach((line, i) => {
+          ctx.fillText(line, startX, currentY + (i * lineHeight));
+        });
+
+        // Convert to blob and download
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `instagram-carousel-${index + 1}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        });
+      }
     });
 
     toast.success(`Downloading ${posts.length} carousel images...`);
@@ -209,30 +254,32 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
         {/* Carousel */}
         <div className="relative aspect-square bg-gray-100">
           {/* Current Slide */}
-          <div className={`absolute inset-0 flex items-center justify-center p-12 ${canvasDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-            <div className="text-center">
-              <div className="mb-8">
-                <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden mx-auto mb-4">
+          <div className={`absolute inset-0 p-10 overflow-hidden ${canvasDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
+            <div className="h-full flex flex-col justify-center max-w-full">
+              {/* Profile Header */}
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                   {userProfile?.avatar ? (
                     <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-white text-2xl font-bold">
+                    <span className="text-white text-lg font-bold">
                       {userProfile?.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
                   )}
                 </div>
-                <div className={`font-bold text-lg ${canvasDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {userProfile.displayName || user?.displayName || 'User'}
-                </div>
-                <div className={`text-sm ${canvasDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  @{userProfile?.instagramHandle || userProfile?.xHandle || user?.email?.split('@')[0] || 'username'}
+                <div className="flex-1 min-w-0">
+                  <div className={`font-bold text-base ${canvasDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {userProfile?.displayName || user?.displayName || 'User'}
+                  </div>
+                  <div className={`text-sm ${canvasDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    @{userProfile?.instagramHandle || userProfile?.xHandle || user?.email?.split('@')[0] || 'username'}
+                  </div>
                 </div>
               </div>
-              <div className={`text-lg leading-relaxed ${canvasDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                "{posts[currentSlide]?.text}"
-              </div>
-              <div className={`text-sm mt-6 ${canvasDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                {currentSlide + 1} of {posts.length}
+              
+              {/* Post Text */}
+              <div className={`text-lg leading-relaxed ${canvasDarkMode ? 'text-white' : 'text-gray-900'} break-words`}>
+                {posts[currentSlide]?.text}
               </div>
             </div>
           </div>

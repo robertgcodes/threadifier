@@ -3061,28 +3061,28 @@ function Page() {
                 {/* Instagram Preview Sample */}
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Instagram Carousel Preview</h3>
-                  <div className="bg-white border border-gray-300 rounded-lg p-4 max-w-md">
-                    <div className="flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden mx-auto mb-3">
-                          {userProfile.avatar ? (
-                            <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-white text-xl font-bold">
-                              {userProfile.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
-                            </span>
-                          )}
-                        </div>
-                        <div className="font-bold text-gray-900">
+                  <div className="bg-white border border-gray-300 rounded-lg p-6 max-w-md">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+                        {userProfile.avatar ? (
+                          <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-white text-sm font-bold">
+                            {userProfile.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-bold text-gray-900 text-sm">
                           {userProfile.displayName || user?.displayName || 'Your Name'}
                         </div>
-                        <div className="text-gray-500 text-sm">
+                        <div className="text-gray-500 text-xs">
                           @{userProfile.instagramHandle || userProfile.xHandle || 'username'}
                         </div>
-                        <div className="mt-4 text-gray-700 italic">
-                          "Your quotes will appear here in carousel format..."
-                        </div>
                       </div>
+                    </div>
+                    <div className="text-gray-700 text-sm">
+                      This is how your posts will appear in Instagram carousel format.
                     </div>
                   </div>
                 </div>

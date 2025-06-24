@@ -268,7 +268,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
         <div className="grid md:grid-cols-3 gap-6">
           <div className="text-center">
             <div className="text-3xl font-bold text-purple-600">
-              {userProfile.credits?.premiumCredits || 0}
+              {String(userProfile.credits?.premiumCredits || 0)}
             </div>
             <p className="text-sm text-gray-600 mt-1">Premium Credits</p>
           </div>
@@ -286,7 +286,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold text-green-600">
-              {userProfile.usage?.monthlyThreads || 0}
+              {String(userProfile.usage?.monthlyThreads || 0)}
             </div>
             <p className="text-sm text-gray-600 mt-1">Threads This Month</p>
           </div>
@@ -296,7 +296,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
         <div className="mt-6">
           <div className="flex justify-between text-sm text-gray-600 mb-2">
             <span>Monthly Credit Usage</span>
-            <span>{userProfile.credits?.used || 0} / {
+            <span>{String(userProfile.credits?.used || 0)} / {
               userProfile.subscription?.plan === 'professional' ? '500' :
               userProfile.subscription?.plan === 'team' ? '2000' :
               '10'
@@ -354,7 +354,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
               <div className="flex items-center justify-between">
                 <span className="text-gray-600">Premium Credits</span>
                 <span className="font-medium text-purple-600">
-                  {userProfile.credits?.premiumCredits || 0}
+                  {String(userProfile.credits?.premiumCredits || 0)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
