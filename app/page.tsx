@@ -1947,7 +1947,7 @@ function Page() {
                         <div className="p-3 bg-white/20 rounded-lg">
                           <BookOpen className="w-6 h-6" />
                         </div>
-                        <span className="text-3xl font-bold">{fullUserProfile?.usage?.threadsGenerated || 0}</span>
+                        <span className="text-3xl font-bold">{String(fullUserProfile?.usage?.threadsGenerated || 0)}</span>
                       </div>
                       <h3 className="font-medium text-blue-100">Total Threads</h3>
                       <p className="text-sm text-blue-200 mt-1">Lifetime created</p>
@@ -1960,7 +1960,7 @@ function Page() {
                           <MessageCircle className="w-6 h-6" />
                         </div>
                         <span className="text-3xl font-bold">
-                          {savedThreads.reduce((total, thread) => total + thread.posts.length, 0)}
+                          {String(savedThreads.reduce((total, thread) => total + thread.posts.length, 0))}
                         </span>
                       </div>
                       <h3 className="font-medium text-green-100">Total Posts</h3>
@@ -1973,7 +1973,7 @@ function Page() {
                         <div className="p-3 bg-white/20 rounded-lg">
                           <ImageIcon className="w-6 h-6" />
                         </div>
-                        <span className="text-3xl font-bold">{markedUpImages.length}</span>
+                        <span className="text-3xl font-bold">{String(markedUpImages.length)}</span>
                       </div>
                       <h3 className="font-medium text-purple-100">Images Edited</h3>
                       <p className="text-sm text-purple-200 mt-1">Current session</p>
@@ -1988,7 +1988,7 @@ function Page() {
                           </svg>
                         </div>
                         <span className="text-3xl font-bold">
-                          {Math.round((fullUserProfile?.usage?.threadsGenerated || 0) * 15)}
+                          {String(Math.round((fullUserProfile?.usage?.threadsGenerated || 0) * 15))}
                         </span>
                       </div>
                       <h3 className="font-medium text-orange-100">Minutes Saved</h3>
@@ -4075,13 +4075,13 @@ function Page() {
             </div>
             <div>
               <div className="text-2xl font-bold text-gray-900">
-                {posts.reduce((total, post) => total + post.text.length, 0)}
+                {String(posts.reduce((total, post) => total + post.text.length, 0))}
               </div>
               <div className="text-sm text-gray-600">Total Characters</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-gray-900">
-                {Object.keys(postPageMap).length}
+                {String(Object.keys(postPageMap).length)}
               </div>
               <div className="text-sm text-gray-600">Images Attached</div>
             </div>
@@ -4115,7 +4115,7 @@ function Page() {
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
               <span className="text-yellow-800 dark:text-yellow-200 text-sm font-medium">
-                ⚠️ You only have {fullUserProfile.credits.available} credit{fullUserProfile.credits.available === 1 ? '' : 's'} left!
+                ⚠️ You only have {String(fullUserProfile.credits.available)} credit{fullUserProfile.credits.available === 1 ? '' : 's'} left!
               </span>
               <span className="text-yellow-600 dark:text-yellow-300 text-sm">
                 Share your referral link to earn 100 more credits.
