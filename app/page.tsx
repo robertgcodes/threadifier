@@ -2542,11 +2542,11 @@ function Page() {
             {/* Sorting Controls */}
             {savedThreads.length > 0 && (
               <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700">Sort by:</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Sort by:</label>
                 <select
                   value={threadSortBy}
                   onChange={(e) => setThreadSortBy(e.target.value as 'name' | 'date' | 'status')}
-                  className="text-sm border border-gray-300 rounded px-3 py-2"
+                  className="text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded px-3 py-2"
                 >
                   <option value="date">Date</option>
                   <option value="name">Name</option>
@@ -2554,7 +2554,7 @@ function Page() {
                 </select>
                 <button
                   onClick={() => setThreadSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                  className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1"
                 >
                   <SortAsc className={`w-4 h-4 ${threadSortOrder === 'desc' ? 'rotate-180' : ''} transition-transform`} />
                   {threadSortOrder === 'asc' ? 'Ascending' : 'Descending'}
@@ -2565,9 +2565,9 @@ function Page() {
           
           {savedThreads.length === 0 ? (
           <div className="text-center py-12">
-            <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No saved threads yet</h3>
-            <p className="text-gray-500 mb-6">Create your first thread to see it here</p>
+            <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No saved threads yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-6">Create your first thread to see it here</p>
             <button
               onClick={() => setCurrentView('main')}
               className="btn-primary"
@@ -2578,9 +2578,9 @@ function Page() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {sortedThreads.map((thread) => (
-              <div key={thread.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div key={thread.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/20 border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md dark:hover:shadow-gray-900/30 transition-shadow">
                 <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{thread.title}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{thread.title}</h3>
                   {editingStatusThreadId === thread.id ? (
                     <select
                       value={thread.status}
@@ -2600,7 +2600,7 @@ function Page() {
                         }
                       }}
                       onBlur={() => setEditingStatusThreadId(null)}
-                      className="text-xs px-2 py-1 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       autoFocus
                     >
                       {(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted']).map((status: string) => (
@@ -2612,16 +2612,16 @@ function Page() {
                   ) : (
                     <button
                       onClick={() => setEditingStatusThreadId(thread.id!)}
-                      className={`px-2 py-1 text-xs font-medium rounded-full cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-gray-300 transition-all ${
+                      className={`px-2 py-1 text-xs font-medium rounded-full cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-gray-300 dark:hover:ring-gray-600 transition-all ${
                         thread.status === 'Draft' || thread.status === 'draft'
-                          ? 'bg-yellow-100 text-yellow-800' 
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300' 
                           : thread.status === 'Needs Review'
-                          ? 'bg-orange-100 text-orange-800'
+                          ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300'
                           : thread.status === 'Ready to Post'
-                          ? 'bg-blue-100 text-blue-800'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
                           : thread.status === 'Posted' || thread.status === 'published'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                       }`}
                       title="Click to change status"
                     >
@@ -2630,7 +2630,7 @@ function Page() {
                   )}
                 </div>
                 
-                <div className="text-sm text-gray-500 mb-4">
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                   <div className="flex items-center gap-4">
                     <span>{thread.posts.length} posts</span>
                     <span>{thread.createdAt?.toDate ? thread.createdAt.toDate().toLocaleDateString() : 'Unknown date'}</span>
@@ -2642,7 +2642,7 @@ function Page() {
                   )}
                 </div>
                 
-                <div className="text-sm text-gray-700 mb-4 line-clamp-3">
+                <div className="text-sm text-gray-700 dark:text-gray-300 mb-4 line-clamp-3">
                   {thread.posts[0]?.text || 'No content'}
                 </div>
                 
@@ -3092,7 +3092,7 @@ function Page() {
                       className="hidden"
                     />
                   </label>
-                  <p className="text-xs text-gray-500 mt-2 text-center">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
                     JPG, PNG up to 5MB
                   </p>
                 </div>
@@ -3106,7 +3106,7 @@ function Page() {
                 
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Display Name
                     </label>
                     <input
@@ -3120,11 +3120,11 @@ function Page() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         X Handle
                       </label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">@</span>
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">@</span>
                         <input
                           type="text"
                           value={userProfile.xHandle}
@@ -3136,11 +3136,11 @@ function Page() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Instagram Handle
                       </label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">@</span>
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">@</span>
                         <input
                           type="text"
                           value={userProfile.instagramHandle}
@@ -3153,33 +3153,33 @@ function Page() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Email
                     </label>
                     <input
                       type="email"
                       value={user?.email || ''}
                       disabled
-                      className="input-field bg-gray-50 cursor-not-allowed"
+                      className="input-field bg-gray-50 dark:bg-gray-700 cursor-not-allowed"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email cannot be changed</p>
                   </div>
 
                   <div className="border-t pt-6 mt-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Social Media Connections</h3>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Social Media Connections</h3>
                     
                     <div className="space-y-4 mb-6">
-                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                         <div className="flex items-center gap-3">
-                          <svg className="w-6 h-6 text-black" viewBox="0 0 24 24" fill="currentColor">
+                          <svg className="w-6 h-6 text-black dark:text-white" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                           </svg>
                           <div>
-                            <p className="text-sm font-medium text-gray-900">X (Twitter)</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">X (Twitter)</p>
                             {xAuthStatus.authenticated ? (
                               <p className="text-xs text-green-600">Connected as @{xAuthStatus.user?.username}</p>
                             ) : (
-                              <p className="text-xs text-gray-500">Not connected</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Not connected</p>
                             )}
                           </div>
                         </div>
@@ -3203,13 +3203,13 @@ function Page() {
                   </div>
 
                   <div className="border-t pt-6 mt-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Appearance & AI Settings</h3>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Appearance & AI Settings</h3>
                     
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <label className="text-sm font-medium text-gray-700">Dark Mode</label>
-                          <p className="text-xs text-gray-500 mt-1">Toggle dark theme for the entire application</p>
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Dark Mode</label>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Toggle dark theme for the entire application</p>
                         </div>
                         <button
                           onClick={() => setUserProfile(prev => ({ ...prev, darkMode: !prev.darkMode }))}
@@ -3226,10 +3226,10 @@ function Page() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Global AI Instructions
                         </label>
-                        <p className="text-xs text-gray-500 mb-2">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                           These instructions will be included with EVERY AI analysis. Use this to set your profession, 
                           goals, or specific requirements (e.g., "I'm a lawyer specializing in IP law", "Always use formal language", 
                           "Never include personal opinions").
@@ -3238,19 +3238,19 @@ function Page() {
                           value={userProfile.globalAIInstructions || ''}
                           onChange={(e) => setUserProfile(prev => ({ ...prev, globalAIInstructions: e.target.value }))}
                           rows={4}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                           placeholder="Example: I am a corporate lawyer. Always provide analysis from a legal perspective. Focus on potential liability issues. Use formal, professional language. Never make assumptions about jurisdiction."
                         />
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {(userProfile.globalAIInstructions || '').length}/1000 characters
                         </p>
                       </div>
 
                       <div className="mt-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Custom Thread Statuses
                         </label>
-                        <p className="text-xs text-gray-500 mb-3">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                           Define custom statuses for your threads. These can be used as workflow stages or categories.
                         </p>
                         <div className="space-y-2">
@@ -3264,7 +3264,7 @@ function Page() {
                                   newStatuses[index] = e.target.value;
                                   setUserProfile(prev => ({ ...prev, customThreadStatuses: newStatuses }));
                                 }}
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                 placeholder="Enter status name"
                               />
                               <button
@@ -3273,7 +3273,7 @@ function Page() {
                                   newStatuses.splice(index, 1);
                                   setUserProfile(prev => ({ ...prev, customThreadStatuses: newStatuses }));
                                 }}
-                                className="px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                                className="px-3 py-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
                                 disabled={(userProfile.customThreadStatuses || []).length <= 1}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -3285,7 +3285,7 @@ function Page() {
                               const newStatuses = [...(userProfile.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted']), ''];
                               setUserProfile(prev => ({ ...prev, customThreadStatuses: newStatuses }));
                             }}
-                            className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1"
                           >
                             <PlusCircle className="w-4 h-4" />
                             Add Status
@@ -3296,18 +3296,18 @@ function Page() {
                   </div>
 
                   <div className="border-t pt-6 mt-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Referral System</h3>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Referral System</h3>
                     
                     <div className="space-y-4">
                       {/* Credits Display */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-blue-900">Available Credits</span>
-                          <span className="text-2xl font-bold text-blue-900">
+                          <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Available Credits</span>
+                          <span className="text-2xl font-bold text-blue-900 dark:text-blue-100">
                             {String(fullUserProfile?.credits?.available || 0)}
                           </span>
                         </div>
-                        <div className="text-xs text-blue-700 space-y-1">
+                        <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
                           <p>Lifetime credits earned: {String(fullUserProfile?.credits?.lifetime || 0)}</p>
                           <p>Credits from referrals: {String(fullUserProfile?.credits?.referralCredits || 0)}</p>
                           <p>People referred: {String(fullUserProfile?.referralCount || 0)}</p>
@@ -3323,25 +3323,25 @@ function Page() {
                       </div>
                       
                       {/* User ID for Support */}
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-600">User ID (for support)</span>
+                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">User ID (for support)</span>
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(user?.uid || '');
                               toast.success('User ID copied!');
                             }}
-                            className="text-xs text-blue-600 hover:text-blue-700"
+                            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                           >
                             Copy
                           </button>
                         </div>
-                        <p className="text-xs text-gray-800 font-mono mt-1">{user?.uid}</p>
+                        <p className="text-xs text-gray-800 dark:text-gray-200 font-mono mt-1">{user?.uid}</p>
                       </div>
 
                       {/* Referral Link */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Your Referral Link
                         </label>
                         <div className="flex gap-2">
@@ -3349,7 +3349,7 @@ function Page() {
                             type="text"
                             value={`https://threadifier.com?ref=${fullUserProfile?.referralCode || 'loading...'}`}
                             readOnly
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
+                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100"
                           />
                           <button
                             onClick={() => {
@@ -3362,7 +3362,7 @@ function Page() {
                             Copy
                           </button>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           Share this link to earn 100 credits for each person who signs up!
                         </p>
                       </div>
@@ -3372,8 +3372,8 @@ function Page() {
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <div>
-                              <label className="text-sm font-medium text-gray-700">Auto-append Referral</label>
-                              <p className="text-xs text-gray-500 mt-1">
+                              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Auto-append Referral</label>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 Automatically add referral message to your threads
                               </p>
                               <p className="text-xs text-green-600 font-medium mt-1">
@@ -3393,7 +3393,7 @@ function Page() {
                           </div>
                           
                           <div className="mt-3">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                               Custom Referral Message (optional)
                             </label>
                             <textarea
@@ -3405,10 +3405,10 @@ function Page() {
                                 });
                               }}
                               rows={3}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                               placeholder="Leave empty to use default message"
                             />
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                               Default: "✨ I made this thread using @Threadifier - turn your docs into viral threads! Get 100 free credits: [your link]"
                             </p>
                           </div>
@@ -3457,14 +3457,14 @@ function Page() {
 
           {/* Preview Section */}
           <div className="mt-8">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Preview</h2>
-              <p className="text-gray-600 mb-4">This is how your profile will appear in X previews:</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/20 border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Preview</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">This is how your profile will appear in X previews:</p>
               
               {/* X Preview Sample */}
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">X (Twitter) Preview</h3>
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">X (Twitter) Preview</h3>
                   <div className="bg-black rounded-lg p-4 max-w-md">
                     <div className="flex space-x-3">
                       <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
@@ -3497,8 +3497,8 @@ function Page() {
 
                 {/* Instagram Preview Sample */}
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Instagram Carousel Preview</h3>
-                  <div className="bg-white border border-gray-300 rounded-lg p-6 max-w-md">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Instagram Carousel Preview</h3>
+                  <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-6 max-w-md">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
                         {userProfile.avatar ? (
@@ -3510,15 +3510,15 @@ function Page() {
                         )}
                       </div>
                       <div>
-                        <div className="font-bold text-gray-900 text-sm">
+                        <div className="font-bold text-gray-900 dark:text-gray-100 text-sm">
                           {userProfile.displayName || user?.displayName || 'Your Name'}
                         </div>
-                        <div className="text-gray-500 text-xs">
+                        <div className="text-gray-500 dark:text-gray-400 text-xs">
                           @{userProfile.instagramHandle || fullUserProfile?.instagramHandle || userProfile.xHandle || 'username'}
                         </div>
                       </div>
                     </div>
-                    <div className="text-gray-700 text-sm">
+                    <div className="text-gray-700 dark:text-gray-300 text-sm">
                       This is how your posts will appear in Instagram carousel format.
                     </div>
                   </div>
