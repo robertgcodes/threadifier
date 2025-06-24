@@ -171,8 +171,8 @@ export async function POST(req: NextRequest) {
             status: 'active',
             stripeCustomerId: session.customer as string,
             stripeSubscriptionId: subscription.id,
-            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+            cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
           },
           'credits.available': newCredits,
           'credits.lifetime': ((userDoc.data() as any)?.credits?.lifetime || 0) + initialCredits,
@@ -203,8 +203,8 @@ export async function POST(req: NextRequest) {
         const userRef = doc(firestore, 'users', userId);
         await updateDoc(userRef, {
           'subscription.status': subscription.status,
-          'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000),
-          'subscription.cancelAtPeriodEnd': subscription.cancel_at_period_end,
+          'subscription.currentPeriodEnd': new Date((subscription as any).current_period_end * 1000),
+          'subscription.cancelAtPeriodEnd': (subscription as any).cancel_at_period_end,
           updatedAt: serverTimestamp(),
         });
 
