@@ -1525,6 +1525,19 @@ function Page() {
             />
           )}
           
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={() => setUserProfile(prev => ({ ...prev, darkMode: !prev.darkMode }))}
+            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            title={`Switch to ${userProfile.darkMode ? 'light' : 'dark'} mode`}
+          >
+            {userProfile.darkMode ? (
+              <Sun className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            ) : (
+              <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            )}
+          </button>
+          
           {/* User Profile */}
           <button 
             onClick={() => setCurrentView('profile')}
@@ -1681,22 +1694,22 @@ function Page() {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-legal-200">
-            <h2 className="text-xl font-bold text-legal-800 mb-4">Customize Thread</h2>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm dark:shadow-gray-900/20 border border-legal-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-legal-800 dark:text-gray-100 mb-4">Customize Thread</h2>
             
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label htmlFor="charLimit" className="block text-sm font-medium text-legal-700">Char Limit</label>
+                <label htmlFor="charLimit" className="block text-sm font-medium text-legal-700 dark:text-gray-300">Char Limit</label>
                 <input id="charLimit" type="number" value={charLimit} onChange={e => setCharLimit(Number(e.target.value))} className="input-field mt-1" />
               </div>
               <div>
-                <label htmlFor="numPosts" className="block text-sm font-medium text-legal-700">Number of Posts</label>
+                <label htmlFor="numPosts" className="block text-sm font-medium text-legal-700 dark:text-gray-300">Number of Posts</label>
                 <input id="numPosts" type="number" value={numPosts} onChange={e => setNumPosts(Number(e.target.value))} className="input-field mt-1" />
               </div>
             </div>
 
             <div className="mb-4">
-              <label htmlFor="customInstructions" className="block text-sm font-bold text-legal-700 mb-2">Custom Instructions</label>
+              <label htmlFor="customInstructions" className="block text-sm font-bold text-legal-700 dark:text-gray-300 mb-2">Custom Instructions</label>
               
               {/* Custom Prompts Controls */}
               <div className="flex items-center gap-2 mb-3">
@@ -1711,7 +1724,7 @@ function Page() {
                       setCustomInstructions('');
                     }
                   }}
-                  className="flex-1 text-sm border border-gray-300 rounded px-3 py-2 text-gray-700 bg-white"
+                  className="flex-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700"
                 >
                   <option value="">Select a saved prompt...</option>
                   {customPrompts.map((prompt) => (
@@ -1725,7 +1738,7 @@ function Page() {
                 <button
                   onClick={saveCurrentPrompt}
                   disabled={isSavingPrompt || !customInstructions.trim()}
-                  className="text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded border border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="text-sm bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-3 py-2 rounded border border-blue-200 dark:border-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   title="Save current prompt"
                 >
                   {isSavingPrompt ? (
@@ -1851,6 +1864,18 @@ function Page() {
                 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
                 ${selected ? 'bg-white dark:bg-gray-800 shadow' : 'text-blue-100 dark:text-blue-200 hover:bg-white/[0.12] dark:hover:bg-gray-700/50 hover:text-white'}`
               }>
+                <div className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  Home
+                </div>
+              </Tab>
+              <Tab className={({ selected }) =>
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700 dark:text-blue-300
+                ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
+                ${selected ? 'bg-white dark:bg-gray-800 shadow' : 'text-blue-100 dark:text-blue-200 hover:bg-white/[0.12] dark:hover:bg-gray-700/50 hover:text-white'}`
+              }>
                 Document & Exhibits
               </Tab>
               <Tab className={({ selected }) =>
@@ -1889,14 +1914,209 @@ function Page() {
               </Tab>
             </Tab.List>
             <Tab.Panels className="mt-2">
+              {/* Home Dashboard Tab */}
+              <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+                <div className="space-y-6">
+                  {/* Welcome Section */}
+                  <div className="text-center py-6">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                      Welcome back, {userProfile?.displayName || fullUserProfile?.displayName || user?.displayName || 'Creator'}!
+                    </h1>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Transform your documents into engaging social media threads
+                    </p>
+                  </div>
+
+                  {/* Analytics Dashboard */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Total Threads */}
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 bg-white/20 rounded-lg">
+                          <BookOpen className="w-6 h-6" />
+                        </div>
+                        <span className="text-3xl font-bold">{fullUserProfile?.usage?.threadsGenerated || 0}</span>
+                      </div>
+                      <h3 className="font-medium text-blue-100">Total Threads</h3>
+                      <p className="text-sm text-blue-200 mt-1">Lifetime created</p>
+                    </div>
+
+                    {/* Total Posts */}
+                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 bg-white/20 rounded-lg">
+                          <MessageCircle className="w-6 h-6" />
+                        </div>
+                        <span className="text-3xl font-bold">
+                          {savedThreads.reduce((total, thread) => total + thread.posts.length, 0)}
+                        </span>
+                      </div>
+                      <h3 className="font-medium text-green-100">Total Posts</h3>
+                      <p className="text-sm text-green-200 mt-1">Across all threads</p>
+                    </div>
+
+                    {/* Images Edited */}
+                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 bg-white/20 rounded-lg">
+                          <ImageIcon className="w-6 h-6" />
+                        </div>
+                        <span className="text-3xl font-bold">{markedUpImages.length}</span>
+                      </div>
+                      <h3 className="font-medium text-purple-100">Images Edited</h3>
+                      <p className="text-sm text-purple-200 mt-1">Current session</p>
+                    </div>
+
+                    {/* Time Saved */}
+                    <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 bg-white/20 rounded-lg">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <span className="text-3xl font-bold">
+                          {Math.round((fullUserProfile?.usage?.threadsGenerated || 0) * 15)}
+                        </span>
+                      </div>
+                      <h3 className="font-medium text-orange-100">Minutes Saved</h3>
+                      <p className="text-sm text-orange-200 mt-1">~15 min per thread</p>
+                    </div>
+                  </div>
+
+                  {/* Posting Streak & Gamification */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Activity Level */}
+                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Your Activity Level</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Content Creator Level</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {fullUserProfile?.usage?.threadsGenerated || 0 >= 50 ? 'Expert' : 
+                               fullUserProfile?.usage?.threadsGenerated || 0 >= 20 ? 'Advanced' :
+                               fullUserProfile?.usage?.threadsGenerated || 0 >= 5 ? 'Intermediate' : 'Beginner'}
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${Math.min(100, ((fullUserProfile?.usage?.threadsGenerated || 0) / 50) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="pt-2">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            You're in the top <span className="font-bold text-blue-600 dark:text-blue-400">
+                              {fullUserProfile?.usage?.threadsGenerated || 0 >= 20 ? '10%' : 
+                               fullUserProfile?.usage?.threadsGenerated || 0 >= 5 ? '30%' : '60%'}
+                            </span> of active users!
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                            Average user creates 2-3 threads per month
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
+                      <div className="space-y-3">
+                        <button 
+                          onClick={() => setSelectedTabIndex(1)}
+                          className="w-full flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 hover:shadow-md transition-shadow text-left"
+                        >
+                          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">Upload Document</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Start creating a new thread</p>
+                          </div>
+                        </button>
+                        
+                        <button 
+                          onClick={() => {
+                            setCurrentView('myThreads');
+                            loadUserThreads();
+                          }}
+                          className="w-full flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 hover:shadow-md transition-shadow text-left"
+                        >
+                          <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                            <BookOpen className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">View My Threads</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Manage your saved content</p>
+                          </div>
+                        </button>
+                        
+                        <button 
+                          onClick={() => setCurrentView('templates')}
+                          className="w-full flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 hover:shadow-md transition-shadow text-left"
+                        >
+                          <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                            <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">Browse Templates</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Find the perfect prompt</p>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* How to Use Section */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4">How to Create Amazing Threads</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-800/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <span className="text-blue-600 dark:text-blue-400 font-bold">1</span>
+                        </div>
+                        <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">Upload Your Document</h4>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          Drop a PDF in the upload zone to get started
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-800/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <span className="text-blue-600 dark:text-blue-400 font-bold">2</span>
+                        </div>
+                        <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">Customize & Generate</h4>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          Choose a template and let AI create your thread
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-800/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <span className="text-blue-600 dark:text-blue-400 font-bold">3</span>
+                        </div>
+                        <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">Edit & Share</h4>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          Perfect your thread and post to X or Instagram
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Tab.Panel>
               <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
                  <div className="space-y-6">
                     {/* Source Document Pages */}
                     <div >
-                      <h2 className="text-xl font-bold text-legal-800 mb-4">Source Document Pages</h2>
-                      <div className="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[60vh] overflow-y-auto p-2 bg-slate-100 rounded-lg">
+                      <h2 className="text-xl font-bold text-legal-800 dark:text-gray-100 mb-4">Source Document Pages</h2>
+                      <div className="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[60vh] overflow-y-auto p-2 bg-slate-100 dark:bg-gray-900 rounded-lg">
                         {pageImages.map((img, index) => (
-                          <div key={`page-${index}`} className="group relative border border-legal-200 rounded-lg overflow-hidden">
+                          <div key={`page-${index}`} className="group relative border border-legal-200 dark:border-gray-700 rounded-lg overflow-hidden">
                             <img src={img} alt={`Page ${index + 1}`} className="w-full h-auto object-contain" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <button onClick={() => { setMagnifyInitialPage(index); setIsAnnotationModalOpen(true); }} className="p-2 bg-white/80 rounded-full text-legal-700 hover:bg-white hover:text-primary-600 backdrop-blur-sm" title="Edit Page">
@@ -1913,13 +2133,13 @@ function Page() {
                     
                     {/* Marked-up Images */}
                     <div>
-                      <h2 className="text-xl font-bold text-legal-800 mb-4">Marked-up Images</h2>
+                      <h2 className="text-xl font-bold text-legal-800 dark:text-gray-100 mb-4">Marked-up Images</h2>
                       {markedUpImages.length === 0 ? (
-                        <p className="text-legal-500 text-sm text-center py-4 bg-slate-100 rounded-lg">No images created yet. Edit a page to create a markup or crop.</p>
+                        <p className="text-legal-500 dark:text-gray-400 text-sm text-center py-4 bg-slate-100 dark:bg-gray-900 rounded-lg">No images created yet. Edit a page to create a markup or crop.</p>
                       ) : (
-                      <div className="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[60vh] overflow-y-auto p-2 bg-slate-100 rounded-lg">
+                      <div className="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[60vh] overflow-y-auto p-2 bg-slate-100 dark:bg-gray-900 rounded-lg">
                         {markedUpImages.map((img) => (
-                          <div key={img.id} className="group relative border border-legal-200 rounded-lg overflow-hidden">
+                          <div key={img.id} className="group relative border border-legal-200 dark:border-gray-700 rounded-lg overflow-hidden">
                             <img src={img.url} alt={`Markup ${img.id}`} className="w-full h-auto object-contain" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                               <button onClick={() => handleEditMarkedUpImage(img.id)} className="p-2 bg-white/80 rounded-full text-legal-700 hover:bg-white hover:text-primary-600 backdrop-blur-sm" title="Edit Markup">
@@ -2194,13 +2414,84 @@ function Page() {
                 </div>
               </Tab.Panel>
               <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
-                <XPreview
-                  posts={generatedThread}
-                  postPageMap={postPageMap}
-                  pageImages={pageImages}
-                  markedUpImages={markedUpImages}
-                  user={user}
-                />
+                {generatedThread.length === 0 ? (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">X (Twitter) Preview</h2>
+                    </div>
+                    
+                    {/* Placeholder Twitter/X Preview */}
+                    <div className="max-w-[600px] mx-auto">
+                      <div className="bg-white dark:bg-black rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                        {/* Tweet Header */}
+                        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+                          <div className="flex items-start gap-3">
+                            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                              {userProfile?.avatar || fullUserProfile?.avatar ? (
+                                <img src={userProfile?.avatar || fullUserProfile?.avatar} alt="Profile" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-white text-lg font-bold">
+                                  {userProfile?.displayName?.charAt(0)?.toUpperCase() || fullUserProfile?.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-gray-900 dark:text-white">
+                                  {userProfile?.displayName || fullUserProfile?.displayName || user?.displayName || 'User'}
+                                </span>
+                                <span className="text-gray-500 dark:text-gray-400">
+                                  @{userProfile?.xHandle || fullUserProfile?.xHandle || user?.email?.split('@')[0] || 'username'}
+                                </span>
+                                <span className="text-gray-500 dark:text-gray-400">·</span>
+                                <span className="text-gray-500 dark:text-gray-400">now</span>
+                              </div>
+                            </div>
+                            <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                              <MoreHorizontal className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {/* Placeholder Content */}
+                        <div className="p-4">
+                          <div className="space-y-3">
+                            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                              Please generate a thread to see your posts preview here
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Tweet Actions */}
+                        <div className="px-4 pb-3 flex items-center justify-between">
+                          <button className="flex items-center gap-2 text-gray-500 hover:text-blue-500 transition-colors">
+                            <MessageCircle className="w-5 h-5" />
+                            <span className="text-sm">0</span>
+                          </button>
+                          <button className="flex items-center gap-2 text-gray-500 hover:text-green-500 transition-colors">
+                            <Repeat2 className="w-5 h-5" />
+                            <span className="text-sm">0</span>
+                          </button>
+                          <button className="flex items-center gap-2 text-gray-500 hover:text-red-500 transition-colors">
+                            <Heart className="w-5 h-5" />
+                            <span className="text-sm">0</span>
+                          </button>
+                          <button className="text-gray-500 hover:text-blue-500 transition-colors">
+                            <Share className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <XPreview
+                    posts={generatedThread}
+                    postPageMap={postPageMap}
+                    pageImages={pageImages}
+                    markedUpImages={markedUpImages}
+                    user={user}
+                  />
+                )}
               </Tab.Panel>
               <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
                 <InstagramCarouselPreview 
@@ -3701,21 +3992,7 @@ function Page() {
           </div>
           <h1 className="text-2xl font-bold text-legal-800 dark:text-gray-100">Threadifier</h1>
         </div>
-        <div className="flex items-center gap-4">
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={() => setUserProfile(prev => ({ ...prev, darkMode: !prev.darkMode }))}
-            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            title={`Switch to ${userProfile.darkMode ? 'light' : 'dark'} mode`}
-          >
-            {userProfile.darkMode ? (
-              <Sun className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-            ) : (
-              <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-            )}
-          </button>
-          <AuthDisplay />
-        </div>
+        <AuthDisplay />
       </header>
       
       {/* Low Credits Banner */}

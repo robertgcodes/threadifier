@@ -26,11 +26,11 @@ export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = 
     }
   }, [onCreditUsed]);
 
-  const bgColor = premiumCredits > 0 ? 'bg-blue-50 hover:bg-blue-100' : 'bg-gray-50 hover:bg-gray-100';
-  const iconColor = premiumCredits > 0 ? 'text-blue-600' : 'text-gray-600';
-  const textColor = premiumCredits > 0 ? 'text-blue-900' : 'text-gray-900';
-  const subTextColor = premiumCredits > 0 ? 'text-blue-700' : 'text-gray-700';
-  const pulseColor = usingPremium ? 'bg-blue-400' : 'bg-gray-400';
+  const bgColor = premiumCredits > 0 ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700';
+  const iconColor = premiumCredits > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400';
+  const textColor = premiumCredits > 0 ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-gray-100';
+  const subTextColor = premiumCredits > 0 ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300';
+  const pulseColor = usingPremium ? 'bg-blue-400 dark:bg-blue-500' : 'bg-gray-400 dark:bg-gray-500';
 
   return (
     <div className={`relative ${className}`}>
@@ -113,7 +113,7 @@ export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = 
       {/* Tooltip on hover when collapsed */}
       {!isExpanded && (
         <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 opacity-0 hover:opacity-100 pointer-events-none transition-opacity">
-          <div className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
+          <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
             {hasUnlimitedBasic ? (
               <>Unlimited basic tier (AI: Claude Haiku)</>
             ) : (
