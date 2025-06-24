@@ -3025,30 +3025,64 @@ function Page() {
               <p className="text-gray-600 mb-4">This is how your profile will appear in X previews:</p>
               
               {/* X Preview Sample */}
-              <div className="bg-black rounded-lg p-4 max-w-md">
-                <div className="flex space-x-3">
-                  <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
-                    {userProfile.avatar ? (
-                      <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-white text-base font-bold">
-                        {userProfile.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="font-bold text-white text-[17px]">
-                        {userProfile.displayName || user?.displayName || 'Your Name'}
-                      </span>
-                      <span className="text-gray-500 text-[15px]">
-                        @{userProfile.xHandle || 'username'}
-                      </span>
-                      <span className="text-gray-500">·</span>
-                      <span className="text-gray-500 text-[15px]">now</span>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">X (Twitter) Preview</h3>
+                  <div className="bg-black rounded-lg p-4 max-w-md">
+                    <div className="flex space-x-3">
+                      <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+                        {userProfile.avatar ? (
+                          <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-white text-base font-bold">
+                            {userProfile.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="font-bold text-white text-[17px]">
+                            {userProfile.displayName || user?.displayName || 'Your Name'}
+                          </span>
+                          <span className="text-gray-500 text-[15px]">
+                            @{userProfile.xHandle || 'username'}
+                          </span>
+                          <span className="text-gray-500">·</span>
+                          <span className="text-gray-500 text-[15px]">now</span>
+                        </div>
+                        <div className="text-white text-[17px] leading-6">
+                          This is how your thread posts will appear on X with your custom profile! 🧵
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-white text-[17px] leading-6">
-                      This is how your thread posts will appear on X with your custom profile! 🧵
+                  </div>
+                </div>
+
+                {/* Instagram Preview Sample */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Instagram Carousel Preview</h3>
+                  <div className="bg-white border border-gray-300 rounded-lg p-4 max-w-md">
+                    <div className="flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden mx-auto mb-3">
+                          {userProfile.avatar ? (
+                            <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-white text-xl font-bold">
+                              {userProfile.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="font-bold text-gray-900">
+                          {userProfile.displayName || user?.displayName || 'Your Name'}
+                        </div>
+                        <div className="text-gray-500 text-sm">
+                          @{userProfile.instagramHandle || userProfile.xHandle || 'username'}
+                        </div>
+                        <div className="mt-4 text-gray-700 italic">
+                          "Your quotes will appear here in carousel format..."
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

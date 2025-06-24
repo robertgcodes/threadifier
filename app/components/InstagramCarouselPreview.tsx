@@ -17,6 +17,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
   const [currentSlide, setCurrentSlide] = useState(0);
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [canvasDarkMode, setCanvasDarkMode] = useState(false);
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % posts.length);
@@ -44,7 +45,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
       canvas.height = 1080;
 
       // Background
-      ctx.fillStyle = isDarkMode ? '#000000' : '#FFFFFF';
+      ctx.fillStyle = canvasDarkMode ? '#111827' : '#FFFFFF';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Profile section
@@ -65,7 +66,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
       ctx.fillText(initial, 140, profileY + 40);
 
       // Username
-      ctx.fillStyle = isDarkMode ? '#FFFFFF' : '#000000';
+      ctx.fillStyle = canvasDarkMode ? '#FFFFFF' : '#000000';
       ctx.font = 'bold 28px Arial';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
@@ -73,13 +74,13 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
       ctx.fillText(displayName, 200, profileY + 20);
       
       // Handle
-      ctx.fillStyle = '#6B7280';
+      ctx.fillStyle = canvasDarkMode ? '#9CA3AF' : '#6B7280';
       ctx.font = '24px Arial';
-      const handle = `@${userProfile.xHandle || user?.email?.split('@')[0] || 'username'}`;
+      const handle = `@${userProfile?.instagramHandle || userProfile?.xHandle || user?.email?.split('@')[0] || 'username'}`;
       ctx.fillText(handle, 200, profileY + 55);
 
       // Quote text
-      ctx.fillStyle = isDarkMode ? '#FFFFFF' : '#000000';
+      ctx.fillStyle = canvasDarkMode ? '#FFFFFF' : '#000000';
       ctx.font = '32px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -113,7 +114,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
       });
 
       // Post number
-      ctx.fillStyle = '#6B7280';
+      ctx.fillStyle = canvasDarkMode ? '#9CA3AF' : '#6B7280';
       ctx.font = '24px Arial';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'bottom';
@@ -141,11 +142,31 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-gray-800">Instagram Carousel Preview</h2>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setCanvasDarkMode(false)}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                !canvasDarkMode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+              }`}
+              title="Light canvas"
+            >
+              Light
+            </button>
+            <button
+              onClick={() => setCanvasDarkMode(true)}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                canvasDarkMode ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
+              }`}
+              title="Dark canvas"
+            >
+              Dark
+            </button>
+          </div>
           {onDarkModeToggle && (
             <button
               onClick={onDarkModeToggle}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-              title={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
+              title={`Switch app to ${isDarkMode ? 'light' : 'dark'} mode`}
             >
               {isDarkMode ? (
                 <Sun className="w-4 h-4 text-gray-600" />
@@ -166,17 +187,17 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
         <div className={`flex items-center justify-between p-3 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-200'}`}>
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
-              {userProfile.avatar ? (
+              {userProfile?.avatar ? (
                 <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-white text-sm font-bold">
-                  {userProfile.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
+                  {userProfile?.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
                 </span>
               )}
             </div>
             <div>
               <div className={`font-semibold text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {userProfile.displayName || user?.displayName || 'User'}
+                {userProfile?.instagramHandle || userProfile?.xHandle || user?.email?.split('@')[0] || 'username'}
               </div>
             </div>
           </div>
@@ -188,29 +209,29 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
         {/* Carousel */}
         <div className="relative aspect-square bg-gray-100">
           {/* Current Slide */}
-          <div className={`absolute inset-0 flex items-center justify-center p-12 ${isDarkMode ? 'bg-black' : 'bg-white'}`}>
+          <div className={`absolute inset-0 flex items-center justify-center p-12 ${canvasDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
             <div className="text-center">
               <div className="mb-8">
                 <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden mx-auto mb-4">
-                  {userProfile.avatar ? (
+                  {userProfile?.avatar ? (
                     <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-white text-2xl font-bold">
-                      {userProfile.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
+                      {userProfile?.displayName?.charAt(0)?.toUpperCase() || user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
                   )}
                 </div>
-                <div className={`font-bold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <div className={`font-bold text-lg ${canvasDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   {userProfile.displayName || user?.displayName || 'User'}
                 </div>
-                <div className="text-gray-500 text-sm">
-                  @{userProfile.xHandle || user?.email?.split('@')[0] || 'username'}
+                <div className={`text-sm ${canvasDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  @{userProfile?.instagramHandle || userProfile?.xHandle || user?.email?.split('@')[0] || 'username'}
                 </div>
               </div>
-              <div className={`text-lg leading-relaxed ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <div className={`text-lg leading-relaxed ${canvasDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 "{posts[currentSlide]?.text}"
               </div>
-              <div className="text-gray-500 text-sm mt-6">
+              <div className={`text-sm mt-6 ${canvasDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 {currentSlide + 1} of {posts.length}
               </div>
             </div>
@@ -287,7 +308,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
 
           {/* Caption Preview */}
           <div className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            <span className="font-semibold">{userProfile.displayName || user?.displayName || 'username'}</span>
+            <span className="font-semibold">{userProfile?.instagramHandle || userProfile?.xHandle || user?.email?.split('@')[0] || 'username'}</span>
             <span className="ml-2 line-clamp-2">
               {posts.map(p => p.text).join(' ')}
             </span>
