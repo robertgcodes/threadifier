@@ -2004,7 +2004,7 @@ function Page() {
                       >
                         <div className="space-y-4">
                           {generatedThread.map((post, index) => (
-                            <div key={post.id}>
+                            <div key={`post-${post.id}`}>
                               <SortableThreadRow
                                 post={post}
                                 index={index}
@@ -3415,7 +3415,7 @@ function Page() {
               const isLastPost = index === posts.length - 1;
               
               return (
-                <div key={post.id} className={`
+                <div key={`preview-${post.id}`} className={`
                   ${isMainPost ? 'border-b' : ''} 
                   ${xPreviewMode === 'dark' ? 'border-gray-800' : 'border-gray-200'}
                 `}>
