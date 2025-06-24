@@ -167,7 +167,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerId: userProfile.subscription.stripeCustomerId,
-          returnUrl: window.location.href
+          returnUrl: `${window.location.origin}/?view=billing`
         }),
       });
 
@@ -413,7 +413,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
               </button>
               <div className="flex items-center gap-2 text-amber-600">
                 <AlertCircle className="w-4 h-4" />
-                <span className="text-sm">Subscription will end on {formatDate(billingDetails?.subscription.current_period_end || 0)}</span>
+                <span className="text-sm">Subscription will end on {userProfile.subscription.currentPeriodEnd ? formatDate(new Date(userProfile.subscription.currentPeriodEnd).getTime() / 1000) : 'end of billing period'}</span>
               </div>
             </>
           )}
@@ -504,14 +504,14 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
               
               <ul className="list-disc list-inside space-y-2 text-gray-600">
                 <li>Monthly credit allowance</li>
-                <li>Premium features</li>
+                <li>One-click posting to X/Twitter</li>
                 <li>Priority support</li>
-                <li>Custom AI instructions</li>
+                <li>Advanced analytics and features</li>
               </ul>
 
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <p className="text-sm text-amber-800">
-                  Your subscription will remain active until {formatDate(billingDetails?.subscription.current_period_end || 0)}.
+                  Your subscription will remain active until {billingDetails?.subscription.current_period_end ? formatDate(billingDetails.subscription.current_period_end) : 'the end of your billing period'}.
                   You can reactivate anytime before then.
                 </p>
               </div>

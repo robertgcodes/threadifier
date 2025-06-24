@@ -42,6 +42,7 @@ import AdminPanel from './components/AdminPanel';
 import PricingTable from './components/PricingTable';
 import SubscriptionRecovery from './components/SubscriptionRecovery';
 import BillingManagement from './components/BillingManagement';
+import CreditCounter from './components/CreditCounter';
 import { Tab } from '@headlessui/react';
 import { PageSuggestion, PostImageSuggestion } from './types';
 import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread, getUserProfile, getUserMonthlyUsage, checkCredits, useCredits, UserProfile, updateUserProfile } from './lib/database';
@@ -279,6 +280,7 @@ function Page() {
   const [threadSortBy, setThreadSortBy] = useState<'name' | 'date' | 'status'>('date');
   const [billingTab, setBillingTab] = useState<'manage' | 'plans'>('manage');
   const [threadSortOrder, setThreadSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [creditJustUsed, setCreditJustUsed] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveThreadTitle, setSaveThreadTitle] = useState('');
   const [saveThreadStatus, setSaveThreadStatus] = useState('Draft');
@@ -766,6 +768,10 @@ function Page() {
           if (creditUsed) {
             const remainingCredits = (fullUserProfile?.credits?.available || 0) - 1;
             addReasoningLog(`💳 1 credit used. ${remainingCredits} credits remaining`);
+            
+            // Trigger credit animation
+            setCreditJustUsed(true);
+            setTimeout(() => setCreditJustUsed(false), 100);
             
             // Update local state
             if (fullUserProfile) {
@@ -1452,15 +1458,12 @@ function Page() {
         
         {/* Credits Display */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setCurrentView('billing')}
-            className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-1 hover:bg-blue-100 transition-colors cursor-pointer"
-            title="Manage billing"
-          >
-            <span className="text-sm font-medium text-blue-900">
-              {fullUserProfile?.credits?.available || 0} credits
-            </span>
-          </button>
+          <div onClick={() => setCurrentView('billing')} className="cursor-pointer">
+            <CreditCounter
+              credits={fullUserProfile?.credits?.available || 0}
+              onCreditUsed={creditJustUsed}
+            />
+          </div>
           
           {/* User Profile */}
           <button 
