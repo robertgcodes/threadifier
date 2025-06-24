@@ -63,8 +63,12 @@ const pricingTiers: PricingTier[] = [
     ],
     limitations: [],
     recommended: true,
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_MONTHLY,
-    stripePriceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_YEARLY,
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_MONTHLY && {
+      stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_MONTHLY,
+    }),
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_YEARLY && {
+      stripePriceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_YEARLY,
+    }),
   },
   {
     id: 'team',
@@ -85,8 +89,12 @@ const pricingTiers: PricingTier[] = [
       'Custom branding options',
     ],
     limitations: [],
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY,
-    stripePriceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY,
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY && {
+      stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY,
+    }),
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY && {
+      stripePriceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY,
+    }),
   },
 ];
 
@@ -114,6 +122,10 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
       }
 
       const priceId = isYearly ? tier.stripePriceIdYearly : tier.stripePriceId;
+      
+      if (!priceId) {
+        throw new Error('This subscription plan is not available for purchase yet. Please try again later or contact support.');
+      }
       
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
@@ -202,12 +214,12 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
               
               <div className="mt-6">
                 <span className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-                  {tier.price === 0 ? 'Free' : `$${String(isYearly ? Math.floor(tier.priceYearly / 12) : tier.price)}`}
+                  {tier.price === 0 ? 'Free' : `$${isYearly ? Math.floor(tier.priceYearly / 12) : tier.price}`}
                 </span>
                 {tier.price > 0 ? <span className="text-gray-600 dark:text-gray-400">/month</span> : null}
                 {isYearly && tier.priceYearly > 0 ? (
                   <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                    Billed ${String(tier.priceYearly)} yearly
+                    Billed ${tier.priceYearly} yearly
                   </p>
                 ) : null}
               </div>
