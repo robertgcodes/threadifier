@@ -448,6 +448,51 @@ Tips:
       }
     },
     {
+      name: "📜 The Definitive Thread",
+      instructions: `Create the ultimate, comprehensive thread that serves as the definitive resource on this topic. This thread should be so thorough that it becomes the go-to reference people bookmark and share.
+
+Structure:
+- Post 1: "This is the definitive thread explaining everything inside [topic]. I spent [time/effort] researching this so you don't have to... 🧵"
+- Post 2: Start with the fundamental context - what is this and why does it matter NOW
+- Posts 3-5: Historical background and evolution - how we got here
+- Posts 6-10: Core concepts broken down - the essential knowledge
+- Posts 11-15: Deep dive into key components/aspects
+- Posts 16-18: Common misconceptions debunked with evidence
+- Posts 19-21: Real-world applications and case studies
+- Posts 22-24: Future implications and what to watch for
+- Posts 25-26: Resources for further learning
+- Final post: Summary and why this matters to YOU
+
+Key Elements:
+- Use primary sources and cite credible references
+- Include surprising facts that challenge assumptions
+- Break complex ideas into digestible chunks
+- Use analogies to make abstract concepts concrete
+- Address multiple perspectives fairly
+- Anticipate and answer likely questions
+- Create natural breaking points for easy sharing
+- End each section with a mini-summary
+
+Example opening: "This is the definitive thread explaining everything inside Web3 infrastructure. I analyzed 200+ protocols, interviewed 50+ builders, and distilled 1000+ hours of research into this thread... 🧵"
+
+Tips:
+- Be authoritative but not arrogant
+- Acknowledge complexity while maintaining clarity
+- Use numbered points for easy reference
+- Include "If you only remember one thing..." moments
+- Make it scannable with clear section headers
+- Balance depth with accessibility`,
+      settings: {
+        charLimit: 280,
+        numPosts: 26,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        threadStyle: 'authoritative'
+      }
+    },
+    {
       name: "📊 Data Storyteller",
       instructions: `Transform statistics and data into compelling narratives. Make numbers meaningful and memorable.
 

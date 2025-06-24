@@ -96,22 +96,22 @@ function ImageDropZone({ id, post, pageImages, markedUpImages, postPageMap, hand
         border: imageUrl ? '2px solid #2563eb' : '2px dashed #d1d5db',
         transition: 'border-color 0.2s',
       }}
-      className="bg-legal-50/50 p-4 rounded-lg flex items-center justify-center text-legal-500 h-full relative"
+      className="bg-legal-50/50 dark:bg-gray-800/50 p-4 rounded-lg flex items-center justify-center text-legal-500 dark:text-gray-400 h-full relative"
     >
       {imageUrl ? (
         <>
           <img src={imageUrl} alt={`Page for post ${post.id}`} className="max-h-48 object-contain rounded-md" />
           <button 
             onClick={() => handleClearImage(post.id)} 
-            className="absolute top-2 right-2 bg-white/50 backdrop-blur-sm rounded-full p-1 text-legal-600 hover:text-red-500 hover:bg-white"
+            className="absolute top-2 right-2 bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm rounded-full p-1 text-legal-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 hover:bg-white dark:hover:bg-gray-700"
             aria-label="Clear image"
           >
             <XCircle className="w-5 h-5" />
           </button>
         </>
       ) : (
-        <button onClick={() => onAddImage(post.id)} className="w-full h-full flex flex-col items-center justify-center text-center text-legal-500 hover:bg-legal-100 transition-colors rounded-lg">
-          <ImageIcon className="w-8 h-8 mx-auto text-legal-400 mb-2" />
+        <button onClick={() => onAddImage(post.id)} className="w-full h-full flex flex-col items-center justify-center text-center text-legal-500 dark:text-gray-400 hover:bg-legal-100 dark:hover:bg-gray-700 transition-colors rounded-lg">
+          <ImageIcon className="w-8 h-8 mx-auto text-legal-400 dark:text-gray-500 mb-2" />
           <p>Add Image</p>
         </button>
       )}
@@ -125,15 +125,15 @@ function SortablePostItem({ post, index, generatedThread, startEditing, deletePo
   return (
     <div className="flex gap-2 items-start h-full group">
       {/* Drag Handle */}
-      <div ref={setDragHandleRef} {...dragHandleListeners} className="flex-shrink-0 touch-none cursor-grab text-legal-400 hover:text-legal-600 pt-3">
+      <div ref={setDragHandleRef} {...dragHandleListeners} className="flex-shrink-0 touch-none cursor-grab text-legal-400 dark:text-gray-500 hover:text-legal-600 dark:hover:text-gray-300 pt-3">
         <GripVertical size={20} />
       </div>
       <div className="flex-grow flex flex-col">
         <div className="flex items-center mb-2">
-            <div className="h-10 w-10 rounded-full bg-legal-800 flex items-center justify-center mr-3 flex-shrink-0">
+            <div className="h-10 w-10 rounded-full bg-legal-800 dark:bg-gray-700 flex items-center justify-center mr-3 flex-shrink-0">
               <X className="h-5 w-5 text-white" />
             </div>
-            <p className="font-semibold text-legal-800">Threadifier Bot <span className="text-legal-500 font-normal">· @threadifier</span></p>
+            <p className="font-semibold text-legal-800 dark:text-gray-100">Threadifier Bot <span className="text-legal-500 dark:text-gray-400 font-normal">· @threadifier</span></p>
         </div>
         <div className="flex-grow">
             {editingPostId === post.id ? (
@@ -151,16 +151,16 @@ function SortablePostItem({ post, index, generatedThread, startEditing, deletePo
               </>
             ) : (
               <>
-                <p className="text-legal-600 whitespace-pre-wrap">{post.text}</p>
+                <p className="text-legal-600 dark:text-gray-300 whitespace-pre-wrap">{post.text}</p>
                 <div className="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => handleCopy(post.text)} className="text-legal-500 hover:text-primary-600 text-sm flex items-center"><CopyIcon className="w-4 h-4 mr-1"/>Copy</button>
-                  <button onClick={() => startEditing(post)} className="text-legal-500 hover:text-primary-600 text-sm flex items-center"><Edit className="w-4 h-4 mr-1"/>Edit</button>
-                  <button onClick={() => deletePost(post.id)} className="text-legal-500 hover:text-red-600 text-sm flex items-center"><Trash2 className="w-4 h-4 mr-1"/>Delete</button>
+                  <button onClick={() => handleCopy(post.text)} className="text-legal-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 text-sm flex items-center"><CopyIcon className="w-4 h-4 mr-1"/>Copy</button>
+                  <button onClick={() => startEditing(post)} className="text-legal-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 text-sm flex items-center"><Edit className="w-4 h-4 mr-1"/>Edit</button>
+                  <button onClick={() => deletePost(post.id)} className="text-legal-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 text-sm flex items-center"><Trash2 className="w-4 h-4 mr-1"/>Delete</button>
                 </div>
               </>
             )}
         </div>
-        <p className="text-legal-400 text-sm mt-auto pt-2">{index + 1}/{generatedThread.length}</p>
+        <p className="text-legal-400 dark:text-gray-500 text-sm mt-auto pt-2">{index + 1}/{generatedThread.length}</p>
       </div>
     </div>
   );
@@ -191,7 +191,7 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="grid grid-cols-2 gap-4 items-start">
       {/* Post Item Column */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-legal-200 h-full">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm dark:shadow-gray-900/20 border border-legal-200 dark:border-gray-700 h-full">
         <SortablePostItem 
           post={post} 
           index={index} 
@@ -1472,7 +1472,7 @@ function Page() {
         <nav className="hidden md:flex items-center gap-4">
           <button 
             onClick={() => setCurrentView('main')}
-            className={`text-sm transition-colors ${currentView === 'main' ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`text-sm transition-colors ${currentView === 'main' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
           >
             Home
           </button>
@@ -1481,7 +1481,7 @@ function Page() {
               setCurrentView('myThreads');
               loadUserThreads();
             }}
-            className={`text-sm transition-colors ${currentView === 'myThreads' ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`text-sm transition-colors ${currentView === 'myThreads' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
           >
             My Threads
           </button>
@@ -1490,25 +1490,25 @@ function Page() {
               setCurrentView('customPrompts');
               loadCustomPrompts();
             }}
-            className={`text-sm transition-colors ${currentView === 'customPrompts' ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`text-sm transition-colors ${currentView === 'customPrompts' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
           >
             Custom Prompts
           </button>
           <button 
             onClick={() => setCurrentView('templates')}
-            className={`text-sm transition-colors ${currentView === 'templates' ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`text-sm transition-colors ${currentView === 'templates' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
           >
             Templates
           </button>
           <button 
             onClick={() => setCurrentView('billing')}
-            className={`text-sm transition-colors ${currentView === 'billing' ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`text-sm transition-colors ${currentView === 'billing' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
           >
             Billing
           </button>
           <button 
             onClick={() => setCurrentView('profile')}
-            className={`text-sm transition-colors ${currentView === 'profile' ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`text-sm transition-colors ${currentView === 'profile' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
           >
             Profile
           </button>
@@ -1528,7 +1528,7 @@ function Page() {
           {/* User Profile */}
           <button 
             onClick={() => setCurrentView('profile')}
-            className="flex items-center gap-3 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+            className="flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 transition-colors"
           >
             <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center">
               {userProfile.avatar ? (
@@ -1540,8 +1540,8 @@ function Page() {
               )}
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium text-gray-900">{userProfile.displayName || user.displayName || user.email}</p>
-              <p className="text-xs text-gray-500">@{userProfile.xHandle}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{userProfile.displayName || user.displayName || user.email}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">@{userProfile.xHandle}</p>
             </div>
           </button>
         </div>
@@ -1657,7 +1657,7 @@ function Page() {
           <div
             {...getRootProps()}
             className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors ${
-              isDragActive ? "border-primary-600 bg-primary-50" : "border-legal-300 bg-white hover:bg-legal-50"
+              isDragActive ? "border-primary-600 bg-primary-50 dark:bg-primary-900/20" : "border-legal-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-legal-50 dark:hover:bg-gray-700"
             }`}
           >
             <input {...getInputProps()} />
@@ -1755,21 +1755,21 @@ function Page() {
             </div>
 
             <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-medium text-legal-700">Use Emojis</span>
-              <Switch checked={useEmojis} onChange={setUseEmojis} className={`${useEmojis ? 'bg-primary-600' : 'bg-gray-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}>
-                <span className={`${useEmojis ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}/>
+              <span className="text-sm font-medium text-legal-700 dark:text-gray-300">Use Emojis</span>
+              <Switch checked={useEmojis} onChange={setUseEmojis} className={`${useEmojis ? 'bg-primary-600 dark:bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}>
+                <span className={`${useEmojis ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white dark:bg-gray-200 transition-transform`}/>
               </Switch>
             </div>
             <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-medium text-legal-700">Use Hashtags</span>
-              <Switch checked={useHashtags} onChange={setUseHashtags} className={`${useHashtags ? 'bg-primary-600' : 'bg-gray-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}>
-                <span className={`${useHashtags ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}/>
+              <span className="text-sm font-medium text-legal-700 dark:text-gray-300">Use Hashtags</span>
+              <Switch checked={useHashtags} onChange={setUseHashtags} className={`${useHashtags ? 'bg-primary-600 dark:bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}>
+                <span className={`${useHashtags ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white dark:bg-gray-200 transition-transform`}/>
               </Switch>
             </div>
              <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-medium text-legal-700">Use Numbering</span>
-              <Switch checked={useNumbering} onChange={setUseNumbering} className={`${useNumbering ? 'bg-primary-600' : 'bg-gray-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}>
-                <span className={`${useNumbering ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}/>
+              <span className="text-sm font-medium text-legal-700 dark:text-gray-300">Use Numbering</span>
+              <Switch checked={useNumbering} onChange={setUseNumbering} className={`${useNumbering ? 'bg-primary-600 dark:bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}>
+                <span className={`${useNumbering ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white dark:bg-gray-200 transition-transform`}/>
               </Switch>
             </div>
 
@@ -1794,21 +1794,21 @@ function Page() {
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${isAnalyzing ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
-                <h3 className="font-medium text-gray-900">Activity Log</h3>
+                <h3 className="font-medium text-gray-900 dark:text-gray-100">Activity Log</h3>
               </div>
               {aiReasoningLogs.length > 0 && (
                 <button
                   onClick={clearReasoningLogs}
-                  className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                 >
                   Clear
                 </button>
               )}
             </div>
             
-            <div className="h-64 overflow-y-auto p-3 bg-gray-50 font-mono text-xs">
+            <div className="h-64 overflow-y-auto p-3 bg-gray-50 dark:bg-gray-900 font-mono text-xs">
               {aiReasoningLogs.length === 0 ? (
-                <div className="text-gray-500 italic">
+                <div className="text-gray-500 dark:text-gray-400 italic">
                   Activity will appear here during processing...
                   <br />
                   <br />
@@ -1823,7 +1823,7 @@ function Page() {
                   {aiReasoningLogs.map((log, index) => (
                     <div 
                       key={`log-${index}`} 
-                      className="text-gray-700 leading-relaxed border-l-2 border-blue-400 pl-2 py-1"
+                      className="text-gray-700 dark:text-gray-300 leading-relaxed border-l-2 border-blue-400 dark:border-blue-500 pl-2 py-1"
                     >
                       {log}
                     </div>
@@ -1845,25 +1845,25 @@ function Page() {
         {/* --- Right Column: Tabbed View for Document and Thread --- */}
         <div className="lg:col-span-8">
           <Tab.Group selectedIndex={selectedTabIndex} onChange={setSelectedTabIndex}>
-            <Tab.List className="flex space-x-1 rounded-xl bg-blue-900/20 p-1 mb-4">
+            <Tab.List className="flex space-x-1 rounded-xl bg-blue-900/20 dark:bg-blue-900/30 p-1 mb-4">
               <Tab className={({ selected }) =>
-                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700 dark:text-blue-300
                 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
-                ${selected ? 'bg-white shadow' : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'}`
+                ${selected ? 'bg-white dark:bg-gray-800 shadow' : 'text-blue-100 dark:text-blue-200 hover:bg-white/[0.12] dark:hover:bg-gray-700/50 hover:text-white'}`
               }>
                 Document & Exhibits
               </Tab>
               <Tab className={({ selected }) =>
-                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700 dark:text-blue-300
                 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
-                ${selected ? 'bg-white shadow' : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'}`
+                ${selected ? 'bg-white dark:bg-gray-800 shadow' : 'text-blue-100 dark:text-blue-200 hover:bg-white/[0.12] dark:hover:bg-gray-700/50 hover:text-white'}`
               }>
                 Thread Editor
               </Tab>
               <Tab className={({ selected }) =>
-                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700 dark:text-blue-300
                 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
-                ${selected ? 'bg-white shadow' : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'}`
+                ${selected ? 'bg-white dark:bg-gray-800 shadow' : 'text-blue-100 dark:text-blue-200 hover:bg-white/[0.12] dark:hover:bg-gray-700/50 hover:text-white'}`
               }>
                 AI Suggestions
               </Tab>
@@ -1889,7 +1889,7 @@ function Page() {
               </Tab>
             </Tab.List>
             <Tab.Panels className="mt-2">
-              <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+              <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
                  <div className="space-y-6">
                     {/* Source Document Pages */}
                     <div >
@@ -1952,7 +1952,7 @@ function Page() {
                     )}
                  </div>
               </Tab.Panel>
-              <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+              <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
                  {/* Show notice for basic tier users without premium credits */}
                  {user && String(fullUserProfile?.credits?.premiumCredits || 0) === '0' && (
                    <FreeTierNotice 
@@ -2150,7 +2150,7 @@ function Page() {
 
                   </DndContext>
               </Tab.Panel>
-              <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+              <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
                 <div className="space-y-6">
                   {/* Generate Suggestions Button */}
                   <div className="flex items-center justify-between">
@@ -2193,7 +2193,7 @@ function Page() {
                   />
                 </div>
               </Tab.Panel>
-              <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+              <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
                 <XPreview
                   posts={generatedThread}
                   postPageMap={postPageMap}
@@ -2202,7 +2202,7 @@ function Page() {
                   user={user}
                 />
               </Tab.Panel>
-              <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+              <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
                 <InstagramCarouselPreview 
                   posts={generatedThread}
                   userProfile={{...fullUserProfile, ...userProfile}}
@@ -2244,7 +2244,7 @@ function Page() {
       <main className="p-8">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">My Threads</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">My Threads</h1>
             
             {/* Sorting Controls */}
             {savedThreads.length > 0 && (
@@ -2430,7 +2430,7 @@ function Page() {
     <main className="p-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Custom Prompts</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Custom Prompts</h1>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowNewPromptModal(true)}
@@ -2539,7 +2539,7 @@ function Page() {
       <main className="p-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Billing & Plans</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Billing & Plans</h1>
             <button
               onClick={() => setCurrentView('main')}
               className="btn-secondary"
@@ -2675,7 +2675,7 @@ function Page() {
       <main className="p-8">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Profile Settings</h1>
             <button
               onClick={() => setCurrentView('main')}
               className="btn-secondary"
@@ -3701,18 +3701,32 @@ function Page() {
           </div>
           <h1 className="text-2xl font-bold text-legal-800 dark:text-gray-100">Threadifier</h1>
         </div>
-        <AuthDisplay />
+        <div className="flex items-center gap-4">
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={() => setUserProfile(prev => ({ ...prev, darkMode: !prev.darkMode }))}
+            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            title={`Switch to ${userProfile.darkMode ? 'light' : 'dark'} mode`}
+          >
+            {userProfile.darkMode ? (
+              <Sun className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            ) : (
+              <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            )}
+          </button>
+          <AuthDisplay />
+        </div>
       </header>
       
       {/* Low Credits Banner */}
       {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.available <= 5 && fullUserProfile.credits.available > 0 && (
-        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-4 py-3">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
-              <span className="text-yellow-800 text-sm font-medium">
+              <span className="text-yellow-800 dark:text-yellow-200 text-sm font-medium">
                 ⚠️ You only have {fullUserProfile.credits.available} credit{fullUserProfile.credits.available === 1 ? '' : 's'} left!
               </span>
-              <span className="text-yellow-600 text-sm">
+              <span className="text-yellow-600 dark:text-yellow-300 text-sm">
                 Share your referral link to earn 100 more credits.
               </span>
             </div>
@@ -3721,7 +3735,7 @@ function Page() {
                 navigator.clipboard.writeText(`https://threadifier.com?ref=${fullUserProfile.referralCode}`);
                 toast.success('Referral link copied!');
               }}
-              className="text-sm bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 transition-colors"
+              className="text-sm bg-yellow-600 dark:bg-yellow-700 text-white px-3 py-1 rounded hover:bg-yellow-700 dark:hover:bg-yellow-600 transition-colors"
             >
               Copy Referral Link
             </button>
