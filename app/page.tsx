@@ -2458,7 +2458,7 @@ function Page() {
           username: userProfile.username,
           xHandle: userProfile.xHandle,
           instagramHandle: userProfile.instagramHandle,
-          avatar: userProfile.avatar,
+          avatar: userProfile.avatar || undefined,
           darkMode: userProfile.darkMode,
           globalAIInstructions: userProfile.globalAIInstructions,
           customThreadStatuses: userProfile.customThreadStatuses,
