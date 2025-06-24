@@ -182,7 +182,7 @@ export default function AISuggestions({
                         </div>
                         <div className="space-y-1 pl-5">
                           {suggestion.keyQuotes.map((quote, quoteIndex) => (
-                            <p key={quoteIndex} className="text-xs text-gray-600 italic">
+                            <p key={`quote-${quoteIndex}`} className="text-xs text-gray-600 italic">
                               "{quote}"
                             </p>
                           ))}

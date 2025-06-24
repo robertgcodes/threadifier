@@ -2042,7 +2042,7 @@ function Page() {
                                       ?.recommendedPages.filter(rec => rec.relevanceScore >= 10).slice(0, 6)
                                       .map((recommendation, recIndex) => (
                                         <div 
-                                          key={`rec-${recIndex}`}
+                                          key={`rec-${recommendation.pageNumber}-${recIndex}`}
                                           className="flex items-center space-x-2 p-2 bg-white rounded border hover:border-blue-300 cursor-pointer"
                                           onClick={() => {
                                             setMagnifyInitialPage(recommendation.pageNumber - 1);
