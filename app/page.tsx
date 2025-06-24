@@ -277,6 +277,7 @@ function Page() {
   const [savedThreads, setSavedThreads] = useState<SavedThread[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [threadSortBy, setThreadSortBy] = useState<'name' | 'date' | 'status'>('date');
+  const [billingTab, setBillingTab] = useState<'manage' | 'plans'>('manage');
   const [threadSortOrder, setThreadSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveThreadTitle, setSaveThreadTitle] = useState('');
@@ -2440,7 +2441,6 @@ function Page() {
   );
 
   const renderBillingView = () => {
-    const [billingTab, setBillingTab] = useState<'manage' | 'plans'>('manage');
     const isSubscribed = fullUserProfile?.subscription?.plan && fullUserProfile.subscription.plan !== 'free';
 
     return (
