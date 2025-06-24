@@ -2761,7 +2761,9 @@ function Page() {
                             </div>
                             <button
                               onClick={() => {
-                                toast.info('This feature is automatically enabled for free users. You earn 100 credits for each referral!');
+                                toast('This feature is automatically enabled for free users. You earn 100 credits for each referral!', {
+                                  icon: '💡',
+                                });
                               }}
                               className="relative inline-flex h-6 w-11 items-center rounded-full bg-blue-600 cursor-not-allowed opacity-75"
                             >
@@ -2777,7 +2779,9 @@ function Page() {
                               value={fullUserProfile?.settings?.referralMessage || ''}
                               onChange={(e) => {
                                 // This would need to be saved to database
-                                toast.info('Custom message will be saved in next update');
+                                toast('Custom message will be saved in next update', {
+                                  icon: '💡',
+                                });
                               }}
                               rows={3}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
