@@ -24,6 +24,15 @@ export interface UserProfile {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   
+  // Profile customization
+  avatar?: string; // Custom avatar image
+  username?: string; // Username
+  xHandle?: string; // X/Twitter handle
+  instagramHandle?: string; // Instagram handle
+  darkMode?: boolean; // Dark mode preference
+  globalAIInstructions?: string; // Global AI instructions
+  customThreadStatuses?: string[]; // Custom thread statuses
+  
   // Referral system
   referralCode?: string; // Unique code for this user
   referredBy?: string; // Who referred them
@@ -142,10 +151,19 @@ export const createUserProfile = async (user: any, referralCode?: string): Promi
       const userData = {
         uid: user.uid,
         email: user.email,
-        displayName: user.displayName,
+        displayName: user.displayName || user.email?.split('@')[0] || 'User',
         photoURL: user.photoURL,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        
+        // Profile customization
+        avatar: user.photoURL || null,
+        username: user.email?.split('@')[0] || '',
+        xHandle: user.email?.split('@')[0] || '',
+        instagramHandle: user.email?.split('@')[0] || '',
+        darkMode: false,
+        globalAIInstructions: '',
+        customThreadStatuses: ['Draft', 'Needs Review', 'Ready to Post', 'Posted'],
         
         // Referral system
         referralCode: userReferralCode,
@@ -216,6 +234,18 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
     return data;
   }
   return null;
+};
+
+export const updateUserProfile = async (uid: string, updates: Partial<UserProfile>): Promise<void> => {
+  const userRef = doc(firestore, 'users', uid);
+  
+  // Remove fields that shouldn't be updated directly
+  const { uid: _, email: __, createdAt: ___, ...safeUpdates } = updates;
+  
+  await updateDoc(userRef, {
+    ...safeUpdates,
+    updatedAt: serverTimestamp()
+  });
 };
 
 // Thread Operations

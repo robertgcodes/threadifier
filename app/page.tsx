@@ -41,7 +41,7 @@ import LoginScreen from './components/LoginScreen';
 import AdminPanel from './components/AdminPanel';
 import { Tab } from '@headlessui/react';
 import { PageSuggestion, PostImageSuggestion } from './types';
-import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread, getUserProfile, getUserMonthlyUsage, checkCredits, useCredits, UserProfile } from './lib/database';
+import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread, getUserProfile, getUserMonthlyUsage, checkCredits, useCredits, UserProfile, updateUserProfile } from './lib/database';
 import { uploadImagesToStorage, uploadMarkedUpImagesToStorage } from './lib/storage';
 import { checkUsageLimits, estimateApiCost, USAGE_LIMITS } from './lib/usage-limits';
 
@@ -1195,6 +1195,19 @@ function Page() {
       getUserProfile(user.uid).then(profile => {
         if (profile) {
           setFullUserProfile(profile);
+          
+          // Merge Firebase profile data with local state
+          setUserProfile(prev => ({
+            ...prev,
+            displayName: profile.displayName || prev.displayName || user.displayName || '',
+            username: profile.username || prev.username || user.email?.split('@')[0] || '',
+            xHandle: profile.xHandle || prev.xHandle || user.email?.split('@')[0] || '',
+            instagramHandle: profile.instagramHandle || prev.instagramHandle || user.email?.split('@')[0] || '',
+            avatar: profile.avatar || prev.avatar || null,
+            darkMode: profile.darkMode ?? prev.darkMode ?? false,
+            globalAIInstructions: profile.globalAIInstructions || prev.globalAIInstructions || '',
+            customThreadStatuses: profile.customThreadStatuses || prev.customThreadStatuses || ['Draft', 'Needs Review', 'Ready to Post', 'Posted'],
+          }));
         }
       }).catch(error => {
         console.error('Error loading user profile:', error);
@@ -2432,12 +2445,32 @@ function Page() {
       }
     };
 
-    const handleProfileSave = () => {
-      if (user?.uid && typeof window !== 'undefined') {
-        localStorage.setItem(`userProfile_${user.uid}`, JSON.stringify(userProfile));
-        toast.success('Profile saved successfully!');
-      } else {
+    const handleProfileSave = async () => {
+      if (!user?.uid) {
         toast.error('Unable to save profile. Please try again.');
+        return;
+      }
+
+      try {
+        // Save to Firebase
+        await updateUserProfile(user.uid, {
+          displayName: userProfile.displayName,
+          username: userProfile.username,
+          xHandle: userProfile.xHandle,
+          instagramHandle: userProfile.instagramHandle,
+          avatar: userProfile.avatar,
+          darkMode: userProfile.darkMode,
+          globalAIInstructions: userProfile.globalAIInstructions,
+          customThreadStatuses: userProfile.customThreadStatuses,
+        });
+        
+        // Also save to localStorage for quick access
+        localStorage.setItem(`userProfile_${user.uid}`, JSON.stringify(userProfile));
+        
+        toast.success('Profile saved successfully!');
+      } catch (error) {
+        console.error('Error saving profile:', error);
+        toast.error('Failed to save profile. Please try again.');
       }
     };
 
