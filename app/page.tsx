@@ -39,6 +39,7 @@ import AnnotationModal from './components/AnnotationModal';
 import AISuggestions from './components/AISuggestions';
 import LoginScreen from './components/LoginScreen';
 import AdminPanel from './components/AdminPanel';
+import PricingTable from './components/PricingTable';
 import { Tab } from '@headlessui/react';
 import { PageSuggestion, PostImageSuggestion } from './types';
 import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread, getUserProfile, getUserMonthlyUsage, checkCredits, useCredits, UserProfile, updateUserProfile } from './lib/database';
@@ -1220,9 +1221,11 @@ function Page() {
     checkXAuthStatus();
   }, []);
 
-  // Handle X auth callback
+  // Handle X auth callback and Stripe success/cancel
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    
+    // X auth callbacks
     if (params.get('x_auth') === 'success') {
       toast.success('Successfully connected to X!');
       checkXAuthStatus();
@@ -1233,7 +1236,28 @@ function Page() {
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, []);
+    
+    // Stripe callbacks
+    if (params.get('success') === 'true') {
+      toast.success('Payment successful! Your credits will be added shortly.');
+      setCurrentView('billing');
+      // Refresh user profile to get updated subscription
+      if (user?.uid) {
+        getUserProfile(user.uid).then(profile => {
+          if (profile) {
+            setFullUserProfile(profile);
+          }
+        });
+      }
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('canceled') === 'true') {
+      toast.error('Payment canceled. You can try again anytime.');
+      setCurrentView('billing');
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [user]);
 
   // X (Twitter) functions
   const checkXAuthStatus = async () => {
@@ -2411,15 +2435,18 @@ function Page() {
 
   const renderBillingView = () => (
     <main className="p-8">
-      <div className="max-w-4xl mx-auto text-center py-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Billing</h1>
-        <p className="text-gray-500 mb-6">Billing and subscription management coming soon!</p>
-        <button
-          onClick={() => setCurrentView('main')}
-          className="btn-primary"
-        >
-          Back to Home
-        </button>
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Billing & Plans</h1>
+          <button
+            onClick={() => setCurrentView('main')}
+            className="btn-secondary"
+          >
+            Back to Home
+          </button>
+        </div>
+        
+        <PricingTable currentPlan={fullUserProfile?.subscription?.plan || 'free'} />
       </div>
     </main>
   );
@@ -2732,6 +2759,14 @@ function Page() {
                           <p>Credits from referrals: {fullUserProfile?.credits?.referralCredits || 0}</p>
                           <p>People referred: {fullUserProfile?.referralCount || 0}</p>
                         </div>
+                        {fullUserProfile?.subscription?.plan === 'free' && (
+                          <button
+                            onClick={() => setCurrentView('billing')}
+                            className="w-full mt-3 text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Get More Credits
+                          </button>
+                        )}
                       </div>
                       
                       {/* User ID for Support */}
