@@ -40,7 +40,6 @@ import AISuggestions from './components/AISuggestions';
 import LoginScreen from './components/LoginScreen';
 import AdminPanel from './components/AdminPanel';
 import PricingTable from './components/PricingTable';
-import SubscriptionRecovery from './components/SubscriptionRecovery';
 import BillingManagement from './components/BillingManagement';
 import CreditCounter from './components/CreditCounter';
 import FreeTierNotice from './components/FreeTierNotice';
@@ -3935,9 +3934,6 @@ NEXT_PUBLIC_APP_URL=${typeof window !== 'undefined' ? window.location.origin : '
 
       {/* Admin Panel */}
       <AdminPanel isOpen={showAdminPanel} onClose={() => setShowAdminPanel(false)} />
-
-      {/* Subscription Recovery Tool - Only for admin */}
-      <SubscriptionRecovery />
 
     </div>
   );

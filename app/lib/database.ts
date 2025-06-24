@@ -12,7 +12,8 @@ import {
   where, 
   orderBy, 
   serverTimestamp,
-  Timestamp 
+  Timestamp,
+  writeBatch 
 } from 'firebase/firestore';
 
 // Types for database collections
@@ -117,10 +118,12 @@ export interface CustomPrompt {
     useEmojis: boolean;
     useHashtags: boolean;
     useNumbering: boolean;
+    addCallToAction?: boolean;
+    threadStyle?: string;
   };
-  isDefault: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  isDefault?: boolean;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 // Generate a unique referral code
@@ -132,6 +135,366 @@ const generateReferralCode = (uid: string): string => {
 };
 
 // User Profile Operations
+// Create default prompts for new users
+const createDefaultPrompts = async (userId: string): Promise<void> => {
+  const defaultPrompts = [
+    {
+      name: "📚 Explainer Thread",
+      instructions: `Break down complex topics into digestible, educational chunks. Each post should build upon the previous one, creating a learning journey.
+
+Structure:
+- Post 1: Hook with the big picture or surprising fact
+- Posts 2-N: Break down key concepts, one per post
+- Use analogies and real-world examples
+- Define technical terms in simple language
+- End with key takeaways or action items
+
+Example: "Let me explain how [complex topic] actually works in simple terms... 🧵"
+
+Tips:
+- Use numbered lists for steps
+- Include "why this matters" context
+- Add helpful visuals or diagrams when possible`,
+      settings: {
+        charLimit: 280,
+        numPosts: 8,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        threadStyle: 'educational'
+      }
+    },
+    {
+      name: "🎯 Problem-Solution Thread",
+      instructions: `Present a relatable problem and guide readers through a practical solution. Perfect for how-to content and addressing pain points.
+
+Structure:
+- Post 1: Identify the problem clearly (make it relatable)
+- Posts 2-3: Explain why this problem exists/matters
+- Posts 4-6: Present your solution step-by-step
+- Post 7: Address common objections or pitfalls
+- Final post: Summarize and call to action
+
+Example: "Struggling with [problem]? Here's the exact system I used to [solution]... 🧵"
+
+Tips:
+- Use "you" language to connect with readers
+- Include specific examples and metrics
+- Anticipate reader questions`,
+      settings: {
+        charLimit: 280,
+        numPosts: 8,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        threadStyle: 'practical'
+      }
+    },
+    {
+      name: "📖 Storytelling Thread",
+      instructions: `Transform content into a compelling narrative. Use story structure to make information memorable and engaging.
+
+Structure:
+- Post 1: Set the scene (time, place, stakes)
+- Posts 2-3: Introduce the challenge/conflict
+- Posts 4-5: Build tension, show attempts/failures
+- Posts 6-7: The turning point or revelation
+- Final posts: Resolution and lessons learned
+
+Example: "In 2019, I made a decision that changed everything. Here's what happened... 🧵"
+
+Tips:
+- Use vivid, sensory details
+- Create cliffhangers between posts
+- Make it personal and vulnerable
+- Extract universal lessons from specific stories`,
+      settings: {
+        charLimit: 280,
+        numPosts: 10,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: false,
+        addCallToAction: true,
+        threadStyle: 'narrative'
+      }
+    },
+    {
+      name: "🔥 Contrarian Take",
+      instructions: `Challenge conventional wisdom with well-reasoned arguments. Present an unpopular opinion backed by evidence.
+
+Structure:
+- Post 1: State the contrarian position boldly
+- Post 2: Acknowledge the popular view
+- Posts 3-5: Present evidence/reasoning for your position
+- Posts 6-7: Address likely objections
+- Final post: Nuanced conclusion
+
+Example: "Unpopular opinion: [Contrarian view]. Here's why everyone's wrong about this... 🧵"
+
+Tips:
+- Back claims with data or credible sources
+- Stay respectful, attack ideas not people
+- Acknowledge where the mainstream view has merit
+- End with nuance, not absolutism`,
+      settings: {
+        charLimit: 280,
+        numPosts: 8,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        threadStyle: 'argumentative'
+      }
+    },
+    {
+      name: "❓ Question Raiser",
+      instructions: `Analyze content by raising thought-provoking questions. Perfect for stimulating discussion and critical thinking.
+
+Structure:
+- Post 1: Present the topic/claim being examined
+- Posts 2-N: Each post raises a different critical question
+- Consider multiple perspectives
+- Challenge assumptions
+- Final post: Invite readers to share their thoughts
+
+Example: "Everyone's talking about [topic], but nobody's asking these crucial questions... 🧵"
+
+Tips:
+- Ask "what if" and "why" questions
+- Question both obvious and hidden assumptions
+- Include questions readers can answer
+- Balance skepticism with genuine curiosity`,
+      settings: {
+        charLimit: 280,
+        numPosts: 7,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        threadStyle: 'analytical'
+      }
+    },
+    {
+      name: "💪 Advocate & Persuade",
+      instructions: `Make a compelling case for a position, product, or idea. Use persuasion techniques ethically to win hearts and minds.
+
+Structure:
+- Post 1: State your position with confidence
+- Posts 2-3: Establish credibility and common ground
+- Posts 4-5: Present strongest arguments/benefits
+- Post 6: Address concerns preemptively
+- Post 7: Social proof or success stories
+- Final post: Clear call to action
+
+Example: "Here's why [position/product] is the best decision you'll make this year... 🧵"
+
+Tips:
+- Lead with benefits, not features
+- Use social proof and authority
+- Appeal to both logic and emotion
+- Make the next step crystal clear`,
+      settings: {
+        charLimit: 280,
+        numPosts: 8,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        threadStyle: 'persuasive'
+      }
+    },
+    {
+      name: "🔍 Issue Spotter",
+      instructions: `Identify, analyze, and propose solutions to problems within the content. Great for consultants and critical analysis.
+
+Structure:
+- Post 1: Overview of what you're analyzing
+- Posts 2-4: Identify specific issues/problems
+- Posts 5-6: Analyze root causes
+- Posts 7-8: Propose concrete solutions
+- Final post: Priority actions and next steps
+
+Example: "I reviewed [document/situation] and found 5 critical issues that need immediate attention... 🧵"
+
+Tips:
+- Be specific about problems
+- Separate symptoms from root causes
+- Prioritize issues by impact
+- Make solutions actionable`,
+      settings: {
+        charLimit: 280,
+        numPosts: 9,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        threadStyle: 'analytical'
+      }
+    },
+    {
+      name: "😄 Humor & Entertainment",
+      instructions: `Transform content into entertaining, shareable posts using humor. Make learning fun and memorable.
+
+Structure:
+- Post 1: Setup with a relatable observation
+- Posts 2-N: Build humor through:
+  - Unexpected comparisons
+  - Exaggeration for effect
+  - Self-deprecating moments
+  - Callbacks to earlier jokes
+- Final post: Punchline or plot twist
+
+Example: "My lawyer just explained [complex topic] to me like I'm 5, and honestly, I still don't get it... 🧵"
+
+Tips:
+- Know your audience's humor style
+- Balance humor with actual value
+- Use memes/GIFs when appropriate
+- Don't force jokes - let them emerge naturally`,
+      settings: {
+        charLimit: 280,
+        numPosts: 7,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: false,
+        addCallToAction: true,
+        threadStyle: 'casual'
+      }
+    },
+    {
+      name: "⚖️ IRAC Legal Analysis",
+      instructions: `Structure legal analysis using Issue, Rule, Application, Conclusion format. Perfect for case analysis and legal education.
+
+Structure:
+- Post 1: Present the ISSUE clearly
+- Posts 2-3: State the RULE (law, precedent, statute)
+- Posts 4-6: APPLICATION - apply rule to facts
+- Post 7: Address counterarguments
+- Final post: CONCLUSION with implications
+
+Example: "Let's break down [case name] using IRAC method. The issue is whether... 🧵"
+
+Tips:
+- Define legal terms for lay audience
+- Cite relevant authorities
+- Consider both sides
+- Explain practical implications`,
+      settings: {
+        charLimit: 280,
+        numPosts: 8,
+        useEmojis: false,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: false,
+        threadStyle: 'professional'
+      }
+    },
+    {
+      name: "🤝 Feel-Felt-Found",
+      instructions: `Use this empathy-based format to connect with readers facing similar challenges. Great for testimonials and trust-building.
+
+Structure:
+- Posts 1-2: "I understand how you FEEL..." (empathize)
+- Posts 3-4: "Others have FELT the same..." (normalize)
+- Posts 5-7: "What they FOUND was..." (solution)
+- Final post: Invitation to experience same results
+
+Example: "I know how frustrating [problem] can be. I felt the same way until... 🧵"
+
+Tips:
+- Be genuinely empathetic
+- Include specific examples
+- Share real stories (with permission)
+- Focus on transformation`,
+      settings: {
+        charLimit: 280,
+        numPosts: 8,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: false,
+        addCallToAction: true,
+        threadStyle: 'empathetic'
+      }
+    },
+    {
+      name: "🎓 Myth Buster",
+      instructions: `Debunk common misconceptions with facts and evidence. Educational and attention-grabbing.
+
+Structure:
+- Post 1: State the myth boldly
+- Post 2: Explain why people believe it
+- Posts 3-5: Present contradicting evidence
+- Post 6: Reveal the truth
+- Post 7: Explain implications
+- Final post: Other related myths to explore
+
+Example: "MYTH: [Common belief]. The truth is actually shocking... 🧵"
+
+Tips:
+- Start with widely-held beliefs
+- Use credible sources
+- Be respectful of why myths persist
+- Provide actionable truth`,
+      settings: {
+        charLimit: 280,
+        numPosts: 8,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        threadStyle: 'educational'
+      }
+    },
+    {
+      name: "📊 Data Storyteller",
+      instructions: `Transform statistics and data into compelling narratives. Make numbers meaningful and memorable.
+
+Structure:
+- Post 1: Lead with surprising statistic
+- Posts 2-3: Context for the data
+- Posts 4-5: Break down what it means
+- Post 6: Compare to relatable examples
+- Post 7: Implications and trends
+- Final post: What readers should do with this info
+
+Example: "This one statistic changed how I think about [topic]: [surprising stat]... 🧵"
+
+Tips:
+- Use analogies for large numbers
+- Include visuals when possible
+- Focus on "so what?" factor
+- Make data personally relevant`,
+      settings: {
+        charLimit: 280,
+        numPosts: 8,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        threadStyle: 'analytical'
+      }
+    }
+  ];
+
+  // Create all default prompts for the user
+  const batch = writeBatch(firestore);
+  
+  for (const prompt of defaultPrompts) {
+    const promptRef = doc(collection(firestore, 'customPrompts'));
+    batch.set(promptRef, {
+      ...prompt,
+      userId,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      isDefault: true
+    });
+  }
+  
+  await batch.commit();
+};
+
 export const createUserProfile = async (user: any, referralCode?: string): Promise<void> => {
   console.log("=== CREATE USER PROFILE START ===");
   console.log("Creating profile for user:", user.uid);
@@ -203,6 +566,15 @@ export const createUserProfile = async (user: any, referralCode?: string): Promi
       
       await setDoc(userRef, userData);
       console.log("User profile created successfully");
+      
+      // Create default prompts for new user
+      try {
+        await createDefaultPrompts(user.uid);
+        console.log("Default prompts created");
+      } catch (promptError) {
+        console.error("Error creating default prompts:", promptError);
+        // Don't throw - user creation should still succeed
+      }
       
       // If referred by someone, credit the referrer
       if (referralCode) {
