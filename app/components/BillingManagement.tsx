@@ -171,11 +171,18 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
         }),
       });
 
+      const data = await response.json();
+      
       if (response.ok) {
-        const { url } = await response.json();
-        window.location.href = url;
+        window.location.href = data.url;
       } else {
-        toast.error('Failed to open billing portal');
+        if (data.setupRequired) {
+          toast.error('Billing portal needs to be configured in Stripe dashboard');
+          // Optionally open the setup link
+          window.open('https://dashboard.stripe.com/test/settings/billing/portal', '_blank');
+        } else {
+          toast.error(data.error || 'Failed to open billing portal');
+        }
       }
     } catch (error) {
       console.error('Error creating portal session:', error);
