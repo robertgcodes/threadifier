@@ -1254,6 +1254,26 @@ function Page() {
     }
   }, [user]);
 
+  // Sync userProfile changes to fullUserProfile for real-time preview updates
+  useEffect(() => {
+    if (fullUserProfile && userProfile) {
+      setFullUserProfile(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          displayName: userProfile.displayName || prev.displayName,
+          username: userProfile.username || prev.username,
+          xHandle: userProfile.xHandle || prev.xHandle,
+          instagramHandle: userProfile.instagramHandle || prev.instagramHandle,
+          avatar: userProfile.avatar || prev.avatar,
+          darkMode: userProfile.darkMode,
+          globalAIInstructions: userProfile.globalAIInstructions,
+          customThreadStatuses: userProfile.customThreadStatuses,
+        };
+      });
+    }
+  }, [userProfile]); // Update whenever userProfile changes
+
   // Check X authentication status on mount
   useEffect(() => {
     checkXAuthStatus();
@@ -2185,7 +2205,7 @@ function Page() {
               <Tab.Panel className="rounded-xl bg-white p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
                 <InstagramCarouselPreview 
                   posts={generatedThread}
-                  userProfile={fullUserProfile}
+                  userProfile={{...fullUserProfile, ...userProfile}}
                   user={user}
                   isDarkMode={instagramDarkMode}
                   onDarkModeToggle={() => setInstagramDarkMode(!instagramDarkMode)}
@@ -2587,10 +2607,20 @@ function Page() {
         
         const reader = new FileReader();
         reader.onload = (e) => {
+          const newAvatar = e.target?.result as string;
           setUserProfile(prev => ({
             ...prev,
-            avatar: e.target?.result as string
+            avatar: newAvatar
           }));
+          
+          // Also update fullUserProfile immediately for preview components
+          if (fullUserProfile) {
+            setFullUserProfile(prev => prev ? {
+              ...prev,
+              avatar: newAvatar
+            } : null);
+          }
+          
           toast.success('Profile picture updated!');
         };
         reader.readAsDataURL(file);
@@ -2618,6 +2648,21 @@ function Page() {
         
         // Also save to localStorage for quick access
         localStorage.setItem(`userProfile_${user.uid}`, JSON.stringify(userProfile));
+        
+        // Update fullUserProfile state to reflect the changes
+        if (fullUserProfile) {
+          setFullUserProfile({
+            ...fullUserProfile,
+            displayName: userProfile.displayName,
+            username: userProfile.username,
+            xHandle: userProfile.xHandle,
+            instagramHandle: userProfile.instagramHandle,
+            avatar: userProfile.avatar || undefined,
+            darkMode: userProfile.darkMode,
+            globalAIInstructions: userProfile.globalAIInstructions,
+            customThreadStatuses: userProfile.customThreadStatuses,
+          });
+        }
         
         toast.success('Profile saved successfully!');
       } catch (error) {
@@ -3076,7 +3121,7 @@ function Page() {
                           {userProfile.displayName || user?.displayName || 'Your Name'}
                         </div>
                         <div className="text-gray-500 text-xs">
-                          @{userProfile.instagramHandle || userProfile.xHandle || 'username'}
+                          @{userProfile.instagramHandle || fullUserProfile?.instagramHandle || userProfile.xHandle || 'username'}
                         </div>
                       </div>
                     </div>
