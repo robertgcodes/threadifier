@@ -40,6 +40,7 @@ import AISuggestions from './components/AISuggestions';
 import LoginScreen from './components/LoginScreen';
 import AdminPanel from './components/AdminPanel';
 import PricingTable from './components/PricingTable';
+import SubscriptionRecovery from './components/SubscriptionRecovery';
 import { Tab } from '@headlessui/react';
 import { PageSuggestion, PostImageSuggestion } from './types';
 import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread, getUserProfile, getUserMonthlyUsage, checkCredits, useCredits, UserProfile, updateUserProfile } from './lib/database';
@@ -3773,6 +3774,9 @@ NEXT_PUBLIC_APP_URL=${typeof window !== 'undefined' ? window.location.origin : '
 
       {/* Admin Panel */}
       <AdminPanel isOpen={showAdminPanel} onClose={() => setShowAdminPanel(false)} />
+
+      {/* Subscription Recovery Tool - Only for admin */}
+      <SubscriptionRecovery />
 
     </div>
   );
