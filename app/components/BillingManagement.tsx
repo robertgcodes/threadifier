@@ -303,9 +303,9 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
         <div className="mt-6">
           <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
             <span>Monthly Credit Usage</span>
-            <span>{String(userProfile.credits?.used || 0)} / {
-              userProfile.subscription?.plan === 'professional' ? '500' :
-              userProfile.subscription?.plan === 'team' ? '2000' :
+            <span>{String(userProfile?.credits?.used || 0)} / {
+              userProfile?.subscription?.plan === 'professional' ? '500' :
+              userProfile?.subscription?.plan === 'team' ? '2000' :
               '10'
             }</span>
           </div>
@@ -313,14 +313,26 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
             <div 
               className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
               style={{ 
-                width: `${Math.min(
-                  ((userProfile.credits?.used || 0) / (
-                    userProfile.subscription?.plan === 'professional' ? 500 :
-                    userProfile.subscription?.plan === 'team' ? 2000 :
-                    10
-                  )) * 100,
-                  100
-                )}%` 
+                width: `${(() => {
+                  const used = userProfile?.credits?.used || 0;
+                  let limit: number;
+                  
+                  if (userProfile?.subscription?.plan === 'professional') {
+                    limit = 500;
+                  } else if (userProfile?.subscription?.plan === 'team') {
+                    limit = 2000;
+                  } else {
+                    limit = 10;
+                  }
+                  
+                  // Ensure we have valid numbers
+                  if (isNaN(used) || isNaN(limit) || limit === 0) {
+                    return '0%';
+                  }
+                  
+                  const percentage = Math.min((used / limit) * 100, 100);
+                  return `${percentage}%`;
+                })()}` 
               }}
             />
           </div>
@@ -351,23 +363,23 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Plan</span>
                 <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
-                  {userProfile.subscription.plan}
+                  {userProfile?.subscription?.plan || 'free'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Status</span>
-                {getStatusBadge(userProfile.subscription.status)}
+                {getStatusBadge(userProfile?.subscription?.status || 'active')}
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Premium Credits</span>
                 <span className="font-medium text-purple-600">
-                  {String(userProfile.credits?.premiumCredits || 0)}
+                  {String(userProfile?.credits?.premiumCredits || 0)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Basic Tier</span>
                 <span className="font-medium text-blue-600">
-                  {(userProfile.credits?.premiumCredits || 0) === 0 ? 'Unlimited' : 'Available'}
+                  {(userProfile?.credits?.premiumCredits || 0) === 0 ? 'Unlimited' : 'Available'}
                 </span>
               </div>
               {billingDetails?.subscription && (
@@ -428,7 +440,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
           >
             Update Payment Method
           </button>
-          {userProfile.subscription.status === 'active' && !userProfile.subscription.cancelAtPeriodEnd && (
+          {userProfile?.subscription?.status === 'active' && !userProfile?.subscription?.cancelAtPeriodEnd && (
             <button
               onClick={() => setShowCancelModal(true)}
               className="text-red-600 hover:text-red-700 font-medium"
@@ -436,7 +448,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
               Cancel Subscription
             </button>
           )}
-          {userProfile.subscription.cancelAtPeriodEnd && (
+          {userProfile?.subscription?.cancelAtPeriodEnd && (
             <>
               <button
                 onClick={handleReactivateSubscription}
@@ -447,7 +459,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
               <div className="flex items-center gap-2 text-amber-600">
                 <AlertCircle className="w-4 h-4" />
                 <span className="text-sm">Subscription will end on {(() => {
-                  if (!userProfile.subscription.currentPeriodEnd) {
+                  if (!userProfile?.subscription?.currentPeriodEnd) {
                     return 'end of billing period';
                   }
                   
