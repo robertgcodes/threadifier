@@ -446,7 +446,30 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
               </button>
               <div className="flex items-center gap-2 text-amber-600">
                 <AlertCircle className="w-4 h-4" />
-                <span className="text-sm">Subscription will end on {userProfile.subscription.currentPeriodEnd ? formatDate((userProfile.subscription.currentPeriodEnd as any).seconds || Math.floor(new Date(userProfile.subscription.currentPeriodEnd as any).getTime() / 1000)) : 'end of billing period'}</span>
+                <span className="text-sm">Subscription will end on {(() => {
+                  if (!userProfile.subscription.currentPeriodEnd) {
+                    return 'end of billing period';
+                  }
+                  
+                  try {
+                    const currentPeriodEnd = userProfile.subscription.currentPeriodEnd as any;
+                    let timestamp: number;
+                    
+                    if (currentPeriodEnd.seconds) {
+                      timestamp = currentPeriodEnd.seconds;
+                    } else if (currentPeriodEnd instanceof Date) {
+                      timestamp = Math.floor(currentPeriodEnd.getTime() / 1000);
+                    } else if (typeof currentPeriodEnd === 'number') {
+                      timestamp = currentPeriodEnd;
+                    } else {
+                      return 'end of billing period';
+                    }
+                    
+                    return formatDate(timestamp);
+                  } catch (error) {
+                    return 'end of billing period';
+                  }
+                })()}</span>
               </div>
             </>
           )}

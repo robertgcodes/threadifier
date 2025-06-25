@@ -238,7 +238,23 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
               
               <div className="mt-6">
                 <span className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-                  {tier.price === 0 ? 'Free' : `$${String(isYearly && tier.priceYearly && tier.priceYearly > 0 ? Math.floor(tier.priceYearly / 12) : tier.price)}`}
+                  {(() => {
+                    if (tier.price === 0) return 'Free';
+                    
+                    let displayPrice: number;
+                    if (isYearly && tier.priceYearly && tier.priceYearly > 0) {
+                      displayPrice = Math.floor(tier.priceYearly / 12);
+                    } else {
+                      displayPrice = tier.price;
+                    }
+                    
+                    // Ensure we have a valid number
+                    if (isNaN(displayPrice) || !isFinite(displayPrice)) {
+                      displayPrice = tier.price || 0;
+                    }
+                    
+                    return `$${String(displayPrice)}`;
+                  })()}
                 </span>
                 {tier.price > 0 ? <span className="text-gray-600 dark:text-gray-400">/month</span> : null}
                 {isYearly && tier.priceYearly && tier.priceYearly > 0 ? (
