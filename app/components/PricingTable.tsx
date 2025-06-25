@@ -63,10 +63,10 @@ const pricingTiers: PricingTier[] = [
     ],
     limitations: [],
     recommended: true,
-    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_MONTHLY ? {
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_MONTHLY && process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_MONTHLY !== 'price_professional_monthly_id' ? {
       stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_MONTHLY,
     } : {}),
-    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_YEARLY ? {
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_YEARLY && process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_YEARLY !== 'price_professional_yearly_id' ? {
       stripePriceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_YEARLY,
     } : {}),
   },
@@ -89,10 +89,10 @@ const pricingTiers: PricingTier[] = [
       'Custom branding options',
     ],
     limitations: [],
-    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY ? {
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY && process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY !== 'price_team_monthly_id' ? {
       stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY,
     } : {}),
-    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY ? {
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY && process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY !== 'price_team_yearly_id' ? {
       stripePriceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY,
     } : {}),
   },
@@ -123,7 +123,7 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
 
       const priceId = isYearly ? tier.stripePriceIdYearly : tier.stripePriceId;
       
-      if (!priceId) {
+      if (!priceId || priceId.includes('_id')) {
         throw new Error('This subscription plan is not available for purchase yet. Please try again later or contact support.');
       }
       
@@ -162,6 +162,30 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
 
   return (
     <div className="py-12">
+      {/* Stripe Configuration Warning */}
+      {!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === 'pk_test_your_stripe_publishable_key' ? (
+        <div className="max-w-4xl mx-auto mb-8 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Payment System Not Configured
+              </h3>
+              <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
+                <p>
+                  The payment system is not fully configured. Subscription buttons are disabled until Stripe is properly set up.
+                  Contact support for assistance.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Billing Toggle */}
       <div className="flex justify-center mb-12">
         <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-lg flex items-center">
@@ -214,19 +238,19 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
               
               <div className="mt-6">
                 <span className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-                  {tier.price === 0 ? 'Free' : `$${String(isYearly && tier.priceYearly ? Math.floor(tier.priceYearly / 12) : tier.price)}`}
+                  {tier.price === 0 ? 'Free' : `$${String(isYearly && tier.priceYearly && tier.priceYearly > 0 ? Math.floor(tier.priceYearly / 12) : tier.price)}`}
                 </span>
                 {tier.price > 0 ? <span className="text-gray-600 dark:text-gray-400">/month</span> : null}
-                {isYearly && tier.priceYearly > 0 ? (
+                {isYearly && tier.priceYearly && tier.priceYearly > 0 ? (
                   <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                    Billed ${String(tier.priceYearly || 0)} yearly
+                    Billed ${String(tier.priceYearly)} yearly
                   </p>
                 ) : null}
               </div>
 
               <button
                 onClick={() => handleSubscribe(tier)}
-                disabled={loading !== null || currentPlan === tier.id}
+                disabled={loading !== null || currentPlan === tier.id || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === 'pk_test_your_stripe_publishable_key'}
                 className={`mt-6 w-full py-3 px-4 rounded-lg font-medium transition-colors ${
                   currentPlan === tier.id
                     ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
@@ -241,6 +265,8 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
                   'Current Plan'
                 ) : tier.id === 'free' ? (
                   'Get Started'
+                ) : !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === 'pk_test_your_stripe_publishable_key' ? (
+                  'Coming Soon'
                 ) : (
                   'Subscribe'
                 )}
