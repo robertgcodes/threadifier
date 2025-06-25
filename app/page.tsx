@@ -1296,6 +1296,14 @@ function Page() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     
+    // Handle view parameter
+    const view = params.get('view');
+    if (view === 'billing') {
+      setCurrentView('billing');
+      // Clean up URL after setting view
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    
     // X auth callbacks
     if (params.get('x_auth') === 'success') {
       toast.success('Successfully connected to X!');

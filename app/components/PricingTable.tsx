@@ -214,12 +214,12 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
               
               <div className="mt-6">
                 <span className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-                  {tier.price === 0 ? 'Free' : `$${isYearly && tier.priceYearly ? Math.floor(tier.priceYearly / 12) : tier.price}`}
+                  {tier.price === 0 ? 'Free' : `$${String(isYearly && tier.priceYearly ? Math.floor(tier.priceYearly / 12) : tier.price)}`}
                 </span>
                 {tier.price > 0 ? <span className="text-gray-600 dark:text-gray-400">/month</span> : null}
                 {isYearly && tier.priceYearly > 0 ? (
                   <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                    Billed ${tier.priceYearly || 0} yearly
+                    Billed ${String(tier.priceYearly || 0)} yearly
                   </p>
                 ) : null}
               </div>
