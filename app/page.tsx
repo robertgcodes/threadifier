@@ -3493,9 +3493,11 @@ function Page() {
                     <TeamManagement 
                       userProfile={fullUserProfile || { uid: user?.uid || '', email: user?.email || '' }}
                       onUpdateProfile={async (updates) => {
-                        const updated = await updateUserProfile(user?.uid || '', updates);
-                        if (updated) {
-                          setFullUserProfile(updated);
+                        await updateUserProfile(user?.uid || '', updates);
+                        // Refresh the full user profile after update
+                        const refreshedProfile = await getUserProfile(user?.uid || '');
+                        if (refreshedProfile) {
+                          setFullUserProfile(refreshedProfile);
                         }
                       }}
                     />
