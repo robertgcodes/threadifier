@@ -253,6 +253,127 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
         </div>
       </section>
 
+      {/* Getting Started Section */}
+      <section className="py-20 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h3 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              Get Started in Minutes
+            </h3>
+            <p className="text-xl text-gray-600 dark:text-gray-300">
+              Use our custom prompts and templates to create engaging threads instantly
+            </p>
+          </div>
+
+          {/* Custom Prompts Showcase */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg">
+              <h4 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                <Sparkles className="w-6 h-6 text-blue-600 dark:text-blue-400 mr-2" />
+                Custom AI Prompts
+              </h4>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                Our pre-built prompts adapt to any industry. Just edit the details and you've got a menu of ideas!
+              </p>
+              
+              <div className="space-y-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <h5 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">📚 Explainer Thread</h5>
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    Break down complex topics into digestible, educational chunks with numbered steps and real-world examples.
+                  </p>
+                </div>
+                
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                  <h5 className="font-semibold text-green-900 dark:text-green-100 mb-2">🎯 Problem-Solution</h5>
+                  <p className="text-sm text-green-800 dark:text-green-200">
+                    Present relatable problems and guide readers through practical solutions with actionable steps.
+                  </p>
+                </div>
+                
+                <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
+                  <h5 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">🏴‍☠️ Pirate Mode</h5>
+                  <p className="text-sm text-purple-800 dark:text-purple-200">
+                    Ar matey! Transform any content into swashbuckling pirate speak that's both entertaining and memorable.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg">
+              <h4 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400 mr-2" />
+                Thread Templates
+              </h4>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                Proven thread structures that work across all industries and platforms.
+              </p>
+              
+              <div className="space-y-4">
+                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
+                  <h5 className="font-semibold text-orange-900 dark:text-orange-100 mb-2">🔥 Hot Take Thread</h5>
+                  <p className="text-sm text-orange-800 dark:text-orange-200">
+                    Start with a controversial statement, build evidence, and end with a call to action.
+                  </p>
+                </div>
+                
+                <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                  <h5 className="font-semibold text-red-900 dark:text-red-100 mb-2">💡 How-To Guide</h5>
+                  <p className="text-sm text-red-800 dark:text-red-200">
+                    Step-by-step instructions with tips, warnings, and success stories.
+                  </p>
+                </div>
+                
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg">
+                  <h5 className="font-semibold text-indigo-900 dark:text-indigo-100 mb-2">📊 Data Story</h5>
+                  <p className="text-sm text-indigo-800 dark:text-indigo-200">
+                    Present statistics, explain the story behind the numbers, and reveal surprising insights.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Start Steps */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
+            <h4 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+              Quick Start Guide
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">1</span>
+                </div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Upload Content</h5>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
+                  Drop your PDF, paste text, or upload any document you want to transform
+                </p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-green-600 dark:text-green-400">2</span>
+                </div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Choose Your Style</h5>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
+                  Select a custom prompt or template, adjust settings, and let AI work its magic
+                </p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">3</span>
+                </div>
+                <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Publish & Engage</h5>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
+                  Post directly to X (Twitter) or download for Instagram carousels
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section id="features" className="py-20 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

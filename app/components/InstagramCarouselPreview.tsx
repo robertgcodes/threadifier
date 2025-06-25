@@ -430,18 +430,18 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
 
       {/* Thread Text & Actions */}
       <div className="max-w-[470px] mx-auto space-y-4">
-        <div className="bg-gray-50 rounded-lg p-4">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-900 dark:text-gray-100">Full Thread Text</h3>
             <button
               onClick={handleCopyText}
-              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
             >
               <Copy className="w-4 h-4" />
               Copy All
             </button>
           </div>
-          <div className="text-sm text-gray-600 whitespace-pre-wrap max-h-48 overflow-y-auto">
+          <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap max-h-48 overflow-y-auto">
             {posts.map(post => post.text).join('\n\n')}
           </div>
         </div>

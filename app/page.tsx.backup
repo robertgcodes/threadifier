@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
-import { Loader2, X, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon, Crop, Image as ImageIcon, BookOpen, DownloadCloud, CheckCircle, SortAsc, Send, MoreHorizontal, MessageCircle, Repeat2, Heart, Share, User, Camera, Moon, Sun, Bookmark, Square, FileText, Users, FolderOpen, Menu, XIcon, AlertCircle } from "lucide-react";
+import { Loader2, X, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon, Crop, Image as ImageIcon, BookOpen, DownloadCloud, CheckCircle, SortAsc, Send, MoreHorizontal, MessageCircle, Repeat2, Heart, Share, User, Camera, Moon, Sun, Bookmark, Square, FileText, Users, FolderOpen } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -46,11 +46,12 @@ import FreeTierNotice from './components/FreeTierNotice';
 import InstagramCarouselPreview from './components/InstagramCarouselPreview';
 import Homepage from './components/Homepage';
 import { Tab } from '@headlessui/react';
-import TeamManagement from './components/TeamManagement';
 import { PageSuggestion, PostImageSuggestion } from './types';
 import { saveThread, incrementThreadUsage, getUserThreads, SavedThread, saveCustomPrompt, getUserCustomPrompts, updateCustomPrompt, deleteCustomPrompt, CustomPrompt, updateThread, getUserProfile, getUserMonthlyUsage, checkCredits, useCredits, UserProfile, updateUserProfile } from './lib/database';
 import { uploadImagesToStorage, uploadMarkedUpImagesToStorage } from './lib/storage';
 import { checkUsageLimits, estimateApiCost, USAGE_LIMITS } from './lib/usage-limits';
+import TeamManagement from './components/TeamManagement';
+import ImageLibrary from './components/ImageLibrary';
 
 export const dynamic = 'force-dynamic';
 
@@ -274,7 +275,7 @@ function Page() {
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   
   // Navigation state
-  const [currentView, setCurrentView] = useState<'main' | 'myThreads' | 'templates' | 'billing' | 'customPrompts' | 'profile' | 'library'>('main');
+  const [currentView, setCurrentView] = useState<'main' | 'myThreads' | 'templates' | 'billing' | 'customPrompts' | 'profile'>('main');
   const [savedThreads, setSavedThreads] = useState<SavedThread[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [threadSortBy, setThreadSortBy] = useState<'name' | 'date' | 'status'>('date');
@@ -300,8 +301,6 @@ function Page() {
   const [xAuthStatus, setXAuthStatus] = useState<{ authenticated: boolean; user?: any }>({ authenticated: false });
   const [isPostingToX, setIsPostingToX] = useState(false);
   const [showXSetupModal, setShowXSetupModal] = useState(false);
-  const [showPostConfirmDialog, setShowPostConfirmDialog] = useState(false);
-  const [postedTweetUrl, setPostedTweetUrl] = useState<string | null>(null);
   
   // User Profile state
   interface UserProfileState {
@@ -1381,13 +1380,6 @@ function Page() {
       return;
     }
 
-    // Show confirmation dialog
-    setShowPostConfirmDialog(true);
-  };
-
-  const confirmPostToX = async () => {
-    setShowPostConfirmDialog(false);
-
     // Validate image quality before posting
     const imageQualityIssues = [];
     for (const post of generatedThread) {
@@ -1456,12 +1448,9 @@ function Page() {
       if (result.success) {
         toast.success(`Thread posted successfully! ${result.tweetIds.length} tweet(s) published.`);
         
-        // Store the thread URL for the success dialog
+        // Open the thread in a new tab
         if (result.threadUrl) {
-          setPostedTweetUrl(result.threadUrl);
-        } else if (result.tweetIds && result.tweetIds.length > 0) {
-          // Fallback to first tweet if threadUrl not provided
-          setPostedTweetUrl(`https://x.com/i/status/${result.tweetIds[0]}`);
+          window.open(result.threadUrl, '_blank');
         }
         
         // Note: Thread status update functionality can be added later when we have proper thread management
@@ -1498,40 +1487,60 @@ function Page() {
   };
 
   // AuthDisplay component with access to state
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const navItems = [
-    { id: 'main', label: 'Home', onClick: () => setCurrentView('main') },
-    { id: 'myThreads', label: 'Threads', onClick: () => { setCurrentView('myThreads'); loadUserThreads(); } },
-    { id: 'customPrompts', label: 'Prompts', onClick: () => setCurrentView('customPrompts') },
-    { id: 'library', label: 'Library', onClick: () => setCurrentView('library') },
-    { id: 'billing', label: 'Billing', onClick: () => setCurrentView('billing') },
-    { id: 'profile', label: 'Profile', onClick: () => setCurrentView('profile') },
-  ];
-
   const AuthDisplay = () => {
     if (!user) {
       return <Link href="/login" className="btn-primary">Login</Link>;
     }
 
     return (
-      <div className="flex items-center gap-4">
-        {/* Desktop Navigation */}
-        <nav className="hidden lg:flex items-center gap-4">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={item.onClick}
-              className={`text-sm transition-colors ${currentView === item.id ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
-            >
-              {item.label}
-            </button>
-          ))}
+      <div className="flex items-center gap-6">
+        {/* Navigation Links */}
+        <nav className="hidden md:flex items-center gap-4">
+          <button 
+            onClick={() => setCurrentView('main')}
+            className={`text-sm transition-colors ${currentView === 'main' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
+          >
+            Home
+          </button>
+          <button 
+            onClick={() => {
+              setCurrentView('myThreads');
+              loadUserThreads();
+            }}
+            className={`text-sm transition-colors ${currentView === 'myThreads' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
+          >
+            My Threads
+          </button>
+          <button 
+            onClick={() => {
+              setCurrentView('customPrompts');
+            }}
+            className={`text-sm transition-colors ${currentView === 'customPrompts' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
+          >
+            Prompts
+          </button>
+          <button 
+            onClick={() => setCurrentView('templates')}
+            className={`text-sm transition-colors ${currentView === 'templates' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
+          >
+            Templates
+          </button>
+          <button 
+            onClick={() => setCurrentView('billing')}
+            className={`text-sm transition-colors ${currentView === 'billing' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
+          >
+            Billing
+          </button>
+          <button 
+            onClick={() => setCurrentView('profile')}
+            className={`text-sm transition-colors ${currentView === 'profile' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
+          >
+            Profile
+          </button>
         </nav>
         
-        {/* Right Side Items */}
+        {/* Credits Display */}
         <div className="flex items-center gap-3">
-          {/* Credits Display */}
           {fullUserProfile ? (
             <CreditCounter
               premiumCredits={fullUserProfile?.credits?.premiumCredits ? Number(fullUserProfile.credits.premiumCredits) : 0}
@@ -1554,10 +1563,10 @@ function Page() {
             )}
           </button>
           
-          {/* User Profile - Desktop */}
+          {/* User Profile */}
           <button 
             onClick={() => setCurrentView('profile')}
-            className="hidden sm:flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 transition-colors"
+            className="flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 transition-colors"
           >
             <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center">
               {userProfile.avatar ? (
@@ -1568,22 +1577,10 @@ function Page() {
                 </span>
               )}
             </div>
-            <div className="text-left">
+            <div className="hidden sm:block text-left">
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{userProfile.displayName || user.displayName || user.email}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">@{userProfile.xHandle}</p>
             </div>
-          </button>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
-            {mobileMenuOpen ? (
-              <XIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-            ) : (
-              <Menu className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-            )}
           </button>
         </div>
       </div>
@@ -1971,6 +1968,22 @@ function Page() {
                 </svg>
                 Instagram
               </Tab>
+              <Tab className={({ selected }) =>
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5
+                ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 flex items-center justify-center gap-2
+                ${selected ? 'bg-white dark:bg-gray-800 shadow text-blue-700 dark:text-blue-300' : 'text-blue-100 dark:text-blue-200 hover:bg-white/[0.12] dark:hover:bg-gray-700/50 hover:text-white'}`
+              }>
+                <Users className="w-4 h-4" />
+                Team
+              </Tab>
+              <Tab className={({ selected }) =>
+                `w-full rounded-lg py-2.5 text-sm font-medium leading-5
+                ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 flex items-center justify-center gap-2
+                ${selected ? 'bg-white dark:bg-gray-800 shadow text-blue-700 dark:text-blue-300' : 'text-blue-100 dark:text-blue-200 hover:bg-white/[0.12] dark:hover:bg-gray-700/50 hover:text-white'}`
+              }>
+                <FolderOpen className="w-4 h-4" />
+                Library
+              </Tab>
             </Tab.List>
             <Tab.Panels className="mt-2">
               {/* Home Dashboard Tab */}
@@ -1989,10 +2002,10 @@ function Page() {
                   {/* Analytics Dashboard */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Total Threads */}
-                    <div className="bg-blue-500 bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 rounded-lg p-6 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white">
                       <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-white/20 backdrop-blur-sm rounded-lg">
-                          <BookOpen className="w-6 h-6 text-white" />
+                        <div className="p-3 bg-white/20 rounded-lg">
+                          <BookOpen className="w-6 h-6" />
                         </div>
                         <span className="text-3xl font-bold">{String(fullUserProfile?.usage?.threadsGenerated || 0)}</span>
                       </div>
@@ -2001,10 +2014,10 @@ function Page() {
                     </div>
 
                     {/* Total Posts */}
-                    <div className="bg-green-500 bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 rounded-lg p-6 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white">
                       <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-white/20 backdrop-blur-sm rounded-lg">
-                          <MessageCircle className="w-6 h-6 text-white" />
+                        <div className="p-3 bg-white/20 rounded-lg">
+                          <MessageCircle className="w-6 h-6" />
                         </div>
                         <span className="text-3xl font-bold">
                           {String(savedThreads.reduce((total, thread) => total + thread.posts.length, 0))}
@@ -2015,10 +2028,10 @@ function Page() {
                     </div>
 
                     {/* Images Edited */}
-                    <div className="bg-purple-500 bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700 rounded-lg p-6 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-6 text-white">
                       <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-white/20 backdrop-blur-sm rounded-lg">
-                          <ImageIcon className="w-6 h-6 text-white" />
+                        <div className="p-3 bg-white/20 rounded-lg">
+                          <ImageIcon className="w-6 h-6" />
                         </div>
                         <span className="text-3xl font-bold">{String(markedUpImages.length)}</span>
                       </div>
@@ -2027,10 +2040,10 @@ function Page() {
                     </div>
 
                     {/* Time Saved */}
-                    <div className="bg-orange-500 bg-gradient-to-br from-orange-500 to-orange-600 dark:from-orange-600 dark:to-orange-700 rounded-lg p-6 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                    <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-6 text-white">
                       <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-white/20 backdrop-blur-sm rounded-lg">
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="p-3 bg-white/20 rounded-lg">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
@@ -2283,6 +2296,27 @@ function Page() {
                               </>
                             )}
                           </button>
+                          
+                          {/* X (Twitter) Integration - Post button only shown if authenticated */}
+                          {xAuthStatus.authenticated && (
+                            <button 
+                              onClick={postThreadToX} 
+                              disabled={isPostingToX || generatedThread.length === 0}
+                              className="btn-primary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isPostingToX ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-1 animate-spin"/>
+                                  Posting...
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-4 h-4 mr-1"/>
+                                  Post to X
+                                </>
+                              )}
+                            </button>
+                          )}
                           
                           <button onClick={handleCopyAll} className="btn-secondary flex items-center"><CopyIcon className="w-4 h-4 mr-1"/>Copy All</button>
                         </div>
@@ -2548,9 +2582,6 @@ function Page() {
                     pageImages={pageImages}
                     markedUpImages={markedUpImages}
                     user={user}
-                    xAuthStatus={xAuthStatus}
-                    onPostToX={postThreadToX}
-                    isPostingToX={isPostingToX}
                   />
                 )}
               </Tab.Panel>
@@ -2565,6 +2596,12 @@ function Page() {
                   pageImages={pageImages}
                   markedUpImages={markedUpImages}
                 />
+              </Tab.Panel>
+              <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+                <TeamManagement />
+              </Tab.Panel>
+              <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+                <ImageLibrary />
               </Tab.Panel>
             </Tab.Panels>
           </Tab.Group>
@@ -3488,19 +3525,6 @@ function Page() {
                     </div>
                   </div>
 
-                  {/* Team Management */}
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm dark:shadow-gray-900/20 border border-legal-200 dark:border-gray-700">
-                    <TeamManagement 
-                      userProfile={fullUserProfile || { uid: user?.uid || '', email: user?.email || '' }}
-                      onUpdateProfile={async (updates) => {
-                        const updated = await updateUserProfile(user?.uid || '', updates);
-                        if (updated) {
-                          setFullUserProfile(updated);
-                        }
-                      }}
-                    />
-                  </div>
-
                   <div className="flex gap-3 pt-4">
                     <button
                       onClick={handleProfileSave}
@@ -3925,19 +3949,13 @@ function Page() {
     postPageMap, 
     pageImages, 
     markedUpImages, 
-    user,
-    xAuthStatus,
-    onPostToX,
-    isPostingToX
+    user 
   }: { 
     posts: ThreadPost[];
     postPageMap: any;
     pageImages: string[];
     markedUpImages: MarkedUpImage[];
     user: any;
-    xAuthStatus: { authenticated: boolean; user?: any };
-    onPostToX: () => Promise<void>;
-    isPostingToX: boolean;
   }) => {
     const getImageForPost = (postId: number) => {
       const imageInfo = postPageMap[postId];
@@ -3999,58 +4017,31 @@ function Page() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">X Thread Preview</h2>
+          <h2 className="text-xl font-bold text-gray-800">X Thread Preview</h2>
           <div className="flex items-center gap-3">
-            {/* Authentication Status */}
-            {!xAuthStatus.authenticated && (
-              <div className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                Not connected to X
-              </div>
-            )}
-            {xAuthStatus.authenticated && (
-              <div className="text-sm text-green-600 dark:text-green-400 flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" />
-                Connected as @{xAuthStatus.user?.username}
-              </div>
-            )}
-            
             <div className="flex items-center gap-2">
               {/* Theme Toggle */}
               <button
                 onClick={() => setXPreviewMode(xPreviewMode === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
                 title={`Switch to ${xPreviewMode === 'dark' ? 'light' : 'dark'} mode`}
               >
                 {xPreviewMode === 'dark' ? (
-                  <Sun className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                  <Sun className="w-4 h-4 text-gray-600" />
                 ) : (
-                  <Moon className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                  <Moon className="w-4 h-4 text-gray-600" />
                 )}
               </button>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-sm text-gray-600">
                 {posts.length} tweet{posts.length !== 1 ? 's' : ''}
               </span>
             </div>
-            
-            {/* Post to X Button */}
             <button
-              onClick={onPostToX}
-              disabled={!xAuthStatus.authenticated || posts.some(post => isOverLimit(post.text)) || isPostingToX}
+              disabled={posts.some(post => isOverLimit(post.text))}
               className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={!xAuthStatus.authenticated ? 'Connect to X in Settings to post' : posts.some(post => isOverLimit(post.text)) ? 'Some posts exceed character limit' : 'Post thread to X'}
             >
-              {isPostingToX ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Posting...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  Post to X
-                </>
-              )}
+              <Send className="w-4 h-4" />
+              Publish Thread
             </button>
           </div>
         </div>
@@ -4314,128 +4305,22 @@ function Page() {
   // Combine built-in prompts with user's custom prompts
   const allPrompts = [...builtInPrompts, ...customPrompts];
 
-  const [libraryTab, setLibraryTab] = useState<'images' | 'templates'>('images');
-
-  const renderLibraryView = () => (
-    <main className="p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Library</h1>
-          <button
-            onClick={() => setCurrentView('main')}
-            className="btn-secondary"
-          >
-            Back to Home
-          </button>
-        </div>
-        {/* Library Tabs */}
-        <div className="border-b border-gray-200 dark:border-gray-700 mb-8">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setLibraryTab('images')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                libraryTab === 'images'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Images
-            </button>
-            <button
-              onClick={() => setLibraryTab('templates')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                libraryTab === 'templates'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Thread Templates
-            </button>
-          </nav>
-        </div>
-        {/* Tab Content */}
-        {libraryTab === 'images' && (
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto text-center">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Image Library</h2>
-            <p className="text-gray-500 dark:text-gray-400 mb-6">Image library coming soon!</p>
-          </div>
-        )}
-        {libraryTab === 'templates' && (
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto text-center">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Thread Templates</h2>
-            <p className="text-gray-500 dark:text-gray-400 mb-6">Custom thread templates coming soon!</p>
-            {/* You can add a table or list of templates here in the future */}
-          </div>
-        )}
-      </div>
-    </main>
-  );
-
   return (
     <div className="bg-legal-100 dark:bg-gray-900 min-h-screen">
-      <header className="bg-white dark:bg-gray-800 shadow relative">
-        <div className="py-4 px-8">
-          <div className="flex items-center justify-between">
-            {/* Logo/Title */}
-            <div className="flex items-center">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Threadifier</h1>
-            </div>
-            
-            {/* Auth Display */}
-            <AuthDisplay />
+      <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-700 p-4 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 bg-legal-800 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-lg">T</span>
           </div>
-          
-          {/* Mobile Menu Dropdown */}
-          {user && mobileMenuOpen && (
-            <div className="lg:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-800 shadow-lg border-t border-gray-200 dark:border-gray-700 z-50">
-              <nav className="px-4 py-4 space-y-2">
-                {navItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      item.onClick();
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
-                      currentView === item.id
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-                
-                {/* Mobile Profile Section */}
-                <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-3 px-4">
-                    <div className="h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center">
-                      {userProfile.avatar ? (
-                        <img src={userProfile.avatar} alt="Profile" className="w-full h-full rounded-full object-cover" />
-                      ) : (
-                        <span className="text-white text-lg font-medium">
-                          {userProfile.displayName?.charAt(0)?.toUpperCase() || user.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {userProfile.displayName || user.displayName || user.email}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">@{userProfile.xHandle}</p>
-                    </div>
-                  </div>
-                </div>
-              </nav>
-            </div>
-          )}
+          <h1 className="text-2xl font-bold text-legal-800 dark:text-gray-100">Threadifier</h1>
         </div>
+        <AuthDisplay />
       </header>
       
       {/* Low Credits Banner */}
       {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.available <= 5 && fullUserProfile.credits.available > 0 ? (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-8 py-3">
-          <div className="flex items-center justify-between">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-4 py-3">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
               <span className="text-yellow-800 dark:text-yellow-200 text-sm font-medium">
                 ⚠️ You only have {String(fullUserProfile.credits.available)} credit{fullUserProfile.credits.available === 1 ? '' : 's'} left!
@@ -4459,8 +4344,8 @@ function Page() {
       
       {/* Out of Credits Banner */}
       {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.available === 0 ? (
-        <div className="bg-red-50 border-b border-red-200 px-8 py-3">
-          <div className="flex items-center justify-between">
+        <div className="bg-red-50 border-b border-red-200 px-4 py-3">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
               <span className="text-red-800 text-sm font-medium">
                 ❌ You're out of credits!
@@ -4507,7 +4392,6 @@ function Page() {
       {currentView === 'myThreads' ? renderMyThreadsView() : null}
       {currentView === 'customPrompts' ? renderCustomPromptsView() : null}
       {currentView === 'templates' ? renderTemplatesView() : null}
-      {currentView === 'library' ? renderLibraryView() : null}
       {currentView === 'billing' ? renderBillingView() : null}
       {currentView === 'profile' ? renderProfileView() : null}
 
@@ -4708,110 +4592,6 @@ NEXT_PUBLIC_APP_URL=${typeof window !== 'undefined' ? window.location.origin : '
 
       {/* Admin Panel */}
       <AdminPanel isOpen={showAdminPanel} onClose={() => setShowAdminPanel(false)} />
-
-      {/* Post to X Confirmation Dialog */}
-      <Dialog open={showPostConfirmDialog} onClose={() => setShowPostConfirmDialog(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="mx-auto max-w-md rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
-            <Dialog.Title className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Confirm Post to X
-            </Dialog.Title>
-            
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-gray-600 dark:text-gray-300">
-                  <p>You're about to post a thread with {generatedThread.length} tweet{generatedThread.length !== 1 ? 's' : ''} to X.</p>
-                  {Object.keys(postPageMap).length > 0 && (
-                    <p className="mt-2">This thread includes {Object.keys(postPageMap).length} image{Object.keys(postPageMap).length !== 1 ? 's' : ''}.</p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Preview of first tweet:
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200 mt-1 line-clamp-3">
-                  {generatedThread[0]?.text || ''}
-                </p>
-              </div>
-            </div>
-            
-            <div className="mt-6 flex gap-3 justify-end">
-              <button
-                onClick={() => setShowPostConfirmDialog(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmPostToX}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-                Post to X
-              </button>
-            </div>
-          </Dialog.Panel>
-        </div>
-      </Dialog>
-
-      {/* Post Success Dialog */}
-      <Dialog open={!!postedTweetUrl} onClose={() => setPostedTweetUrl(null)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="mx-auto max-w-md rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full">
-                <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-              </div>
-              <Dialog.Title className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Thread Posted Successfully!
-              </Dialog.Title>
-            </div>
-            
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Your thread has been posted to X. You can view it by clicking the link below:
-              </p>
-              
-              {postedTweetUrl && (
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                  <a
-                    href={postedTweetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline break-all"
-                  >
-                    {postedTweetUrl}
-                  </a>
-                </div>
-              )}
-            </div>
-            
-            <div className="mt-6 flex gap-3 justify-end">
-              <button
-                onClick={() => setPostedTweetUrl(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                Close
-              </button>
-              <a
-                href={postedTweetUrl || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setPostedTweetUrl(null)}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
-              >
-                <Share className="w-4 h-4" />
-                View on X
-              </a>
-            </div>
-          </Dialog.Panel>
-        </div>
-      </Dialog>
 
     </div>
   );

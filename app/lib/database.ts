@@ -200,6 +200,41 @@ Tips:
       }
     },
     {
+      name: "🏴‍☠️ Pirate Mode",
+      instructions: `Transform any content into swashbuckling pirate speak! Use nautical terms, pirate slang, and adventurous language while maintaining the core message.
+
+Structure:
+- Post 1: Hook with a pirate-themed introduction
+- Posts 2-N: Present the main content with pirate language
+- Use nautical metaphors and pirate expressions
+- Keep the educational value while making it entertaining
+- End with a pirate-themed call to action
+
+Example: "Ahoy mateys! Gather 'round as I tell ye the tale of [topic]... 🏴‍☠️"
+
+Pirate Language Guide:
+- Replace "you" with "ye" or "matey"
+- Use "arrr" for emphasis
+- Add "me hearties" for camaraderie
+- Use nautical terms: "navigate," "chart a course," "sail through"
+- Include pirate expressions: "shiver me timbers," "yo ho ho," "avast"
+
+Tips:
+- Don't overdo the pirate speak - keep it readable
+- Use pirate language to enhance, not obscure the message
+- Make it fun while maintaining professionalism
+- Perfect for making dry topics more engaging`,
+      settings: {
+        charLimit: 280,
+        numPosts: 8,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        threadStyle: 'entertaining'
+      }
+    },
+    {
       name: "📖 Storytelling Thread",
       instructions: `Transform content into a compelling narrative. Use story structure to make information memorable and engaging.
 
@@ -341,54 +376,55 @@ Tips:
       }
     },
     {
-      name: "🏴‍☠️ Pirate Thread",
-      instructions: `Transform any content into an exciting pirate adventure! Perfect for making dry topics fun and engaging.
+      name: "📊 Data Storyteller",
+      instructions: `Transform statistics and data into compelling narratives. Make numbers meaningful and memorable.
 
 Structure:
-- Post 1: Set sail with a dramatic pirate hook
-- Posts 2-N: Navigate through the content as if it's a treasure map
-- Use pirate language and nautical metaphors
-- Make each post feel like discovering new treasure
-- End with a triumphant conclusion
+- Post 1: Lead with surprising statistic
+- Posts 2-3: Context for the data
+- Posts 4-5: Break down what it means
+- Post 6: Compare to relatable examples
+- Post 7: Implications and trends
+- Final post: What readers should do with this info
 
-Example: "Ahoy mateys! Today we're setting sail on a grand adventure to discover the secrets of [topic]... 🏴‍☠️"
+Example: "This one statistic changed how I think about [topic]: [surprising stat]... 🧵"
 
 Tips:
-- Use pirate slang: "arrr", "matey", "treasure", "navigate", "chart", "compass"
-- Turn concepts into "treasures" or "maps"
-- Make problems into "storms" or "sea monsters"
-- Use nautical terms: "navigate", "chart course", "drop anchor"
-- Keep it fun but informative`,
+- Use analogies for large numbers
+- Include visuals when possible
+- Focus on "so what?" factor
+- Make data personally relevant`,
       settings: {
         charLimit: 280,
         numPosts: 8,
         useEmojis: true,
         useHashtags: false,
-        useNumbering: false,
+        useNumbering: true,
         addCallToAction: true,
-        threadStyle: 'entertaining'
+        threadStyle: 'analytical'
       }
     },
     {
-      name: "😄 Humor & Entertainment",
-      instructions: `Transform content into entertaining, shareable posts using humor. Make learning fun and memorable.
+      name: "🏴‍☠️ Make Me a Pirate!",
+      instructions: `Ahoy matey! Transform any landlubber's document into a swashbucklin' thread that'd make Blackbeard himself proud! Ye'll be speakin' like a true pirate of the high seas, arr!
 
 Structure:
-- Post 1: Setup with a relatable observation
-- Posts 2-N: Build humor through:
-  - Unexpected comparisons
-  - Exaggeration for effect
-  - Self-deprecating moments
-  - Callbacks to earlier jokes
-- Final post: Punchline or plot twist
+- Post 1: "Ahoy me hearties! Gather 'round fer a tale..." (introduce the topic)
+- Posts 2-3: The meat of yer message, but with pirate flair
+- Posts 4-5: More details, peppered with "arr", "matey", "savvy?"
+- Post 6: A twist or revelation worthy of the seven seas
+- Final post: "Fair winds and followin' seas!" (call to action)
 
-Example: "My lawyer just explained [complex topic] to me like I'm 5, and honestly, I still don't get it... 🧵"
+Example: "Avast ye scurvy dogs! I've discovered treasure in these here documents... 🏴‍☠️⚓ 🧵"
 
-Tips:
-- Know your audience's humor style
-- Balance humor with actual value
-- Use memes/GIFs when appropriate
-- Don't force jokes - let them emerge naturally`,
+Pirate speak tips:
+- Replace "you" with "ye"
+- Replace "your" with "yer"
+- Add "arr", "ahoy", "avast" liberally
+- Use "me" instead of "my" ("me ship", "me crew")
+- End sentences with "savvy?" or "arr!"
+- Mention treasure, ships, rum, and the high seas
+- Call people "matey", "landlubber", or "scallywag"`,
       settings: {
         charLimit: 280,
         numPosts: 7,
@@ -396,35 +432,81 @@ Tips:
         useHashtags: false,
         useNumbering: false,
         addCallToAction: true,
-        threadStyle: 'casual'
+        threadStyle: 'conversational'
       }
     },
     {
-      name: "⚖️ IRAC Legal Analysis",
-      instructions: `Structure legal analysis using Issue, Rule, Application, Conclusion format. Perfect for case analysis and legal education.
+      name: "🎓 Myth Buster",
+      instructions: `Debunk common misconceptions with facts and evidence. Educational and attention-grabbing.
 
 Structure:
-- Post 1: Present the ISSUE clearly
-- Posts 2-3: State the RULE (law, precedent, statute)
-- Posts 4-6: APPLICATION - apply rule to facts
-- Post 7: Address counterarguments
-- Final post: CONCLUSION with implications
+- Post 1: State the myth boldly
+- Post 2: Explain why people believe it
+- Posts 3-5: Present contradicting evidence
+- Post 6: Reveal the truth
+- Post 7: Explain implications
+- Final post: Other related myths to explore
 
-Example: "Let's break down [case name] using IRAC method. The issue is whether... 🧵"
+Example: "MYTH: [Common belief]. The truth is actually shocking... 🧵"
 
 Tips:
-- Define legal terms for lay audience
-- Cite relevant authorities
-- Consider both sides
-- Explain practical implications`,
+- Start with widely-held beliefs
+- Use credible sources
+- Be respectful of why myths persist
+- Provide actionable truth`,
       settings: {
         charLimit: 280,
         numPosts: 8,
-        useEmojis: false,
+        useEmojis: true,
         useHashtags: false,
         useNumbering: true,
-        addCallToAction: false,
-        threadStyle: 'professional'
+        addCallToAction: true,
+        threadStyle: 'educational'
+      }
+    },
+    {
+      name: "📜 The Definitive Thread",
+      instructions: `Create the ultimate, comprehensive thread that serves as the definitive resource on this topic. This thread should be so thorough that it becomes the go-to reference people bookmark and share.
+
+Structure:
+- Post 1: "This is the definitive thread explaining everything inside [topic]. I spent [time/effort] researching this so you don't have to... 🧵"
+- Post 2: Start with the fundamental context - what is this and why does it matter NOW
+- Posts 3-5: Historical background and evolution - how we got here
+- Posts 6-10: Core concepts broken down - the essential knowledge
+- Posts 11-15: Deep dive into key components/aspects
+- Posts 16-18: Common misconceptions debunked with evidence
+- Posts 19-21: Real-world applications and case studies
+- Posts 22-24: Future implications and what to watch for
+- Posts 25-26: Resources for further learning
+- Final post: Summary and why this matters to YOU
+
+Key Elements:
+- Use primary sources and cite credible references
+- Include surprising facts that challenge assumptions
+- Break complex ideas into digestible chunks
+- Use analogies to make abstract concepts concrete
+- Address multiple perspectives fairly
+- Anticipate and answer likely questions
+- Create natural breaking points for easy sharing
+- End each section with a mini-summary
+
+Example opening: "This is the definitive thread explaining everything inside Web3 infrastructure. I analyzed 200+ protocols, interviewed 50+ builders, and distilled 1000+ hours of research into this thread... 🧵"
+
+Tips:
+- Be authoritative but not arrogant
+- Acknowledge complexity while maintaining clarity
+- Use numbered points for easy reference
+- Include "If you only remember one thing..." moments
+- Make it scannable with clear section headers
+- Balance depth with accessibility`,
+      settings: {
+        charLimit: 280,
+        numPosts: 26,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        threadStyle: 'authoritative'
       }
     },
     {
