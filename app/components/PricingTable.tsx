@@ -63,12 +63,12 @@ const pricingTiers: PricingTier[] = [
     ],
     limitations: [],
     recommended: true,
-    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_MONTHLY && {
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_MONTHLY ? {
       stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_MONTHLY,
-    }),
-    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_YEARLY && {
+    } : {}),
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_YEARLY ? {
       stripePriceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_PROFESSIONAL_YEARLY,
-    }),
+    } : {}),
   },
   {
     id: 'team',
@@ -89,12 +89,12 @@ const pricingTiers: PricingTier[] = [
       'Custom branding options',
     ],
     limitations: [],
-    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY && {
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY ? {
       stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY,
-    }),
-    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY && {
+    } : {}),
+    ...(process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY ? {
       stripePriceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY,
-    }),
+    } : {}),
   },
 ];
 
@@ -214,12 +214,12 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
               
               <div className="mt-6">
                 <span className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-                  {tier.price === 0 ? 'Free' : `$${isYearly ? Math.floor(tier.priceYearly / 12) : tier.price}`}
+                  {tier.price === 0 ? 'Free' : `$${isYearly && tier.priceYearly ? Math.floor(tier.priceYearly / 12) : tier.price}`}
                 </span>
                 {tier.price > 0 ? <span className="text-gray-600 dark:text-gray-400">/month</span> : null}
                 {isYearly && tier.priceYearly > 0 ? (
                   <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                    Billed ${tier.priceYearly} yearly
+                    Billed ${tier.priceYearly || 0} yearly
                   </p>
                 ) : null}
               </div>
@@ -257,7 +257,7 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
                   ))}
                 </ul>
                 
-                {tier.limitations.length > 0 ? (
+                {tier.limitations && tier.limitations.length > 0 ? (
                   <>
                     <h4 className="font-semibold text-gray-900 dark:text-gray-100 mt-6">Not included:</h4>
                     <ul className="space-y-3">

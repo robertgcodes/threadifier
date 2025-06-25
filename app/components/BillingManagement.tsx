@@ -446,7 +446,7 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
               </button>
               <div className="flex items-center gap-2 text-amber-600">
                 <AlertCircle className="w-4 h-4" />
-                <span className="text-sm">Subscription will end on {userProfile.subscription.currentPeriodEnd ? formatDate((userProfile.subscription.currentPeriodEnd as any).seconds || Math.floor(new Date(userProfile.subscription.currentPeriodEnd as any).getTime() / 1000)) : 'end of billing period'}</span>
+                <span className="text-sm">Subscription will end on {userProfile.subscription.currentPeriodEnd ? formatDate((userProfile.subscription.currentPeriodEnd as any).seconds || Math.floor(new Date(userProfile.subscription.currentPeriodEnd as any).getTime() / 1000) || 0) : 'end of billing period'}</span>
               </div>
             </>
           )}
