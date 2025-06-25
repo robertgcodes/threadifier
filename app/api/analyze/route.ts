@@ -55,10 +55,12 @@ export async function POST(req: Request) {
     
     if (userId) {
       const userProfile = await getUserProfile(userId);
+      
+      // Default subscription for users without one
       const subscription = userProfile?.subscription || { plan: 'free', status: 'active' };
       
-      // Check if subscription is active
-      if (subscription.status !== 'active' && subscription.status !== 'trialing') {
+      // Check if subscription is active - only block if explicitly cancelled or past due
+      if (subscription.status === 'cancelled' || subscription.status === 'past_due') {
         return NextResponse.json({ 
           error: 'Your subscription is not active. Please update your billing.', 
           code: 'SUBSCRIPTION_INACTIVE' 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { firestore } from '../../lib/firebase';
+import { addCreditsWithExpiration } from '../../lib/database';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-05-28.basil',
@@ -65,7 +66,6 @@ export async function POST(req: NextRequest) {
         const userRef = doc(firestore, 'users', userId);
         const userDoc = await getDoc(userRef);
         const userData = userDoc.data();
-        const currentCredits = userData?.credits?.available || 0;
         
         // Check if this subscription has already been processed
         if (userData?.subscription?.stripeSubscriptionId === subscription.id && 
@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
           break;
         }
         
+        // Update subscription info
         await updateDoc(userRef, {
           subscription: {
             plan: plan,
@@ -83,12 +84,13 @@ export async function POST(req: NextRequest) {
             currentPeriodEnd: new Date(subscription.current_period_end * 1000),
             cancelAtPeriodEnd: subscription.cancel_at_period_end,
           },
-          'credits.available': currentCredits + initialCredits,
-          'credits.lifetime': ((userData as any)?.credits?.lifetime || 0) + initialCredits,
           'credits.lastRefreshDate': serverTimestamp(),
           'settings.autoAppendReferral': false, // Disable auto-append for paid users
           updatedAt: serverTimestamp(),
         });
+
+        // Add credits with 90-day expiration
+        await addCreditsWithExpiration(userId, initialCredits, 'subscription', 90);
 
         console.log(`Subscription activated for user ${userId}`);
         break;

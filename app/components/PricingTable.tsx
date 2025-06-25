@@ -55,7 +55,7 @@ const pricingTiers: PricingTier[] = [
       '500 premium credits per month',
       'Claude Sonnet AI (best model)',
       'No referral message',
-      'Rollover up to 1000 credits',
+      'Credits expire after 90 days',
       'Everything in Basic tier',
       'AI-powered image suggestions',
       'Custom thread statuses',
@@ -79,13 +79,12 @@ const pricingTiers: PricingTier[] = [
     features: [
       '2000 premium credits per month',
       'Claude Sonnet AI (best model)',
-      'Rollover up to 5000 credits',
+      'Credits expire after 90 days',
       'Everything in Professional',
       '3 team members',
       'Shared templates & prompts',
       'Team analytics dashboard',
       'API access (coming soon)',
-      'Priority phone support',
       'Custom branding options',
     ],
     limitations: [],
@@ -97,7 +96,6 @@ const pricingTiers: PricingTier[] = [
     } : {}),
   },
 ].map(tier => {
-  console.log('Processing tier:', tier.id, 'features:', tier.features);
   const processedTier = {
     ...tier,
     // Ensure all numeric values are valid numbers
@@ -122,7 +120,6 @@ const pricingTiers: PricingTier[] = [
       return isString;
     }) : [],
   };
-  console.log('Processed tier:', processedTier.id, 'features:', processedTier.features);
   return processedTier;
 });
 
@@ -335,7 +332,6 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
                   }).map((feature, index) => {
                     // Ensure feature is always a string
                     const featureString = String(feature);
-                    console.log(`Rendering feature for ${tier.id}:`, featureString, typeof featureString);
                     return (
                       <li key={`${tier.id}-feature-${index}`} className="flex items-start">
                         <Check className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -358,7 +354,6 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
                       }).map((limitation, index) => {
                         // Ensure limitation is always a string
                         const limitationString = String(limitation);
-                        console.log(`Rendering limitation for ${tier.id}:`, limitationString, typeof limitationString);
                         return (
                           <li key={`${tier.id}-limitation-${index}`} className="flex items-start">
                             <X className="w-5 h-5 text-gray-400 dark:text-gray-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -419,7 +414,7 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
           </li>
           <li className="flex items-start">
             <Check className="w-4 h-4 text-green-500 dark:text-green-400 mr-2 flex-shrink-0 mt-0.5" />
-            <span>Premium credits from paid plans can rollover each month</span>
+            <span>All premium credits expire after 90 days to encourage active usage</span>
           </li>
           <li className="flex items-start">
             <Check className="w-4 h-4 text-green-500 dark:text-green-400 mr-2 flex-shrink-0 mt-0.5" />

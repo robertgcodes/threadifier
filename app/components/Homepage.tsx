@@ -21,11 +21,19 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
     },
     {
       question: "What's the difference between Basic (free) and Professional plans?",
-      answer: "Basic plan uses Claude Haiku AI and includes a referral message in threads, while Professional ($29/mo) uses Claude Sonnet for superior creativity, removes all branding, and includes unlimited premium credits. Both plans offer unlimited thread generation, but Professional delivers higher quality results."
+      answer: "Basic plan uses Claude Haiku AI and includes a referral message in threads, while Professional ($29/mo) uses Claude Sonnet for superior creativity, removes all branding, and includes 500 premium credits per month. Both plans offer unlimited thread generation, but Professional delivers higher quality results."
     },
     {
       question: "How do the 100 free premium credits work?",
-      answer: "Every new user receives 100 premium credits to try our advanced Claude Sonnet AI model. Each thread generation uses 1 credit. You can earn 100 more credits for each friend you refer. Credits expire after 90 days to encourage active usage. Once credits are exhausted, you can continue with the Basic plan or upgrade to Professional for unlimited premium generation."
+      answer: "Every new user receives 100 premium credits to try our advanced Claude Sonnet AI model. Each thread generation uses 1 credit. You can earn 100 more credits for each friend you refer. Credits expire after 90 days to encourage active usage. Once credits are exhausted, you can continue with the Basic plan or upgrade to Professional for monthly premium credits."
+    },
+    {
+      question: "Do premium credits expire?",
+      answer: "Yes, all premium credits expire after 90 days from when they were earned. This includes trial credits, referral credits, and credits from paid subscriptions. We encourage active usage and don't allow credit banking to prevent refund requests for unused credits."
+    },
+    {
+      question: "Can I get a refund for unused credits?",
+      answer: "No, we do not offer refunds for unused credits. Premium credits expire after 90 days and cannot be refunded. This policy encourages active usage and prevents users from banking credits and then requesting refunds. We recommend using your credits regularly to get the most value from your subscription."
     },
     {
       question: "Can I use Threadifier for both X (Twitter) and Instagram?",
@@ -368,7 +376,7 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
               <ul className="space-y-3 mb-8">
                 <li className="flex items-start">
                   <CheckCircle className="w-5 h-5 text-white mr-3 flex-shrink-0 mt-0.5" />
-                  <span>Unlimited premium AI threads (Claude Sonnet)</span>
+                  <span>500 premium thread generations per month</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="w-5 h-5 text-white mr-3 flex-shrink-0 mt-0.5" />
@@ -376,7 +384,7 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="w-5 h-5 text-white mr-3 flex-shrink-0 mt-0.5" />
-                  <span>Priority support & feature requests</span>
+                  <span>Priority email support & feature requests</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="w-5 h-5 text-white mr-3 flex-shrink-0 mt-0.5" />
@@ -429,10 +437,6 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
                   <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
                   <span>Team analytics dashboard</span>
                 </li>
-                <li className="flex items-start">
-                  <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
-                  <span>Priority phone support</span>
-                </li>
               </ul>
 
               <button
@@ -458,7 +462,8 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
               <li>• <strong>1 credit = 1 thread</strong> with our advanced AI</li>
               <li>• <strong>Earn 100 credits</strong> for each friend who signs up with your referral</li>
               <li>• <strong>Credits expire after 90 days</strong> - use them while they're fresh!</li>
-              <li>• <strong>Upgrade to Professional</strong> for unlimited premium threads</li>
+              <li>• <strong>Upgrade to Professional</strong> for monthly premium credits</li>
+              <li>• <strong>No refunds</strong> for unused credits - we encourage active usage</li>
             </ul>
           </div>
         </div>

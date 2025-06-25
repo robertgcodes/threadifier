@@ -159,6 +159,13 @@ export async function checkUsageLimits(
 
 // Placeholder - implement with Firebase
 async function getMonthlyUsage(userId: string): Promise<number> {
-  // TODO: Query Firebase for current month's usage
-  return 0;
+  try {
+    // Import the function from database.ts
+    const { getUserMonthlyUsage } = await import('./database');
+    const usage = await getUserMonthlyUsage(userId);
+    return usage.threadsUsed;
+  } catch (error) {
+    console.error('Error getting monthly usage:', error);
+    return 0; // Default to 0 if there's an error
+  }
 }

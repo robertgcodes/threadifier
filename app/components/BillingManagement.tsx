@@ -618,8 +618,8 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
           <div>
             <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Common Questions</h4>
             <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-              <li>• Credits refresh monthly on your billing date</li>
-              <li>• Unused credits don't roll over to the next month</li>
+              <li>• Credits expire after 90 days from when they were earned</li>
+              <li>• No refunds for unused credits</li>
               <li>• You can change plans anytime - changes take effect immediately</li>
               <li>• Cancel anytime - you'll keep access until the end of your billing period</li>
             </ul>

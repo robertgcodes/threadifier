@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore } from '../../../lib/firebase';
+import { addCreditsWithExpiration, checkAndExpireCredits } from '../../../lib/database';
 
 // List of admin email addresses - add yours here
 const ADMIN_EMAILS = [
@@ -31,7 +32,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get user document
+    // First check and expire any expired credits
+    await checkAndExpireCredits(userId);
+
+    // Get current user data
     const userRef = doc(firestore, 'users', userId);
     const userDoc = await getDoc(userRef);
     
@@ -41,39 +45,35 @@ export async function POST(req: NextRequest) {
         { status: 404 }
       );
     }
-
+    
     const userData = userDoc.data();
     const currentPremiumCredits = userData.credits?.premiumCredits || 0;
     
     let newPremiumCredits = currentPremiumCredits;
-
-    // Apply the action to premium credits
-    switch (action) {
-      case 'add':
-        newPremiumCredits = currentPremiumCredits + amount;
-        break;
-      case 'subtract':
-        newPremiumCredits = Math.max(0, currentPremiumCredits - amount);
-        break;
-      case 'set':
-        newPremiumCredits = Math.max(0, amount);
-        break;
-      default:
-        return NextResponse.json(
-          { error: 'Invalid action' },
-          { status: 400 }
-        );
+    
+    if (action === 'add') {
+      // Add credits with 90-day expiration
+      await addCreditsWithExpiration(userId, amount, 'purchase', 90);
+      newPremiumCredits = currentPremiumCredits + amount;
+    } else if (action === 'subtract') {
+      newPremiumCredits = Math.max(0, currentPremiumCredits - amount);
+      
+      // Update user document
+      await updateDoc(userRef, {
+        'credits.premiumCredits': newPremiumCredits,
+        'credits.available': newPremiumCredits, // Keep for backward compatibility
+        updatedAt: serverTimestamp(),
+      });
+    } else if (action === 'set') {
+      newPremiumCredits = amount;
+      
+      // Update user document
+      await updateDoc(userRef, {
+        'credits.premiumCredits': newPremiumCredits,
+        'credits.available': newPremiumCredits, // Keep for backward compatibility
+        updatedAt: serverTimestamp(),
+      });
     }
-
-    // Update user credits
-    await updateDoc(userRef, {
-      'credits.available': newPremiumCredits, // Keep for backward compatibility
-      'credits.premiumCredits': newPremiumCredits,
-      'credits.lifetime': action === 'add' 
-        ? (userData.credits?.lifetime || 0) + amount 
-        : userData.credits?.lifetime || 0,
-      updatedAt: serverTimestamp(),
-    });
 
     // Log admin action (you might want to create a separate collection for this)
     console.log(`Admin action by ${adminEmail}: ${action} ${amount} premium credits for user ${userId}. Reason: ${reason || 'No reason provided'}`);
