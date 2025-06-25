@@ -1361,8 +1361,8 @@ function Page() {
   };
 
   const postThreadToX = async () => {
-    if (!xAuthStatus.authenticated) {
-      toast.error('Please connect to X first');
+    if (!user) {
+      toast.error('Please log in to post to X');
       return;
     }
 
@@ -1371,40 +1371,64 @@ function Page() {
       return;
     }
 
-    // Check if user has premium credits for X posting
-    const hasPremiumCredits = (fullUserProfile?.credits?.premiumCredits || 0) > 0;
-    const isPaidPlan = fullUserProfile?.subscription?.plan !== 'free';
-    
-    if (!hasPremiumCredits && !isPaidPlan) {
-      toast.error('Direct X posting requires premium credits. Earn credits by referring friends!');
+    // Check if any posts exceed character limit
+    const overLimitPosts = generatedThread.filter(post => post.text.length > 280);
+    if (overLimitPosts.length > 0) {
+      toast.error(`${overLimitPosts.length} post(s) exceed the 280 character limit`);
       return;
     }
 
-    setIsPostingToX(true);
-    addReasoningLog('🐦 Starting to post thread to X...');
-
-    try {
-      // Prepare images for each post
-      const imagesMap: Record<number, string[]> = {};
-      
-      for (const [postId, imageInfo] of Object.entries(postPageMap)) {
-        const urls: string[] = [];
-        
-        if (imageInfo.type === 'pdf' && pageImages[imageInfo.value as number]) {
-          urls.push(pageImages[imageInfo.value as number]);
-        } else if (imageInfo.type === 'marked') {
-          const markedImg = markedUpImages.find(m => m.id === imageInfo.value);
-          if (markedImg?.url) {
-            urls.push(markedImg.url);
-          }
-        }
-        
-        if (urls.length > 0) {
-          imagesMap[Number(postId)] = urls;
+    // Validate image quality before posting
+    const imageQualityIssues = [];
+    for (const post of generatedThread) {
+      const imageUrl = getImageForPost(post.id);
+      if (imageUrl) {
+        try {
+          const img = new Image();
+          await new Promise((resolve, reject) => {
+            img.onload = () => {
+              const { naturalWidth, naturalHeight } = img;
+              if (naturalWidth < 300 || naturalHeight < 168) {
+                imageQualityIssues.push(`Post ${post.id}: Image resolution too low (${naturalWidth}×${naturalHeight})`);
+              }
+              resolve(null);
+            };
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = imageUrl;
+          });
+        } catch (error) {
+          imageQualityIssues.push(`Post ${post.id}: Failed to validate image quality`);
         }
       }
+    }
 
-      addReasoningLog(`📤 Posting ${generatedThread.length} tweets with ${Object.keys(imagesMap).length} images...`);
+    if (imageQualityIssues.length > 0) {
+      const shouldContinue = window.confirm(
+        `Warning: ${imageQualityIssues.length} image(s) may have quality issues:\n\n${imageQualityIssues.slice(0, 3).join('\n')}${imageQualityIssues.length > 3 ? '\n...and more' : ''}\n\nContinue posting anyway?`
+      );
+      if (!shouldContinue) return;
+    }
+
+    setIsPostingToX(true);
+
+    try {
+      // Prepare posts with their associated images
+      const postsWithImages = generatedThread.map(post => {
+        const imageUrl = getImageForPost(post.id);
+        return {
+          id: post.id,
+          text: post.text,
+          imageUrl: imageUrl || null
+        };
+      });
+
+      // Filter out posts without images for the images object
+      const imagesObject: { [key: number]: string[] } = {};
+      postsWithImages.forEach(post => {
+        if (post.imageUrl) {
+          imagesObject[post.id] = [post.imageUrl];
+        }
+      });
 
       const response = await fetch('/api/post-to-x', {
         method: 'POST',
@@ -1412,42 +1436,51 @@ function Page() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          posts: generatedThread,
-          images: imagesMap,
+          posts: postsWithImages.map(p => ({ id: p.id, text: p.text })),
+          images: imagesObject
         }),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        addReasoningLog(`✅ Successfully posted thread to X!`);
-        addReasoningLog(`🔗 View your thread: ${result.threadUrl}`);
-        toast.success('Thread posted to X successfully!');
+        toast.success(`Thread posted successfully! ${result.tweetIds.length} tweet(s) published.`);
         
-        // Open thread in new tab
-        window.open(result.threadUrl, '_blank');
-        
-        // Update thread status if it was saved
-        if (savedThreads.some(t => t.posts === generatedThread)) {
-          // Find and update the thread status
-          const thread = savedThreads.find(t => t.posts === generatedThread);
-          if (thread?.id) {
-            await updateThread(thread.id, { status: 'Posted' });
-            loadUserThreads();
-          }
+        // Open the thread in a new tab
+        if (result.threadUrl) {
+          window.open(result.threadUrl, '_blank');
         }
+        
+        // Note: Thread status update functionality can be added later when we have proper thread management
       } else if (result.partial) {
-        addReasoningLog(`⚠️ Partially posted: ${result.postedCount}/${result.totalCount} tweets`);
-        toast.error(`Only posted ${result.postedCount} of ${result.totalCount} tweets: ${result.error}`);
+        toast.error(`Partially posted: ${result.postedCount}/${result.totalCount} tweets published. ${result.error}`);
+        
+        // Open the first tweet in a new tab
+        if (result.tweetIds.length > 0) {
+          const firstTweetUrl = `https://x.com/i/status/${result.tweetIds[0]}`;
+          window.open(firstTweetUrl, '_blank');
+        }
       } else {
-        throw new Error(result.error || 'Failed to post thread');
+        toast.error(`Failed to post thread: ${result.error || 'Unknown error'}`);
       }
     } catch (error: any) {
       console.error('Error posting to X:', error);
-      addReasoningLog(`❌ Failed to post thread: ${error.message}`);
-      toast.error(`Failed to post thread: ${error.message}`);
+      toast.error(`Failed to post thread: ${error.message || 'Network error'}`);
     } finally {
       setIsPostingToX(false);
+    }
+  };
+
+  // Helper function to get image for a post (same as in XPreview)
+  const getImageForPost = (postId: number) => {
+    const imageInfo = postPageMap[postId];
+    if (!imageInfo) return null;
+    
+    if (imageInfo.type === 'pdf') {
+      return pageImages[imageInfo.value as number];
+    } else {
+      const markedImg = markedUpImages.find(m => m.id === imageInfo.value);
+      return markedImg?.url || null;
     }
   };
 
@@ -2268,15 +2301,32 @@ function Page() {
                               
                               {/* Post-specific image suggestions */}
                               {postImageSuggestions.find(suggestion => suggestion.postIndex === index) && (
-                                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
                                   <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center space-x-2">
-                                      <ImageIcon className="h-4 w-4 text-blue-600" />
-                                      <span className="text-sm font-medium text-blue-900">AI Recommended Images</span>
+                                      <ImageIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                      <span className="text-sm font-medium text-blue-900 dark:text-blue-100">AI Recommended Images</span>
                                     </div>
-                                    <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                                      {String(postImageSuggestions.find(s => s.postIndex === index)?.recommendedPages.length || 0)} suggestions
-                                    </span>
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded">
+                                        {String(postImageSuggestions.find(s => s.postIndex === index)?.recommendedPages.length || 0)} suggestions
+                                      </span>
+                                      <button
+                                        onClick={() => {
+                                          const suggestion = postImageSuggestions.find(s => s.postIndex === index);
+                                          if (suggestion) {
+                                            const info = `AI analyzed your post and found ${suggestion.recommendedPages.length} relevant pages from your document. Each suggestion includes a relevance score and reasoning for why it matches your content. Click any suggestion to open it in the annotation tool for editing.`;
+                                            toast.success(info, { duration: 5000 });
+                                          }
+                                        }}
+                                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                                        title="Learn more about these suggestions"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                      </button>
+                                    </div>
                                   </div>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                                     {postImageSuggestions
@@ -2285,7 +2335,7 @@ function Page() {
                                       .map((recommendation, recIndex) => (
                                         <div 
                                           key={`rec-${recommendation.pageNumber}-${recIndex}`}
-                                          className="flex items-center space-x-2 p-2 bg-white rounded border hover:border-blue-300 cursor-pointer"
+                                          className="flex items-center space-x-2 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 cursor-pointer transition-colors group"
                                           onClick={() => {
                                             setMagnifyInitialPage(recommendation.pageNumber - 1);
                                             setIsAnnotationModalOpen(true);
@@ -2294,17 +2344,17 @@ function Page() {
                                           <img 
                                             src={pageImages[recommendation.pageNumber - 1]} 
                                             alt={`Page ${recommendation.pageNumber}`}
-                                            className="w-8 h-10 object-cover rounded border"
+                                            className="w-12 h-16 object-cover rounded border border-gray-200 dark:border-gray-600"
                                           />
                                           <div className="flex-1 min-w-0">
-                                            <div className="text-xs font-medium text-gray-900">
+                                            <div className="text-xs font-medium text-gray-900 dark:text-gray-100">
                                               Page {recommendation.pageNumber}
                                             </div>
                                             <div className={`text-xs font-medium ${
-                                              recommendation.relevanceScore >= 80 ? 'text-green-600' :
-                                              recommendation.relevanceScore >= 60 ? 'text-blue-600' :
-                                              recommendation.relevanceScore >= 40 ? 'text-yellow-600' :
-                                              'text-orange-600'
+                                              recommendation.relevanceScore >= 80 ? 'text-green-600 dark:text-green-400' :
+                                              recommendation.relevanceScore >= 60 ? 'text-blue-600 dark:text-blue-400' :
+                                              recommendation.relevanceScore >= 40 ? 'text-yellow-600 dark:text-yellow-400' :
+                                              'text-orange-600 dark:text-orange-400'
                                             }`}>
                                               {recommendation.relevanceScore}% {
                                                 recommendation.relevanceScore >= 80 ? '🎯' :
@@ -2313,10 +2363,23 @@ function Page() {
                                                 '💡'
                                               }
                                             </div>
-                                            <div className="text-xs text-gray-500 truncate">
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                               {recommendation.reasoning}
                                             </div>
                                           </div>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const info = `Page ${recommendation.pageNumber} was selected because: ${recommendation.reasoning}. Relevance score: ${recommendation.relevanceScore}% (${recommendation.relevanceScore >= 80 ? 'Excellent match' : recommendation.relevanceScore >= 60 ? 'Good match' : recommendation.relevanceScore >= 40 ? 'Fair match' : 'Basic match'}).`;
+                                              toast.success(info, { duration: 4000 });
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                            title="View detailed reasoning"
+                                          >
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                          </button>
                                         </div>
                                       ))}
                                   </div>
@@ -2354,14 +2417,14 @@ function Page() {
                 <div className="space-y-6">
                   {/* Generate Suggestions Button */}
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-gray-800">AI Page Suggestions</h2>
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">AI Page Suggestions</h2>
                     <button
                       onClick={generatePageSuggestions}
                       disabled={suggestionsLoading || !pageTexts.length}
                       className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium
                         ${suggestionsLoading || !pageTexts.length
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                          ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' 
+                          : 'bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-600'
                         }`}
                     >
                       {suggestionsLoading ? (
@@ -2480,6 +2543,9 @@ function Page() {
                   user={user}
                   isDarkMode={instagramDarkMode}
                   onDarkModeToggle={() => setInstagramDarkMode(!instagramDarkMode)}
+                  postPageMap={postPageMap}
+                  pageImages={pageImages}
+                  markedUpImages={markedUpImages}
                 />
               </Tab.Panel>
             </Tab.Panels>
@@ -3837,11 +3903,38 @@ function Page() {
       if (!imageInfo) return null;
       
       if (imageInfo.type === 'pdf') {
-        return pageImages[imageInfo.value];
+        return pageImages[imageInfo.value as number];
       } else {
         const markedImg = markedUpImages.find(m => m.id === imageInfo.value);
         return markedImg?.url || null;
       }
+    };
+
+    const getImageQualityInfo = (imageUrl: string) => {
+      return new Promise<{width: number, height: number, quality: string}>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const { naturalWidth, naturalHeight } = img;
+          let quality = 'Unknown';
+          
+          // X image quality guidelines
+          if (naturalWidth >= 1200 && naturalHeight >= 675) {
+            quality = 'Excellent';
+          } else if (naturalWidth >= 600 && naturalHeight >= 335) {
+            quality = 'Good';
+          } else if (naturalWidth >= 300 && naturalHeight >= 168) {
+            quality = 'Fair';
+          } else {
+            quality = 'Poor';
+          }
+          
+          resolve({ width: naturalWidth, height: naturalHeight, quality });
+        };
+        img.onerror = () => {
+          resolve({ width: 0, height: 0, quality: 'Error' });
+        };
+        img.src = imageUrl;
+      });
     };
 
     const getCharacterCount = (text: string) => {
@@ -3974,14 +4067,24 @@ function Page() {
                           {post.text}
                         </div>
                         
-                        {/* Post Image - Full Width */}
+                        {/* Post Image - Full Resolution Display */}
                         {imageUrl && (
                           <div className="mb-3"> 
-                            <img 
-                              src={imageUrl} 
-                              alt="Attached content"
-                              className="w-full h-auto rounded-2xl object-cover max-h-96"
-                            />
+                            <div className="relative">
+                              <img 
+                                src={imageUrl} 
+                                alt="Attached content"
+                                className="w-full h-auto rounded-2xl object-cover max-h-96"
+                                style={{ imageRendering: 'crisp-edges' as any }}
+                                onLoad={(e) => {
+                                  // Ensure we're displaying the full resolution image
+                                  const img = e.target as HTMLImageElement;
+                                  img.style.imageRendering = 'crisp-edges' as any;
+                                }}
+                              />
+                              {/* Image Quality Indicator */}
+                              <ImageQualityIndicator imageUrl={imageUrl} />
+                            </div>
                           </div>
                         )}
                         
@@ -4018,22 +4121,13 @@ function Page() {
                             <div className={`p-2 rounded-full group-hover:${xPreviewMode === 'dark' ? 'bg-red-900/20' : 'bg-red-100'}`}>
                               <Heart className="w-5 h-5" />
                             </div>
-                            <span className="text-[13px]">{String(Math.floor(Math.random() * 200) + 45)}</span>
+                            <span className="text-[13px]">{String(Math.floor(Math.random() * 200) + 50)}</span>
                           </button>
                           
-                          <button className="text-gray-500 hover:text-blue-400 transition-colors group">
-                            <div className={`p-2 rounded-full group-hover:${xPreviewMode === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'}`}>
-                              <Bookmark className="w-5 h-5" />
-                            </div>
-                          </button>
-                          
-                          <button className="text-gray-500 hover:text-blue-400 transition-colors group">
-                            <div className={`p-2 rounded-full group-hover:${xPreviewMode === 'dark' ? 'bg-blue-900/20' : 'bg-blue-100'}`}>
-                              <Share className="w-5 h-5" />
-                            </div>
+                          <button className="text-gray-500 hover:text-blue-400 transition-colors">
+                            <Share className="w-5 h-5" />
                           </button>
                         </div>
-
                       </div>
                     </div>
                   </div>
@@ -4043,33 +4137,84 @@ function Page() {
             </div>
           </div>
         </div>
+      </div>
+    );
+  };
 
-        {/* Thread Stats */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{String(posts.length)}</div>
-              <div className="text-sm text-gray-600">Tweets</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-gray-900">
-                {String(posts.reduce((total, post) => total + post.text.length, 0))}
-              </div>
-              <div className="text-sm text-gray-600">Total Characters</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-gray-900">
-                {String(Object.keys(postPageMap).length)}
-              </div>
-              <div className="text-sm text-gray-600">Images Attached</div>
-            </div>
-            <div>
-              <div className={`text-2xl font-bold ${posts.some(post => isOverLimit(post.text)) ? 'text-red-600' : 'text-green-600'}`}>
-                {posts.some(post => isOverLimit(post.text)) ? 'FAIL' : 'PASS'}
-              </div>
-              <div className="text-sm text-gray-600">Validation</div>
-            </div>
-          </div>
+  // Image Quality Indicator Component
+  const ImageQualityIndicator = ({ imageUrl }: { imageUrl: string }) => {
+    const [qualityInfo, setQualityInfo] = useState<{width: number, height: number, quality: string} | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+      const checkQuality = async () => {
+        setIsLoading(true);
+        try {
+          const img = new Image();
+          img.onload = () => {
+            const { naturalWidth, naturalHeight } = img;
+            let quality = 'Unknown';
+            let color = 'text-gray-500';
+            
+            // X image quality guidelines
+            if (naturalWidth >= 1200 && naturalHeight >= 675) {
+              quality = 'Excellent';
+              color = 'text-green-600';
+            } else if (naturalWidth >= 600 && naturalHeight >= 335) {
+              quality = 'Good';
+              color = 'text-blue-600';
+            } else if (naturalWidth >= 300 && naturalHeight >= 168) {
+              quality = 'Fair';
+              color = 'text-yellow-600';
+            } else {
+              quality = 'Poor';
+              color = 'text-red-600';
+            }
+            
+            setQualityInfo({ width: naturalWidth, height: naturalHeight, quality });
+            setIsLoading(false);
+          };
+          img.onerror = () => {
+            setQualityInfo({ width: 0, height: 0, quality: 'Error' });
+            setIsLoading(false);
+          };
+          img.src = imageUrl;
+        } catch (error) {
+          setQualityInfo({ width: 0, height: 0, quality: 'Error' });
+          setIsLoading(false);
+        }
+      };
+
+      checkQuality();
+    }, [imageUrl]);
+
+    if (isLoading) {
+      return (
+        <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+          Checking quality...
+        </div>
+      );
+    }
+
+    if (!qualityInfo) return null;
+
+    const getQualityColor = (quality: string) => {
+      switch (quality) {
+        case 'Excellent': return 'text-green-400';
+        case 'Good': return 'text-blue-400';
+        case 'Fair': return 'text-yellow-400';
+        case 'Poor': return 'text-red-400';
+        default: return 'text-gray-400';
+      }
+    };
+
+    return (
+      <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+        <div className={`font-medium ${getQualityColor(qualityInfo.quality)}`}>
+          {qualityInfo.quality}
+        </div>
+        <div className="text-gray-300">
+          {qualityInfo.width}×{qualityInfo.height}
         </div>
       </div>
     );

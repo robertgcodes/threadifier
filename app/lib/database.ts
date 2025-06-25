@@ -341,6 +341,35 @@ Tips:
       }
     },
     {
+      name: "🏴‍☠️ Pirate Thread",
+      instructions: `Transform any content into an exciting pirate adventure! Perfect for making dry topics fun and engaging.
+
+Structure:
+- Post 1: Set sail with a dramatic pirate hook
+- Posts 2-N: Navigate through the content as if it's a treasure map
+- Use pirate language and nautical metaphors
+- Make each post feel like discovering new treasure
+- End with a triumphant conclusion
+
+Example: "Ahoy mateys! Today we're setting sail on a grand adventure to discover the secrets of [topic]... 🏴‍☠️"
+
+Tips:
+- Use pirate slang: "arrr", "matey", "treasure", "navigate", "chart", "compass"
+- Turn concepts into "treasures" or "maps"
+- Make problems into "storms" or "sea monsters"
+- Use nautical terms: "navigate", "chart course", "drop anchor"
+- Keep it fun but informative`,
+      settings: {
+        charLimit: 280,
+        numPosts: 8,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: false,
+        addCallToAction: true,
+        threadStyle: 'entertaining'
+      }
+    },
+    {
       name: "😄 Humor & Entertainment",
       instructions: `Transform content into entertaining, shareable posts using humor. Make learning fun and memorable.
 

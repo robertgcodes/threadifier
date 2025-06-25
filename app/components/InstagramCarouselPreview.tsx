@@ -11,20 +11,67 @@ interface InstagramCarouselPreviewProps {
   user: any;
   isDarkMode?: boolean;
   onDarkModeToggle?: () => void;
+  postPageMap?: Record<number, {type: 'pdf' | 'marked', value: number | string}>;
+  pageImages?: string[];
+  markedUpImages?: Array<{
+    id: string;
+    pageNumber: number;
+    url: string;
+    json: any;
+  }>;
 }
 
-export default function InstagramCarouselPreview({ posts, userProfile, user, isDarkMode = false, onDarkModeToggle }: InstagramCarouselPreviewProps) {
+export default function InstagramCarouselPreview({ posts, userProfile, user, isDarkMode = false, onDarkModeToggle, postPageMap, pageImages, markedUpImages }: InstagramCarouselPreviewProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [canvasDarkMode, setCanvasDarkMode] = useState(false);
 
+  // Function to get image for a specific post
+  const getImageForPost = (postId: number) => {
+    if (!postPageMap || !pageImages || !markedUpImages) return null;
+    
+    const imageInfo = postPageMap[postId];
+    if (!imageInfo) return null;
+    
+    if (imageInfo.type === 'pdf') {
+      return pageImages[imageInfo.value as number];
+    } else {
+      const markedImg = markedUpImages.find(m => m.id === imageInfo.value);
+      return markedImg?.url || null;
+    }
+  };
+
+  // Create carousel items that include both posts and images
+  const carouselItems = posts.flatMap((post, index) => {
+    const items = [];
+    
+    // Add the post
+    items.push({
+      type: 'post' as const,
+      content: post,
+      index: index
+    });
+    
+    // Add image if this post has one
+    const imageUrl = getImageForPost(post.id);
+    if (imageUrl) {
+      items.push({
+        type: 'image' as const,
+        content: imageUrl,
+        postIndex: index
+      });
+    }
+    
+    return items;
+  });
+
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % posts.length);
+    setCurrentSlide((prev) => (prev + 1) % carouselItems.length);
   };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + posts.length) % posts.length);
+    setCurrentSlide((prev) => (prev - 1 + carouselItems.length) % carouselItems.length);
   };
 
   const handleCopyText = () => {
@@ -281,13 +328,24 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
               
               {/* Post Text */}
               <div className={`text-lg leading-relaxed ${canvasDarkMode ? 'text-white' : 'text-gray-900'} break-words`}>
-                {posts[currentSlide]?.text}
+                {carouselItems[currentSlide]?.type === 'post' 
+                  ? (carouselItems[currentSlide]?.content as ThreadPost)?.text
+                  : carouselItems[currentSlide]?.type === 'image' && (
+                    <div className="flex justify-center">
+                      <img 
+                        src={carouselItems[currentSlide]?.content as string} 
+                        alt="Post image"
+                        className="max-w-full max-h-96 object-contain rounded-lg"
+                      />
+                    </div>
+                  )
+                }
               </div>
             </div>
           </div>
 
           {/* Navigation Arrows */}
-          {posts.length > 1 && (
+          {carouselItems.length > 1 && (
             <>
               {currentSlide > 0 && (
                 <button
@@ -297,7 +355,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
                   <ChevronLeft className="w-5 h-5 text-gray-900 dark:text-gray-100" />
                 </button>
               )}
-              {currentSlide < posts.length - 1 && (
+              {currentSlide < carouselItems.length - 1 && (
                 <button
                   onClick={nextSlide}
                   className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
@@ -309,9 +367,9 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
           )}
 
           {/* Slide Indicators */}
-          {posts.length > 1 && (
+          {carouselItems.length > 1 && (
             <div className="absolute top-4 left-0 right-0 flex justify-center space-x-1">
-              {posts.map((_, index) => (
+              {carouselItems.map((_, index) => (
                 <div
                   key={`indicator-${index}`}
                   className={`h-1.5 rounded-full transition-all ${
