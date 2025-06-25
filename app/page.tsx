@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
-import { Loader2, X, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon, Crop, Image as ImageIcon, BookOpen, DownloadCloud, CheckCircle, SortAsc, Send, MoreHorizontal, MessageCircle, Repeat2, Heart, Share, User, Camera, Moon, Sun, Bookmark, Square } from "lucide-react";
+import { Loader2, X, Edit, Trash2, PlusCircle, Save, XCircle, GripVertical, Copy as CopyIcon, Crop, Image as ImageIcon, BookOpen, DownloadCloud, CheckCircle, SortAsc, Send, MoreHorizontal, MessageCircle, Repeat2, Heart, Share, User, Camera, Moon, Sun, Bookmark, Square, FileText } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -1153,32 +1153,32 @@ function Page() {
   };
 
   const applySelectedPrompt = (promptId: string) => {
-    const prompt = customPrompts.find(p => p.id === promptId);
-    if (!prompt) return;
-
-    setCustomInstructions(prompt.instructions);
-    setCharLimit(prompt.settings.charLimit);
-    setNumPosts(prompt.settings.numPosts);
-    setUseEmojis(prompt.settings.useEmojis);
-    setUseHashtags(prompt.settings.useHashtags);
-    setUseNumbering(prompt.settings.useNumbering);
-    setSelectedPromptId(promptId);
-
-    addReasoningLog(`🎯 Applied prompt: "${prompt.name}"`);
-    toast.success(`Applied prompt: ${prompt.name}`);
+    const prompt = allPrompts.find(p => p.id === promptId);
+    if (prompt) {
+      setCustomInstructions(prompt.instructions);
+      setCharLimit(prompt.settings.charLimit);
+      setNumPosts(prompt.settings.numPosts);
+      setUseEmojis(prompt.settings.useEmojis);
+      setUseHashtags(prompt.settings.useHashtags);
+      setUseNumbering(prompt.settings.useNumbering);
+      setSelectedPromptId(promptId);
+      
+      addReasoningLog(`🎯 Applied prompt: "${prompt.name}"`);
+      toast.success(`Applied prompt: ${prompt.name}`);
+    }
   };
 
   // Sort prompts helper function
   const getSortedPrompts = () => {
-    return [...customPrompts].sort((a, b) => {
-      if (promptSortBy === 'name') {
-        return a.name.localeCompare(b.name);
-      } else {
-        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
-        return timeB - timeA; // Newest first
-      }
-    });
+    if (promptSortBy === 'name') {
+      return [...allPrompts].sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      return [...allPrompts].sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+    }
   };
 
   // Create new prompt from modal
@@ -1750,7 +1750,7 @@ function Page() {
                   className="flex-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700"
                 >
                   <option value="">Select a saved prompt...</option>
-                  {customPrompts.map((prompt) => (
+                  {allPrompts.map((prompt) => (
                     <option key={prompt.id} value={prompt.id}>
                       {prompt.name}{prompt.isDefault ? ' (Default)' : ''}
                     </option>
@@ -2817,16 +2817,20 @@ function Page() {
           </div>
         )}
         
-        {customPrompts.length === 0 ? (
-          <div className="text-center py-12">
-            <Edit className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+        {allPrompts.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="text-gray-500 dark:text-gray-400 mb-4">
+              <FileText className="mx-auto h-12 w-12" />
+            </div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No prompts yet</h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-6">Loading default prompts...</p>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
+              Create your first custom prompt to get started with personalized thread generation.
+            </p>
             <button
               onClick={() => setShowNewPromptModal(true)}
               className="btn-primary"
             >
-              Create Prompt
+              Create Your First Prompt
             </button>
           </div>
         ) : (
@@ -4219,6 +4223,32 @@ function Page() {
       </div>
     );
   };
+
+  // Built-in prompts that are always available
+  const builtInPrompts = [
+    {
+      id: 'pirate-thread',
+      name: "🏴‍☠️ Pirate Thread",
+      instructions: `Transform any content into an engaging pirate-themed thread! Perfect for making serious topics fun and memorable.\n\nStructure:\n- Post 1: Hook with pirate language\n- Posts 2-4: Main content with pirate metaphors\n- Posts 5-6: Action items as treasure hunts\n- Final post: Call to action with pirate flair\n\nExample: \"Ahoy mateys! I've discovered a treasure map that'll lead ye to [topic]... 🏴‍☠️\"\n\nTips:\n- Use pirate vocabulary (ahoy, matey, treasure, etc.)\n- Turn problems into 'storms' or 'sea monsters'\n- Make solutions into 'treasure maps' or 'navigational tools'\n- Keep it fun but informative`,
+      settings: {
+        charLimit: 280,
+        numPosts: 8,
+        useEmojis: true,
+        useHashtags: false,
+        useNumbering: true,
+        addCallToAction: true,
+        tone: "pirate",
+        style: "engaging"
+      },
+      isDefault: true,
+      category: "fun",
+      createdAt: new Date('2024-01-01'), // Add createdAt for sorting
+      userId: 'built-in' // Add userId for compatibility
+    }
+  ];
+
+  // Combine built-in prompts with user's custom prompts
+  const allPrompts = [...builtInPrompts, ...customPrompts];
 
   return (
     <div className="bg-legal-100 dark:bg-gray-900 min-h-screen">
