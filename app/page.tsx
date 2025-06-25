@@ -220,20 +220,8 @@ function SortableThreadRow({ post, index, generatedThread, ...props }: { post: T
 function Page() {
   const { user } = useAuth();
   
+  // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL LOGIC
   const [showAuth, setShowAuth] = useState(false);
-  
-  // Show homepage if user is not authenticated
-  if (!user) {
-    if (showAuth) {
-      return <LoginScreen onBack={() => setShowAuth(false)} />;
-    }
-    
-    return <Homepage 
-      onLogin={() => setShowAuth(true)}
-      onSignup={() => setShowAuth(true)}
-    />;
-  }
-
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pageImages, setPageImages] = useState<string[]>([]);
   const [highResPageImages, setHighResPageImages] = useState<string[]>([]);
@@ -358,6 +346,16 @@ function Page() {
   // Instagram Preview settings
   const [instagramDarkMode, setInstagramDarkMode] = useState(false);
   
+  // AI Reasoning Log state
+  const [aiReasoningLogs, setAiReasoningLogs] = useState<string[]>([]);
+  const [showReasoningLog, setShowReasoningLog] = useState(false);
+  
+  // Progress bar state
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Auto-scroll to bottom of logs only when actively analyzing
+  const logsEndRef = useRef<HTMLDivElement>(null);
+  
   // Apply dark mode to document
   useEffect(() => {
     if (userProfile?.darkMode) {
@@ -366,13 +364,6 @@ function Page() {
       document.documentElement.classList.remove('dark');
     }
   }, [userProfile?.darkMode]);
-  
-  // AI Reasoning Log state
-  const [aiReasoningLogs, setAiReasoningLogs] = useState<string[]>([]);
-  const [showReasoningLog, setShowReasoningLog] = useState(false);
-  
-  // Progress bar state
-  const [isProcessing, setIsProcessing] = useState(false);
   
   // Save user profile to localStorage whenever it changes
   useEffect(() => {
@@ -393,9 +384,6 @@ function Page() {
     setAiReasoningLogs([]);
   };
   
-  // Auto-scroll to bottom of logs only when actively analyzing
-  const logsEndRef = useRef<HTMLDivElement>(null);
-  
   useEffect(() => {
     // Only auto-scroll if we're actively analyzing content
     if (isAnalyzing && aiReasoningLogs.length > 0) {
@@ -403,6 +391,19 @@ function Page() {
     }
   }, [aiReasoningLogs, isAnalyzing]);
   
+  // NOW WE CAN HAVE CONDITIONAL LOGIC AFTER ALL HOOKS ARE DECLARED
+  // Show homepage if user is not authenticated
+  if (!user) {
+    if (showAuth) {
+      return <LoginScreen onBack={() => setShowAuth(false)} />;
+    }
+    
+    return <Homepage 
+      onLogin={() => setShowAuth(true)}
+      onSignup={() => setShowAuth(true)}
+    />;
+  }
+
   const onDrop = (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file && file.type === "application/pdf") {
@@ -1215,32 +1216,6 @@ function Page() {
     }
   }, [user]);
 
-  // Save profile to localStorage whenever it changes
-  useEffect(() => {
-    if (user?.uid && typeof window !== 'undefined') {
-      localStorage.setItem(`userProfile_${user.uid}`, JSON.stringify(userProfile));
-    }
-  }, [userProfile, user?.uid]);
-
-  // Update profile when user changes
-  useEffect(() => {
-    if (user?.uid) {
-      const savedProfile = localStorage.getItem(`userProfile_${user.uid}`);
-      if (savedProfile) {
-        setUserProfile(JSON.parse(savedProfile));
-      } else {
-        // Initialize with user data if no saved profile
-        setUserProfile({
-          displayName: user?.displayName || '',
-          username: user?.email?.split('@')[0] || '',
-          xHandle: user?.email?.split('@')[0] || '',
-          instagramHandle: user?.email?.split('@')[0] || '',
-          avatar: null,
-        });
-      }
-    }
-  }, [user]);
-  
   // Load full user profile from database
   useEffect(() => {
     if (user?.uid) {
