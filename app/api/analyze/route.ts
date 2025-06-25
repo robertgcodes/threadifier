@@ -54,13 +54,17 @@ export async function POST(req: Request) {
     let usingPremiumModel = true; // Default to premium
     
     if (userId) {
+      console.log(`Analyzing request for user: ${userId}`);
       const userProfile = await getUserProfile(userId);
+      console.log(`User profile found:`, !!userProfile);
       
       // Default subscription for users without one
       const subscription = userProfile?.subscription || { plan: 'free', status: 'active' };
+      console.log(`Subscription status:`, subscription.status, `Plan:`, subscription.plan);
       
       // Check if subscription is active - only block if explicitly cancelled or past due
       if (subscription.status === 'cancelled' || subscription.status === 'past_due') {
+        console.log(`Blocking user due to subscription status: ${subscription.status}`);
         return NextResponse.json({ 
           error: 'Your subscription is not active. Please update your billing.', 
           code: 'SUBSCRIPTION_INACTIVE' 
@@ -71,6 +75,7 @@ export async function POST(req: Request) {
       const hasPremiumCredits = (userProfile?.credits?.premiumCredits || 0) > 0;
       const isPaidPlan = subscription.plan !== 'free';
       usingPremiumModel = isPaidPlan || hasPremiumCredits;
+      console.log(`Using premium model: ${usingPremiumModel} (hasPremiumCredits: ${hasPremiumCredits}, isPaidPlan: ${isPaidPlan})`);
       
       // Check usage limits
       const documentStats = {
@@ -78,10 +83,13 @@ export async function POST(req: Request) {
         characters: text?.length || pageTexts.join('').length || 0,
         requestedPosts: numPosts,
       };
+      console.log(`Document stats:`, documentStats);
       
       const limitCheck = await checkUsageLimits(userId, subscription.plan, documentStats);
+      console.log(`Usage limit check result:`, limitCheck);
       
       if (!limitCheck.allowed) {
+        console.log(`Blocking user due to usage limits: ${limitCheck.reason}`);
         return NextResponse.json({ 
           error: limitCheck.reason,
           code: 'USAGE_LIMIT_EXCEEDED',

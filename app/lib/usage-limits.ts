@@ -1,3 +1,5 @@
+import { getUserMonthlyUsage } from './database';
+
 // Usage limits configuration by subscription tier
 export const USAGE_LIMITS = {
   free: {
@@ -157,11 +159,9 @@ export async function checkUsageLimits(
   return { allowed: true, estimatedCost };
 }
 
-// Placeholder - implement with Firebase
+// Get monthly usage from database
 async function getMonthlyUsage(userId: string): Promise<number> {
   try {
-    // Import the function from database.ts
-    const { getUserMonthlyUsage } = await import('./database');
     const usage = await getUserMonthlyUsage(userId);
     return usage.threadsUsed;
   } catch (error) {
