@@ -34,7 +34,7 @@ interface TeamInvitation {
 
 interface TeamManagementProps {
   userProfile: any;
-  onUpdateProfile: () => void;
+  onUpdateProfile: (updates: any) => void | Promise<void>;
 }
 
 export default function TeamManagement({ userProfile, onUpdateProfile }: TeamManagementProps) {
