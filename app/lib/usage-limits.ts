@@ -18,7 +18,7 @@ export const USAGE_LIMITS = {
     monthlyGenerations: 50,
     maxPagesPerDocument: 50,
     maxCharactersPerDocument: 75000, // ~50 pages
-    maxPostsPerThread: 15,
+    maxPostsPerThread: 30,
     canUseCustomInstructions: true,
     canUseImageSuggestions: true,
     canPostToX: true,
@@ -30,7 +30,7 @@ export const USAGE_LIMITS = {
     monthlyGenerations: 200,
     maxPagesPerDocument: 100,
     maxCharactersPerDocument: 150000, // ~100 pages
-    maxPostsPerThread: 25,
+    maxPostsPerThread: 40,
     canUseCustomInstructions: true,
     canUseImageSuggestions: true,
     canPostToX: true,

@@ -325,7 +325,7 @@ export async function POST(req: Request) {
       postImagePrompt += `4. Prioritize page distribution - spread suggestions across different pages\\n`;
       postImagePrompt += `5. Consider post sequence: intro posts → main content → conclusion\\n\\n`;
       
-      postImagePrompt += `OUTPUT FORMAT - Return JSON with exactly this structure:\\n`;
+      postImagePrompt += `OUTPUT FORMAT - Return ONLY valid JSON with exactly this structure:\\n`;
       postImagePrompt += `{\\n`;
       postImagePrompt += `  "postSuggestions": [\\n`;
       postImagePrompt += `    {\\n`;
@@ -343,6 +343,7 @@ export async function POST(req: Request) {
       postImagePrompt += `    }\\n`;
       postImagePrompt += `  ]\\n`;
       postImagePrompt += `}\\n\\n`;
+      postImagePrompt += `CRITICAL: Return ONLY the JSON object. Do not include any explanatory text, comments, or additional content before or after the JSON. The response must be parseable JSON.\\n\\n`;
       
       // Add thread posts
       let postContent = 'THREAD POSTS:\\n';
@@ -394,20 +395,89 @@ export async function POST(req: Request) {
         const rawPostImageResponse = postImageMsg.content[0].text;
         console.log('Raw Anthropic response for post-images:', rawPostImageResponse);
         
-        const postImageJsonMatch = rawPostImageResponse.match(/\{[\s\S]*\}/);
+        // Try multiple JSON parsing strategies
+        let postImageData = null;
         
-        if (postImageJsonMatch) {
-          console.log('Found JSON match:', postImageJsonMatch[0]);
-          try {
-            const postImageData = JSON.parse(postImageJsonMatch[0]);
-            console.log('Parsed post-image data:', postImageData);
-            postImageSuggestions = postImageData.postSuggestions || [];
-            console.log('Final postImageSuggestions:', postImageSuggestions);
-          } catch (error) {
-            console.error('Error parsing post-image suggestions:', error);
+        // Strategy 1: Try to find JSON with a more specific pattern
+        const jsonPattern = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
+        const jsonMatches = rawPostImageResponse.match(jsonPattern);
+        
+        if (jsonMatches) {
+          for (const match of jsonMatches) {
+            try {
+              const parsed = JSON.parse(match);
+              if (parsed.postSuggestions && Array.isArray(parsed.postSuggestions)) {
+                postImageData = parsed;
+                console.log('Successfully parsed JSON with strategy 1:', match);
+                break;
+              }
+            } catch (error) {
+              console.log('Strategy 1 failed for match:', match);
+            }
           }
+        }
+        
+        // Strategy 2: Try to extract and fix common JSON issues
+        if (!postImageData) {
+          try {
+            // Find the start and end of what looks like JSON
+            const startIndex = rawPostImageResponse.indexOf('{');
+            const endIndex = rawPostImageResponse.lastIndexOf('}');
+            
+            if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+              let jsonString = rawPostImageResponse.substring(startIndex, endIndex + 1);
+              
+              // Fix common issues
+              jsonString = jsonString
+                .replace(/,\s*}/g, '}') // Remove trailing commas
+                .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
+                .replace(/\\n/g, '\\n') // Fix newline escapes
+                .replace(/\\"/g, '"') // Fix quote escapes
+                .replace(/\\\\/g, '\\'); // Fix backslash escapes
+              
+              const parsed = JSON.parse(jsonString);
+              if (parsed.postSuggestions && Array.isArray(parsed.postSuggestions)) {
+                postImageData = parsed;
+                console.log('Successfully parsed JSON with strategy 2');
+              }
+            }
+          } catch (error) {
+            console.log('Strategy 2 failed:', error);
+          }
+        }
+        
+        // Strategy 3: Try to manually construct a basic response if all else fails
+        if (!postImageData) {
+          console.log('All JSON parsing strategies failed, creating fallback response');
+          try {
+            // Create a basic fallback response with the first few posts
+            const fallbackSuggestions = threadPosts.slice(0, 5).map((post: string, index: number) => ({
+              postIndex: index,
+              postText: post,
+              recommendedPages: [
+                {
+                  pageNumber: Math.min(index + 1, pageTexts.length),
+                  relevanceScore: 70,
+                  reasoning: "Fallback suggestion due to parsing error",
+                  keyQuotes: ["Content from page"],
+                  confidence: "medium"
+                }
+              ]
+            }));
+            
+            postImageData = { postSuggestions: fallbackSuggestions };
+            console.log('Created fallback post-image suggestions');
+          } catch (error) {
+            console.error('Failed to create fallback response:', error);
+          }
+        }
+        
+        if (postImageData) {
+          console.log('Parsed post-image data:', postImageData);
+          postImageSuggestions = postImageData.postSuggestions || [];
+          console.log('Final postImageSuggestions:', postImageSuggestions);
         } else {
-          console.log('No JSON match found in response');
+          console.log('No valid post-image suggestions could be parsed');
         }
       }
     }
