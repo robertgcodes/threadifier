@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Check, X, Infinity } from 'lucide-react';
+import { Check, X, Infinity as InfinityIcon } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -96,12 +96,43 @@ const pricingTiers: PricingTier[] = [
       stripePriceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY,
     } : {}),
   },
-];
+].map(tier => {
+  console.log('Processing tier:', tier.id, 'features:', tier.features);
+  const processedTier = {
+    ...tier,
+    // Ensure all numeric values are valid numbers
+    price: typeof tier.price === 'number' && !isNaN(tier.price) ? tier.price : 0,
+    priceYearly: typeof tier.priceYearly === 'number' && !isNaN(tier.priceYearly) ? tier.priceYearly : 0,
+    // Ensure all string values are valid strings
+    id: typeof tier.id === 'string' ? tier.id : 'free',
+    name: typeof tier.name === 'string' ? tier.name : 'Basic',
+    description: typeof tier.description === 'string' ? tier.description : '',
+    features: Array.isArray(tier.features) ? tier.features.filter(f => {
+      const isString = typeof f === 'string';
+      if (!isString) {
+        console.warn('Non-string feature in tier', tier.id, ':', f, typeof f);
+      }
+      return isString;
+    }) : [],
+    limitations: Array.isArray(tier.limitations) ? tier.limitations.filter(l => {
+      const isString = typeof l === 'string';
+      if (!isString) {
+        console.warn('Non-string limitation in tier', tier.id, ':', l, typeof l);
+      }
+      return isString;
+    }) : [],
+  };
+  console.log('Processed tier:', processedTier.id, 'features:', processedTier.features);
+  return processedTier;
+});
 
 export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: string }) {
   const [isYearly, setIsYearly] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const { user } = useAuth();
+
+  // Ensure currentPlan is a valid string
+  const validCurrentPlan = typeof currentPlan === 'string' && currentPlan.trim() !== '' ? currentPlan : 'free';
 
   const handleSubscribe = async (tier: PricingTier) => {
     if (!user) {
@@ -239,36 +270,40 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
               <div className="mt-6">
                 <span className="text-4xl font-bold text-gray-900 dark:text-gray-100">
                   {(() => {
-                    if (tier.price === 0) return 'Free';
+                    // Ensure we have valid price values
+                    const monthlyPrice = typeof tier.price === 'number' && !isNaN(tier.price) ? tier.price : 0;
+                    const yearlyPrice = typeof tier.priceYearly === 'number' && !isNaN(tier.priceYearly) ? tier.priceYearly : 0;
+                    
+                    if (monthlyPrice === 0) return 'Free';
                     
                     let displayPrice: number;
-                    if (isYearly && tier.priceYearly && tier.priceYearly > 0) {
-                      displayPrice = Math.floor(tier.priceYearly / 12);
+                    if (isYearly && yearlyPrice > 0) {
+                      displayPrice = Math.floor(yearlyPrice / 12);
                     } else {
-                      displayPrice = tier.price;
+                      displayPrice = monthlyPrice;
                     }
                     
                     // Ensure we have a valid number
-                    if (isNaN(displayPrice) || !isFinite(displayPrice)) {
-                      displayPrice = tier.price || 0;
+                    if (isNaN(displayPrice) || !isFinite(displayPrice) || displayPrice < 0) {
+                      displayPrice = monthlyPrice;
                     }
                     
-                    return `$${String(displayPrice)}`;
+                    return `$${displayPrice}`;
                   })()}
                 </span>
                 {tier.price > 0 ? <span className="text-gray-600 dark:text-gray-400">/month</span> : null}
                 {isYearly && tier.priceYearly && tier.priceYearly > 0 ? (
                   <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                    Billed ${String(tier.priceYearly)} yearly
+                    Billed ${tier.priceYearly} yearly
                   </p>
                 ) : null}
               </div>
 
               <button
                 onClick={() => handleSubscribe(tier)}
-                disabled={loading !== null || currentPlan === tier.id || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === 'pk_test_your_stripe_publishable_key'}
+                disabled={loading !== null || validCurrentPlan === tier.id || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === 'pk_test_your_stripe_publishable_key'}
                 className={`mt-6 w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                  currentPlan === tier.id
+                  validCurrentPlan === tier.id
                     ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     : tier.recommended
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
@@ -277,7 +312,7 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
               >
                 {loading === tier.id ? (
                   'Loading...'
-                ) : currentPlan === tier.id ? (
+                ) : validCurrentPlan === tier.id ? (
                   'Current Plan'
                 ) : tier.id === 'free' ? (
                   'Get Started'
@@ -291,24 +326,46 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
               <div className="mt-8 space-y-4">
                 <h4 className="font-semibold text-gray-900 dark:text-gray-100">Includes:</h4>
                 <ul className="space-y-3">
-                  {tier.features.map((feature) => (
-                    <li key={feature} className="flex items-start">
-                      <Check className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 dark:text-gray-300 text-sm">{feature}</span>
-                    </li>
-                  ))}
+                  {tier.features.filter(f => {
+                    if (typeof f !== 'string') {
+                      console.warn('Non-string feature found in pricing tier:', tier.id, f, typeof f);
+                      return false;
+                    }
+                    return true;
+                  }).map((feature, index) => {
+                    // Ensure feature is always a string
+                    const featureString = String(feature);
+                    console.log(`Rendering feature for ${tier.id}:`, featureString, typeof featureString);
+                    return (
+                      <li key={`${tier.id}-feature-${index}`} className="flex items-start">
+                        <Check className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-700 dark:text-gray-300 text-sm">{featureString}</span>
+                      </li>
+                    );
+                  })}
                 </ul>
                 
                 {tier.limitations && tier.limitations.length > 0 ? (
                   <>
                     <h4 className="font-semibold text-gray-900 dark:text-gray-100 mt-6">Not included:</h4>
                     <ul className="space-y-3">
-                      {tier.limitations.map((limitation) => (
-                        <li key={limitation} className="flex items-start">
-                          <X className="w-5 h-5 text-gray-400 dark:text-gray-500 mr-2 flex-shrink-0 mt-0.5" />
-                          <span className="text-gray-500 dark:text-gray-400 text-sm">{limitation}</span>
-                        </li>
-                      ))}
+                      {tier.limitations.filter(l => {
+                        if (typeof l !== 'string') {
+                          console.warn('Non-string limitation found in pricing tier:', tier.id, l, typeof l);
+                          return false;
+                        }
+                        return true;
+                      }).map((limitation, index) => {
+                        // Ensure limitation is always a string
+                        const limitationString = String(limitation);
+                        console.log(`Rendering limitation for ${tier.id}:`, limitationString, typeof limitationString);
+                        return (
+                          <li key={`${tier.id}-limitation-${index}`} className="flex items-start">
+                            <X className="w-5 h-5 text-gray-400 dark:text-gray-500 mr-2 flex-shrink-0 mt-0.5" />
+                            <span className="text-gray-500 dark:text-gray-400 text-sm">{limitationString}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </>
                 ) : null}
@@ -325,7 +382,7 @@ export default function PricingTable({ currentPlan = 'free' }: { currentPlan?: s
         <div className="grid md:grid-cols-2 gap-4 mb-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Infinity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <InfinityIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <h4 className="font-semibold text-gray-900 dark:text-gray-100">Basic Tier (Unlimited)</h4>
             </div>
             <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-400">

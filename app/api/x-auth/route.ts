@@ -1,5 +1,7 @@
 import { TwitterApi } from 'twitter-api-v2';
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import CryptoJS from 'crypto-js';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,11 +40,29 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    // Store codeVerifier in a secure way (e.g., encrypted cookie or session)
-    // For now, we'll return it to the client to store temporarily
+    // Store codeVerifier securely in an encrypted cookie
+    const cookieStore = cookies();
+    const encryptionKey = process.env.ENCRYPTION_KEY || 'default-key-change-in-production';
+    const encryptedCodeVerifier = CryptoJS.AES.encrypt(codeVerifier, encryptionKey).toString();
+    
+    cookieStore.set('x_code_verifier', encryptedCodeVerifier, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 10, // 10 minutes (OAuth flow should complete quickly)
+    });
+
+    // Store state for verification
+    cookieStore.set('x_oauth_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 10, // 10 minutes
+    });
+
+    // Return only the auth URL to the client
     return NextResponse.json({ 
       authUrl: url,
-      codeVerifier,
       state,
     });
   } catch (error) {

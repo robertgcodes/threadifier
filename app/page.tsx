@@ -298,7 +298,6 @@ function Page() {
   // X (Twitter) integration state
   const [xAuthStatus, setXAuthStatus] = useState<{ authenticated: boolean; user?: any }>({ authenticated: false });
   const [isPostingToX, setIsPostingToX] = useState(false);
-  const [xCodeVerifier, setXCodeVerifier] = useState<string | null>(null);
   const [showXSetupModal, setShowXSetupModal] = useState(false);
   
   // User Profile state
@@ -1338,11 +1337,7 @@ function Page() {
         throw new Error(data.error || 'Failed to connect to X');
       }
       
-      if (data.authUrl && data.codeVerifier) {
-        // Store code verifier temporarily
-        setXCodeVerifier(data.codeVerifier);
-        sessionStorage.setItem('x_code_verifier', data.codeVerifier);
-        
+      if (data.authUrl) {
         // Redirect to X for authentication
         window.location.href = data.authUrl;
       } else {
