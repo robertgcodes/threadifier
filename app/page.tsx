@@ -1754,7 +1754,7 @@ function Page() {
                 <input 
                   id="charLimit" 
                   type="number" 
-                  value={charLimit} 
+                  value={String(charLimit)} 
                   onChange={e => setCharLimit(Number(e.target.value))} 
                   className="input-field mt-1" 
                   placeholder="280"
@@ -1768,7 +1768,7 @@ function Page() {
                 <input 
                   id="numPosts" 
                   type="number" 
-                  value={numPosts} 
+                  value={String(numPosts)} 
                   onChange={e => setNumPosts(Number(e.target.value))} 
                   className="input-field mt-1" 
                   placeholder="8"
@@ -1786,7 +1786,7 @@ function Page() {
               <div className="flex items-center gap-2 mb-3">
                 {/* Custom Prompts Dropdown */}
                 <select
-                  value={selectedPromptId}
+                  value={String(selectedPromptId)}
                   onChange={(e) => {
                     if (e.target.value) {
                       applySelectedPrompt(e.target.value);
@@ -1799,7 +1799,7 @@ function Page() {
                 >
                   <option value="">Select a saved prompt...</option>
                   {allPrompts.map((prompt) => (
-                    <option key={prompt.id} value={prompt.id}>
+                    <option key={prompt.id} value={String(prompt.id)}>
                       {prompt.name}{prompt.isDefault ? ' (Default)' : ''}
                     </option>
                   ))}
@@ -1989,6 +1989,7 @@ function Page() {
             <Tab.Panels className="mt-2">
               {/* Home Dashboard Tab */}
               <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
+                <ErrorBoundary>
                 <div className="space-y-6">
                   {/* Welcome Section */}
                   <div className="text-center py-6">
@@ -2183,6 +2184,7 @@ function Page() {
                     </div>
                   </div>
                 </div>
+                </ErrorBoundary>
               </Tab.Panel>
               <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
                  <div className="space-y-6">
@@ -2249,7 +2251,7 @@ function Page() {
               </Tab.Panel>
               <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-3 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2">
                  {/* Show notice for basic tier users without premium credits */}
-                 {user && String(fullUserProfile?.credits?.premiumCredits || 0) === '0' && (
+                 {user && (fullUserProfile?.credits?.premiumCredits || 0) === 0 && (
                    <FreeTierNotice 
                      referralCode={fullUserProfile?.referralCode}
                      hasTrialCredits={false}
@@ -3851,7 +3853,7 @@ function Page() {
                     </label>
                     <input
                       type="number"
-                      value={newPromptCharLimit}
+                      value={String(newPromptCharLimit)}
                       onChange={(e) => setNewPromptCharLimit(Number(e.target.value))}
                       className="input-field"
                     />
@@ -3862,7 +3864,7 @@ function Page() {
                     </label>
                     <input
                       type="number"
-                      value={newPromptNumPosts}
+                      value={String(newPromptNumPosts)}
                       onChange={(e) => setNewPromptNumPosts(Number(e.target.value))}
                       className="input-field"
                     />
@@ -4390,6 +4392,7 @@ function Page() {
   );
 
   return (
+    <ErrorBoundary>
     <div className="bg-legal-100 dark:bg-gray-900 min-h-screen">
       <header className="bg-white dark:bg-gray-800 shadow relative">
         <div className="py-4 px-8">
@@ -4832,6 +4835,7 @@ NEXT_PUBLIC_APP_URL=${typeof window !== 'undefined' ? window.location.origin : '
       </Dialog>
 
     </div>
+    </ErrorBoundary>
   );
 }
 
