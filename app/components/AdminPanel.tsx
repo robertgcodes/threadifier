@@ -319,7 +319,7 @@ export default function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-blue-600">Total Users</p>
                       <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                        {analytics.totalUsers || 0}
+                        {String(analytics.totalUsers || 0)}
                       </p>
                     </div>
                   </div>
@@ -331,7 +331,7 @@ export default function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-green-600">Active Subscriptions</p>
                       <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                        {analytics.activeSubscriptions || 0}
+                        {String(analytics.activeSubscriptions || 0)}
                       </p>
                     </div>
                   </div>
@@ -343,7 +343,7 @@ export default function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-purple-600">Monthly Revenue</p>
                       <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-                        ${analytics.monthlyRevenue || 0}
+                        ${String(analytics.monthlyRevenue || 0)}
                       </p>
                     </div>
                   </div>
@@ -481,15 +481,15 @@ export default function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Total Revenue</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">${analytics.totalRevenue || 0}</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">${String(analytics.totalRevenue || 0)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Monthly Recurring Revenue</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">${analytics.monthlyRevenue || 0}</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">${String(analytics.monthlyRevenue || 0)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Conversion Rate</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{analytics.conversionRate || 0}%</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{String(analytics.conversionRate || 0)}%</span>
                     </div>
                   </div>
                 </div>
@@ -499,15 +499,15 @@ export default function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Active Subscriptions</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{analytics.activeSubscriptions || 0}</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{String(analytics.activeSubscriptions || 0)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Churn Rate</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{analytics.churnRate || 0}%</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{String(analytics.churnRate || 0)}%</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Average Revenue Per User</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">${analytics.arpu || 0}</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">${String(analytics.arpu || 0)}</span>
                     </div>
                   </div>
                 </div>

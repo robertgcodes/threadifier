@@ -979,7 +979,18 @@ export const getUserCustomPrompts = async (userId: string): Promise<CustomPrompt
       console.log("Prompt:", data.name, "isDefault:", data.isDefault);
       return {
         id: doc.id,
-        ...data
+        ...data,
+        // Ensure settings have default values
+        settings: {
+          charLimit: data.settings?.charLimit || 280,
+          numPosts: data.settings?.numPosts || 5,
+          useEmojis: data.settings?.useEmojis ?? true,
+          useHashtags: data.settings?.useHashtags ?? false,
+          useNumbering: data.settings?.useNumbering ?? true,
+          addCallToAction: data.settings?.addCallToAction ?? false,
+          threadStyle: data.settings?.threadStyle || 'default',
+          ...data.settings
+        }
       } as CustomPrompt;
     });
     
@@ -991,10 +1002,24 @@ export const getUserCustomPrompts = async (userId: string): Promise<CustomPrompt
         await createDefaultPrompts(userId);
         // Refetch prompts after creating defaults
         const newSnapshot = await getDocs(userPromptsQuery);
-        const newPrompts = newSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as CustomPrompt));
+        const newPrompts = newSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            // Ensure settings have default values
+            settings: {
+              charLimit: data.settings?.charLimit || 280,
+              numPosts: data.settings?.numPosts || 5,
+              useEmojis: data.settings?.useEmojis ?? true,
+              useHashtags: data.settings?.useHashtags ?? false,
+              useNumbering: data.settings?.useNumbering ?? true,
+              addCallToAction: data.settings?.addCallToAction ?? false,
+              threadStyle: data.settings?.threadStyle || 'default',
+              ...data.settings
+            }
+          } as CustomPrompt;
+        });
         prompts.push(...newPrompts.filter(p => p.isDefault));
         console.log("Default prompts created successfully");
       } catch (error) {

@@ -162,7 +162,7 @@ function SortablePostItem({ post, index, generatedThread, startEditing, deletePo
               </>
             )}
         </div>
-        <p className="text-legal-400 dark:text-gray-500 text-sm mt-auto pt-2">{index + 1}/{generatedThread.length}</p>
+        <p className="text-legal-400 dark:text-gray-500 text-sm mt-auto pt-2">{String(index + 1)}/{String(generatedThread.length)}</p>
       </div>
     </div>
   );
@@ -237,6 +237,18 @@ function Page() {
   // Prompt customization state
   const [charLimit, setCharLimit] = useState(280);
   const [numPosts, setNumPosts] = useState(5);
+  
+  // Debug hydration issues
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      console.log('Client-side render check:', {
+        charLimit: typeof charLimit,
+        numPosts: typeof numPosts,
+        generatedThreadLength: generatedThread.length,
+        markedUpImagesLength: markedUpImages.length
+      });
+    }
+  }, [charLimit, numPosts, generatedThread.length, markedUpImages.length]);
   const [customInstructions, setCustomInstructions] = useState("");
   const [useEmojis, setUseEmojis] = useState(false);
   const [useNumbering, setUseNumbering] = useState(false);
@@ -1159,11 +1171,12 @@ function Page() {
     const prompt = allPrompts.find(p => p.id === promptId);
     if (prompt) {
       setCustomInstructions(prompt.instructions);
-      setCharLimit(prompt.settings.charLimit);
-      setNumPosts(prompt.settings.numPosts);
-      setUseEmojis(prompt.settings.useEmojis);
-      setUseHashtags(prompt.settings.useHashtags);
-      setUseNumbering(prompt.settings.useNumbering);
+      // Add fallback values to prevent undefined
+      setCharLimit(prompt.settings.charLimit || 280);
+      setNumPosts(prompt.settings.numPosts || 5);
+      setUseEmojis(prompt.settings.useEmojis ?? true);
+      setUseHashtags(prompt.settings.useHashtags ?? false);
+      setUseNumbering(prompt.settings.useNumbering ?? true);
       setSelectedPromptId(promptId);
       
       addReasoningLog(`🎯 Applied prompt: "${prompt.name}"`);
@@ -4031,7 +4044,7 @@ function Page() {
                 )}
               </button>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {posts.length} tweet{posts.length !== 1 ? 's' : ''}
+                {String(posts.length)} tweet{posts.length !== 1 ? 's' : ''}
               </span>
             </div>
             
@@ -4724,9 +4737,9 @@ NEXT_PUBLIC_APP_URL=${typeof window !== 'undefined' ? window.location.origin : '
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-gray-600 dark:text-gray-300">
-                  <p>You're about to post a thread with {generatedThread.length} tweet{generatedThread.length !== 1 ? 's' : ''} to X.</p>
+                  <p>You're about to post a thread with {String(generatedThread.length)} tweet{generatedThread.length !== 1 ? 's' : ''} to X.</p>
                   {Object.keys(postPageMap).length > 0 && (
-                    <p className="mt-2">This thread includes {Object.keys(postPageMap).length} image{Object.keys(postPageMap).length !== 1 ? 's' : ''}.</p>
+                    <p className="mt-2">This thread includes {String(Object.keys(postPageMap).length)} image{Object.keys(postPageMap).length !== 1 ? 's' : ''}.</p>
                   )}
                 </div>
               </div>
