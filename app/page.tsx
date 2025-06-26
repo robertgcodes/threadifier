@@ -406,18 +406,8 @@ function Page() {
     }
   }, [aiReasoningLogs, isAnalyzing]);
   
-  // NOW WE CAN HAVE CONDITIONAL LOGIC AFTER ALL HOOKS ARE DECLARED
-  // Show homepage if user is not authenticated
-  if (!user) {
-    if (showAuth) {
-      return <LoginScreen onBack={() => setShowAuth(false)} />;
-    }
-    
-    return <Homepage 
-      onLogin={() => setShowAuth(true)}
-      onSignup={() => setShowAuth(true)}
-    />;
-  }
+  // ALL HOOKS ARE NOW DECLARED - Conditional logic moved to end of component
+  // This prevents "Rendered fewer hooks than expected" error when signing out
 
   const onDrop = (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -4393,6 +4383,18 @@ function Page() {
       </div>
     </main>
   );
+
+  // Conditional rendering AFTER all hooks are declared
+  if (!user) {
+    if (showAuth) {
+      return <LoginScreen onBack={() => setShowAuth(false)} />;
+    }
+    
+    return <Homepage 
+      onLogin={() => setShowAuth(true)}
+      onSignup={() => setShowAuth(true)}
+    />;
+  }
 
   return (
     <ErrorBoundary>
