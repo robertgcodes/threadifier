@@ -319,7 +319,7 @@ export default function TeamManagement({ userProfile, onUpdateProfile }: TeamMan
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Users className="w-5 h-5" />
-            Team Members ({teamMembers.length})
+            Team Members ({String(teamMembers.length)})
           </h3>
         </div>
         
@@ -394,7 +394,7 @@ export default function TeamManagement({ userProfile, onUpdateProfile }: TeamMan
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Mail className="w-5 h-5" />
-              Pending Invitations ({invitations.length})
+              Pending Invitations ({String(invitations.length)})
             </h3>
           </div>
           
