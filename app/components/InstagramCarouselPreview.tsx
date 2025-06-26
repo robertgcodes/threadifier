@@ -227,7 +227,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
       }
     });
 
-    toast.success(`Downloading ${posts.length} carousel images...`);
+    toast.success(`Downloading ${String(posts.length)} carousel images...`);
   };
 
   return (
@@ -270,7 +270,7 @@ export default function InstagramCarouselPreview({ posts, userProfile, user, isD
             </button>
           )}
           <span className="text-sm text-gray-600">
-            {posts.length} slide{posts.length !== 1 ? 's' : ''}
+            {String(posts.length)} slide{posts.length !== 1 ? 's' : ''}
           </span>
         </div>
       </div>
