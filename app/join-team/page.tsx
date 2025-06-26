@@ -85,9 +85,9 @@ export default function JoinTeamPage() {
       });
 
       // Add user to team members (you might want to create a separate collection for this)
-      const userTeamRef = doc(firestore, 'users', user.uid, 'teams', teamId);
+      const userTeamRef = doc(firestore, 'users', user.uid, 'teams', teamId!);
       await setDoc(userTeamRef, {
-        teamId,
+        teamId: teamId!,
         role: invitation.role,
         permissions: invitation.permissions || [],
         joinedAt: new Date(),
