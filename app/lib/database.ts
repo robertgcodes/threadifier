@@ -974,6 +974,69 @@ export const getUserCustomPrompts = async (userId: string): Promise<CustomPrompt
     const querySnapshot = await getDocs(userPromptsQuery);
     console.log("Total prompts count:", querySnapshot.docs.length);
     
+    // Group prompts by name to detect duplicates
+    const promptsByName = new Map<string, Array<{doc: any, data: any}>>();
+    
+    querySnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const promptName = data.name;
+      if (!promptsByName.has(promptName)) {
+        promptsByName.set(promptName, []);
+      }
+      promptsByName.get(promptName)!.push({doc, data});
+    });
+    
+    // Delete duplicate default prompts
+    const batch = writeBatch(firestore);
+    let deletedCount = 0;
+    
+    promptsByName.forEach((prompts, name) => {
+      if (prompts.length > 1) {
+        // Keep only the first one, delete the rest
+        const defaultPrompts = prompts.filter(p => p.data.isDefault);
+        if (defaultPrompts.length > 1) {
+          // Delete all but the first default prompt
+          for (let i = 1; i < defaultPrompts.length; i++) {
+            console.log(`Deleting duplicate default prompt: ${name}`);
+            batch.delete(defaultPrompts[i].doc.ref);
+            deletedCount++;
+          }
+        }
+      }
+    });
+    
+    if (deletedCount > 0) {
+      await batch.commit();
+      console.log(`Deleted ${deletedCount} duplicate default prompts`);
+      
+      // Re-fetch prompts after cleanup
+      const cleanSnapshot = await getDocs(userPromptsQuery);
+      const prompts = cleanSnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log("Prompt:", data.name, "isDefault:", data.isDefault);
+        return {
+          id: doc.id,
+          ...data,
+          // Ensure settings have default values
+          settings: {
+            charLimit: data.settings?.charLimit || 280,
+            numPosts: data.settings?.numPosts || 5,
+            useEmojis: data.settings?.useEmojis ?? true,
+            useHashtags: data.settings?.useHashtags ?? false,
+            useNumbering: data.settings?.useNumbering ?? true,
+            addCallToAction: data.settings?.addCallToAction ?? false,
+            threadStyle: data.settings?.threadStyle || 'default',
+            ...data.settings
+          }
+        } as CustomPrompt;
+      });
+      
+      console.log("=== GET USER CUSTOM PROMPTS SUCCESS ===");
+      console.log(`Returning ${prompts.length} prompts`);
+      return prompts;
+    }
+    
+    // Original code for normal flow (when no duplicates were deleted)
     const prompts = querySnapshot.docs.map(doc => {
       const data = doc.data();
       console.log("Prompt:", data.name, "isDefault:", data.isDefault);
@@ -1007,7 +1070,6 @@ export const getUserCustomPrompts = async (userId: string): Promise<CustomPrompt
           return {
             id: doc.id,
             ...data,
-            // Ensure settings have default values
             settings: {
               charLimit: data.settings?.charLimit || 280,
               numPosts: data.settings?.numPosts || 5,

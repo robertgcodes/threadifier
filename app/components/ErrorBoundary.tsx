@@ -26,6 +26,13 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     console.error('Error details:', error, errorInfo);
     // Log component stack to help identify where the error occurred
     console.error('Component stack:', errorInfo.componentStack);
+    
+    // Special handling for React error #130
+    if (error.message && error.message.includes('130')) {
+      console.error('🚨 React Error #130 detected - Text nodes cannot be a child of <View>');
+      console.error('This usually means a number is being rendered directly as a child');
+      console.error('Check the component stack above to find the problematic component');
+    }
   }
 
   render() {

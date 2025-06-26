@@ -45,6 +45,7 @@ import CreditCounter from './components/CreditCounter';
 import FreeTierNotice from './components/FreeTierNotice';
 import InstagramCarouselPreview from './components/InstagramCarouselPreview';
 import Homepage from './components/Homepage';
+import ErrorBoundary from './components/ErrorBoundary';
 import { Tab } from '@headlessui/react';
 import TeamManagement from './components/TeamManagement';
 import { PageSuggestion, PostImageSuggestion } from './types';
@@ -2000,6 +2001,7 @@ function Page() {
                   </div>
 
                   {/* Analytics Dashboard */}
+                  <ErrorBoundary>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Total Threads */}
                     <div className="bg-blue-500 bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 rounded-lg p-6 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
@@ -2007,7 +2009,7 @@ function Page() {
                         <div className="p-3 bg-white/20 backdrop-blur-sm rounded-lg">
                           <BookOpen className="w-6 h-6 text-white" />
                         </div>
-                        <span className="text-3xl font-bold">{String(fullUserProfile?.usage?.threadsGenerated || 0)}</span>
+                        <span className="text-3xl font-bold">{fullUserProfile?.usage?.threadsGenerated ? String(fullUserProfile.usage.threadsGenerated) : '0'}</span>
                       </div>
                       <h3 className="font-medium text-blue-100">Total Threads</h3>
                       <p className="text-sm text-blue-200 mt-1">Lifetime created</p>
@@ -2020,7 +2022,7 @@ function Page() {
                           <MessageCircle className="w-6 h-6 text-white" />
                         </div>
                         <span className="text-3xl font-bold">
-                          {String(savedThreads.reduce((total, thread) => total + thread.posts.length, 0))}
+                          {savedThreads.length > 0 ? String(savedThreads.reduce((total, thread) => total + thread.posts.length, 0)) : '0'}
                         </span>
                       </div>
                       <h3 className="font-medium text-green-100">Total Posts</h3>
@@ -2033,7 +2035,7 @@ function Page() {
                         <div className="p-3 bg-white/20 backdrop-blur-sm rounded-lg">
                           <ImageIcon className="w-6 h-6 text-white" />
                         </div>
-                        <span className="text-3xl font-bold">{String(markedUpImages.length)}</span>
+                        <span className="text-3xl font-bold">{markedUpImages.length > 0 ? String(markedUpImages.length) : '0'}</span>
                       </div>
                       <h3 className="font-medium text-purple-100">Images Edited</h3>
                       <p className="text-sm text-purple-200 mt-1">Current session</p>
@@ -2048,13 +2050,14 @@ function Page() {
                           </svg>
                         </div>
                         <span className="text-3xl font-bold">
-                          {String(Math.round((fullUserProfile?.usage?.threadsGenerated || 0) * 15))}
+                          {fullUserProfile?.usage?.threadsGenerated ? String(Math.round(fullUserProfile.usage.threadsGenerated * 15)) : '0'}
                         </span>
                       </div>
                       <h3 className="font-medium text-orange-100">Minutes Saved</h3>
                       <p className="text-sm text-orange-200 mt-1">~15 min per thread</p>
                     </div>
                   </div>
+                  </ErrorBoundary>
 
                   {/* Posting Streak & Gamification */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -2066,9 +2069,9 @@ function Page() {
                           <div className="flex justify-between items-center mb-2">
                             <span className="text-sm text-gray-600 dark:text-gray-400">Content Creator Level</span>
                             <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {fullUserProfile?.usage?.threadsGenerated || 0 >= 50 ? 'Expert' : 
-                               fullUserProfile?.usage?.threadsGenerated || 0 >= 20 ? 'Advanced' :
-                               fullUserProfile?.usage?.threadsGenerated || 0 >= 5 ? 'Intermediate' : 'Beginner'}
+                              {(fullUserProfile?.usage?.threadsGenerated || 0) >= 50 ? 'Expert' : 
+                               (fullUserProfile?.usage?.threadsGenerated || 0) >= 20 ? 'Advanced' :
+                               (fullUserProfile?.usage?.threadsGenerated || 0) >= 5 ? 'Intermediate' : 'Beginner'}
                             </span>
                           </div>
                           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
@@ -2082,8 +2085,8 @@ function Page() {
                         <div className="pt-2">
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             You're in the top <span className="font-bold text-blue-600 dark:text-blue-400">
-                              {fullUserProfile?.usage?.threadsGenerated || 0 >= 20 ? '10%' : 
-                               fullUserProfile?.usage?.threadsGenerated || 0 >= 5 ? '30%' : '60%'}
+                              {(fullUserProfile?.usage?.threadsGenerated || 0) >= 20 ? '10%' : 
+                               (fullUserProfile?.usage?.threadsGenerated || 0) >= 5 ? '30%' : '60%'}
                             </span> of active users!
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
