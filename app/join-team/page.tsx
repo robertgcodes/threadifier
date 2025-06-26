@@ -41,7 +41,7 @@ export default function JoinTeamPage() {
       }
 
       // Get invitation details
-      const invitationRef = doc(firestore, 'users', teamId, 'team', token);
+      const invitationRef = doc(firestore, 'users', teamId!, 'team', token!);
       const invitationDoc = await getDoc(invitationRef);
 
       if (!invitationDoc.exists()) {
