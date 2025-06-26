@@ -1576,7 +1576,7 @@ function Page() {
               )}
             </div>
             <div className="text-left">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{userProfile.displayName || user.displayName || user.email}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{String(userProfile.displayName || user.displayName || user.email || '')}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{userProfile.xHandle ? `@${userProfile.xHandle}` : ''}</p>
             </div>
           </button>
@@ -1987,7 +1987,7 @@ function Page() {
                   {/* Welcome Section */}
                   <div className="text-center py-6">
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                      Welcome back, {userProfile?.displayName || fullUserProfile?.displayName || user?.displayName || 'Creator'}!
+                      Welcome back, {String(userProfile?.displayName || fullUserProfile?.displayName || user?.displayName || 'Creator')}!
                     </h1>
                     <p className="text-gray-600 dark:text-gray-400">
                       Transform your documents into engaging social media threads
