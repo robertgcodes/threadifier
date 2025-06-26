@@ -149,7 +149,12 @@ export default function TeamManagement({ userProfile, onUpdateProfile }: TeamMan
       });
 
       if (response.ok) {
-        toast.success(`Invitation sent to ${inviteEmail}`);
+        const result = await response.json();
+        if (result.emailSent) {
+          toast.success(`Invitation sent to ${inviteEmail}`);
+        } else {
+          toast.success(`Invitation created for ${inviteEmail}. Note: Email service not configured - share the invite link manually.`);
+        }
         setInviteEmail('');
         setInviteRole('editor');
         setShowInviteModal(false);

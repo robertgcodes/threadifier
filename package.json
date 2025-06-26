@@ -30,6 +30,7 @@
     "react-dom": "^18",
     "react-dropzone": "^14.2.3",
     "react-hot-toast": "^2.4.1",
+    "resend": "^4.6.0",
     "stripe": "^18.2.1",
     "tailwind-merge": "^2.6.0",
     "twitter-api-v2": "^1.23.2",
