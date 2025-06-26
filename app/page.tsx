@@ -236,8 +236,8 @@ function Page() {
   const [editingText, setEditingText] = useState("");
   
   // Prompt customization state
-  const [charLimit, setCharLimit] = useState(280);
-  const [numPosts, setNumPosts] = useState(5);
+  const [charLimit, setCharLimit] = useState<number>(280);
+  const [numPosts, setNumPosts] = useState<number>(5);
   
   // Debug hydration issues
   useEffect(() => {
@@ -1171,13 +1171,16 @@ function Page() {
   const applySelectedPrompt = (promptId: string) => {
     const prompt = allPrompts.find(p => p.id === promptId);
     if (prompt) {
-      setCustomInstructions(prompt.instructions);
+      setCustomInstructions(prompt.instructions || '');
       // Add fallback values to prevent undefined
-      setCharLimit(prompt.settings.charLimit || 280);
-      setNumPosts(prompt.settings.numPosts || 5);
-      setUseEmojis(prompt.settings.useEmojis ?? true);
-      setUseHashtags(prompt.settings.useHashtags ?? false);
-      setUseNumbering(prompt.settings.useNumbering ?? true);
+      const newCharLimit = typeof prompt.settings?.charLimit === 'number' ? prompt.settings.charLimit : 280;
+      const newNumPosts = typeof prompt.settings?.numPosts === 'number' ? prompt.settings.numPosts : 5;
+      
+      setCharLimit(newCharLimit);
+      setNumPosts(newNumPosts);
+      setUseEmojis(prompt.settings?.useEmojis ?? true);
+      setUseHashtags(prompt.settings?.useHashtags ?? false);
+      setUseNumbering(prompt.settings?.useNumbering ?? true);
       setSelectedPromptId(promptId);
       
       addReasoningLog(`🎯 Applied prompt: "${prompt.name}"`);
@@ -1754,8 +1757,8 @@ function Page() {
                 <input 
                   id="charLimit" 
                   type="number" 
-                  value={String(charLimit)} 
-                  onChange={e => setCharLimit(Number(e.target.value))} 
+                  value={charLimit !== undefined && charLimit !== null ? String(charLimit) : '280'} 
+                  onChange={e => setCharLimit(Number(e.target.value) || 280)} 
                   className="input-field mt-1" 
                   placeholder="280"
                 />
@@ -1768,8 +1771,8 @@ function Page() {
                 <input 
                   id="numPosts" 
                   type="number" 
-                  value={String(numPosts)} 
-                  onChange={e => setNumPosts(Number(e.target.value))} 
+                  value={numPosts !== undefined && numPosts !== null ? String(numPosts) : '5'} 
+                  onChange={e => setNumPosts(Number(e.target.value) || 5)} 
                   className="input-field mt-1" 
                   placeholder="8"
                 />
@@ -1786,7 +1789,7 @@ function Page() {
               <div className="flex items-center gap-2 mb-3">
                 {/* Custom Prompts Dropdown */}
                 <select
-                  value={String(selectedPromptId)}
+                  value={selectedPromptId || ''}
                   onChange={(e) => {
                     if (e.target.value) {
                       applySelectedPrompt(e.target.value);
