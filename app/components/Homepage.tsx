@@ -342,7 +342,7 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="text-center">
                 <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">1</span>
+                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{'1'}</span>
                 </div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Upload Content</h5>
                 <p className="text-gray-600 dark:text-gray-300 text-sm">
@@ -352,7 +352,7 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
               
               <div className="text-center">
                 <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-green-600 dark:text-green-400">2</span>
+                  <span className="text-2xl font-bold text-green-600 dark:text-green-400">{'2'}</span>
                 </div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Choose Your Style</h5>
                 <p className="text-gray-600 dark:text-gray-300 text-sm">
@@ -362,7 +362,7 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
               
               <div className="text-center">
                 <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">3</span>
+                  <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">{'3'}</span>
                 </div>
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2">Publish & Engage</h5>
                 <p className="text-gray-600 dark:text-gray-300 text-sm">
@@ -444,7 +444,7 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
             <div className="bg-gray-50 dark:bg-gray-800 p-8 rounded-2xl">
               <h4 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Basic</h4>
               <p className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                $0<span className="text-lg font-normal text-gray-600 dark:text-gray-400">/month</span>
+                ${'0'}<span className="text-lg font-normal text-gray-600 dark:text-gray-400">/month</span>
               </p>
               <p className="text-gray-600 dark:text-gray-300 mb-6">Perfect for getting started</p>
               
@@ -490,7 +490,7 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
               </div>
               <h4 className="text-2xl font-bold mb-2">Professional</h4>
               <p className="text-4xl font-bold mb-4">
-                $29<span className="text-lg font-normal opacity-80">/month</span>
+                ${'29'}<span className="text-lg font-normal opacity-80">/month</span>
               </p>
               <p className="opacity-90 mb-6">For serious content creators</p>
               
@@ -533,7 +533,7 @@ export default function Homepage({ onLogin, onSignup }: HomepageProps) {
             <div className="bg-gray-900 p-8 rounded-2xl text-white relative border-2 border-gray-700">
               <h4 className="text-2xl font-bold mb-2">Team</h4>
               <p className="text-4xl font-bold mb-4">
-                $79<span className="text-lg font-normal opacity-80">/month</span>
+                ${'79'}<span className="text-lg font-normal opacity-80">/month</span>
               </p>
               <p className="opacity-90 mb-6">For law firms and content teams</p>
               
