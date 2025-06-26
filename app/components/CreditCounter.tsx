@@ -15,6 +15,9 @@ interface CreditCounterProps {
 export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = false, onCreditUsed = false, className = '', usingPremium = false }: CreditCounterProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showPulse, setShowPulse] = useState(false);
+  
+  // Ensure premiumCredits is always a valid number
+  const safePremiumCredits = typeof premiumCredits === 'number' && !isNaN(premiumCredits) ? premiumCredits : 0;
 
   useEffect(() => {
     if (onCreditUsed) {
@@ -26,10 +29,10 @@ export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = 
     }
   }, [onCreditUsed]);
 
-  const bgColor = premiumCredits > 0 ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700';
-  const iconColor = premiumCredits > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400';
-  const textColor = premiumCredits > 0 ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-gray-100';
-  const subTextColor = premiumCredits > 0 ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300';
+  const bgColor = safePremiumCredits > 0 ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700';
+  const iconColor = safePremiumCredits > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400';
+  const textColor = safePremiumCredits > 0 ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-gray-100';
+  const subTextColor = safePremiumCredits > 0 ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300';
   const pulseColor = usingPremium ? 'bg-blue-400 dark:bg-blue-500' : 'bg-gray-400 dark:bg-gray-500';
 
   return (
@@ -63,7 +66,7 @@ export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = 
                 </>
               ) : (
                 <>
-                  <span className={`text-sm font-medium ${textColor}`}>{String(premiumCredits || 0)}</span>
+                  <span className={`text-sm font-medium ${textColor}`}>{String(safePremiumCredits)}</span>
                   <span className={`text-xs ${subTextColor}`}>premium</span>
                 </>
               )}
@@ -117,7 +120,7 @@ export default function CreditCounter({ premiumCredits = 0, hasUnlimitedBasic = 
             {hasUnlimitedBasic ? (
               <>Unlimited basic tier (AI: Claude Haiku)</>
             ) : (
-              <>{String(premiumCredits || 0)} premium credits (AI: Claude Sonnet)</>
+              <>{String(safePremiumCredits)} premium credits (AI: Claude Sonnet)</>
             )}
           </div>
         </div>

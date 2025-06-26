@@ -1551,7 +1551,7 @@ function Page() {
           {/* Credits Display */}
           {fullUserProfile ? (
             <CreditCounter
-              premiumCredits={fullUserProfile?.credits?.premiumCredits ? Number(fullUserProfile.credits.premiumCredits) : 0}
+              premiumCredits={typeof fullUserProfile?.credits?.premiumCredits === 'number' && !isNaN(fullUserProfile.credits.premiumCredits) ? fullUserProfile.credits.premiumCredits : 0}
               hasUnlimitedBasic={!fullUserProfile?.credits?.premiumCredits || fullUserProfile.credits.premiumCredits === 0}
               onCreditUsed={creditJustUsed}
               usingPremium={!!fullUserProfile?.credits?.premiumCredits && fullUserProfile.credits.premiumCredits > 0}
@@ -4457,12 +4457,12 @@ function Page() {
       </header>
       
       {/* Low Credits Banner */}
-      {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.available <= 5 && fullUserProfile.credits.available > 0 ? (
+      {fullUserProfile && fullUserProfile.credits && typeof fullUserProfile.credits.premiumCredits === 'number' && fullUserProfile.credits.premiumCredits <= 5 && fullUserProfile.credits.premiumCredits > 0 ? (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-yellow-800 dark:text-yellow-200 text-sm font-medium">
-                ⚠️ You only have {String(fullUserProfile.credits.available)} credit{fullUserProfile.credits.available === 1 ? '' : 's'} left!
+                ⚠️ You only have {String(fullUserProfile.credits.premiumCredits)} credit{Number(fullUserProfile.credits.premiumCredits) === 1 ? '' : 's'} left!
               </span>
               <span className="text-yellow-600 dark:text-yellow-300 text-sm">
                 Share your referral link to earn 100 more credits.
@@ -4482,7 +4482,7 @@ function Page() {
       ) : null}
       
       {/* Out of Credits Banner */}
-      {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.available === 0 ? (
+      {fullUserProfile && fullUserProfile.credits && fullUserProfile.credits.premiumCredits === 0 ? (
         <div className="bg-red-50 border-b border-red-200 px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

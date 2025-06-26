@@ -32,6 +32,13 @@ export default class ErrorBoundary extends React.Component<Props, State> {
       console.error('🚨 React Error #130 detected - Text nodes cannot be a child of <View>');
       console.error('This usually means a number is being rendered directly as a child');
       console.error('Check the component stack above to find the problematic component');
+      
+      // Try to extract more info from the error
+      const errorString = error.toString();
+      const match = errorString.match(/args\[\]=([^&]+)/);
+      if (match) {
+        console.error('Problematic value type:', match[1]);
+      }
     }
   }
 
