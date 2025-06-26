@@ -5,6 +5,7 @@ import { CreditCard, Calendar, Download, AlertCircle, Check, Loader2, RefreshCw,
 import { Dialog } from '@headlessui/react';
 import toast from 'react-hot-toast';
 import { UserProfile } from '../lib/database';
+import { getAuth } from 'firebase/auth';
 
 interface BillingManagementProps {
   userProfile: UserProfile | null;
@@ -347,9 +348,39 @@ export default function BillingManagement({ userProfile, onUpdateProfile }: Bill
             <p className="text-gray-600 dark:text-gray-400">Manage your subscription and billing details</p>
           </div>
           <button
-            onClick={fetchBillingDetails}
+            onClick={async () => {
+              setRefreshing(true);
+              try {
+                // First, refresh subscription status from Stripe
+                const token = await getAuth().currentUser?.getIdToken();
+                if (token) {
+                  const response = await fetch('/api/refresh-subscription', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                    },
+                  });
+                  const data = await response.json();
+                  if (data.success) {
+                    if (data.oldPlan && data.newPlan && data.oldPlan !== data.newPlan) {
+                      toast.success(`Plan updated from ${data.oldPlan} to ${data.newPlan}`);
+                    }
+                    // Refresh the user profile
+                    onUpdateProfile();
+                  }
+                }
+                // Then fetch billing details
+                await fetchBillingDetails();
+              } catch (error) {
+                console.error('Error refreshing subscription:', error);
+                toast.error('Failed to refresh subscription');
+              } finally {
+                setRefreshing(false);
+              }
+            }}
             className={`p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors ${refreshing ? 'animate-spin' : ''}`}
             disabled={refreshing}
+            title="Refresh subscription status"
           >
             <RefreshCw className="w-5 h-5" />
           </button>

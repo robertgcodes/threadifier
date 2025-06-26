@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
         let plan: 'professional' | 'team' = 'professional';
         const priceId = subscription.items.data[0].price.id;
         
-        if (priceId === process.env.STRIPE_PRICE_TEAM_MONTHLY || 
-            priceId === process.env.STRIPE_PRICE_TEAM_YEARLY) {
+        if (priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY || 
+            priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY) {
           plan = 'team';
         }
         
@@ -105,16 +105,26 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        // Update subscription status
+        // Determine the plan based on the price (in case of plan changes)
+        let plan: 'professional' | 'team' = 'professional';
+        const priceId = subscription.items.data[0].price.id;
+        
+        if (priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY || 
+            priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_YEARLY) {
+          plan = 'team';
+        }
+
+        // Update subscription status and plan
         const userRef = doc(firestore, 'users', userId);
         await updateDoc(userRef, {
+          'subscription.plan': plan,
           'subscription.status': subscription.status,
           'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000),
           'subscription.cancelAtPeriodEnd': subscription.cancel_at_period_end,
           updatedAt: serverTimestamp(),
         });
 
-        console.log(`Subscription updated for user ${userId}`);
+        console.log(`Subscription updated for user ${userId} - plan: ${plan}`);
         break;
       }
 
