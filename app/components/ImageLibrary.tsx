@@ -406,7 +406,7 @@ export default function ImageLibrary() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900 dark:text-white truncate">{image.name}</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {formatFileSize(image.size)} • {image.type} • {image.uploadedAt?.toDate?.()?.toLocaleDateString() || 'Unknown'}
+                    {formatFileSize(image.size)} • {image.type} • {image.uploadedAt?.toDate?.()?.toLocaleDateString('en-US') || 'Unknown'}
                   </p>
                   {image.description && (
                     <p className="text-sm text-gray-600 dark:text-gray-300 truncate">{image.description}</p>
