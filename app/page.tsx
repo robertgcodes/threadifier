@@ -1497,7 +1497,8 @@ function Page() {
     if (!imageInfo) return null;
     
     if (imageInfo.type === 'pdf') {
-      return pageImages[imageInfo.value as number];
+      // Use high-res images for posting to X
+      return highResPageImages[imageInfo.value as number] || pageImages[imageInfo.value as number];
     } else {
       const markedImg = markedUpImages.find(m => m.id === imageInfo.value);
       return markedImg?.url || null;
@@ -2556,7 +2557,7 @@ function Page() {
                   <XPreview
                     posts={generatedThread}
                     postPageMap={postPageMap}
-                    pageImages={pageImages}
+                    pageImages={highResPageImages.length > 0 ? highResPageImages : pageImages}
                     markedUpImages={markedUpImages}
                     user={user}
                     xAuthStatus={xAuthStatus}
