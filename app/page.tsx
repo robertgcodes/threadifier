@@ -485,6 +485,9 @@ function Page() {
         addReasoningLog("🚀 Ready to generate thread - click 'Generate Thread' to continue");
         
         setIsExtracting(false);
+        
+        // Auto-switch to Documents tab to show uploaded pages
+        setSelectedTabIndex(1);
       };
       reader.readAsArrayBuffer(file);
     } catch (error) {
@@ -607,7 +610,7 @@ function Page() {
     return enhanced.sort((a, b) => a.postIndex - b.postIndex);
   };
 
-  const generatePostImageSuggestions = async (threadPosts: string[], isPartOfMainFlow: boolean = false) => {
+  const generatePostImageSuggestions = async (threadPosts: string[], isPartOfMainFlow: boolean = false, toastId?: string) => {
     if (!pageTexts.length) {
       addReasoningLog("⚠️ No pages available for image analysis");
       return;
@@ -654,18 +657,37 @@ function Page() {
         addReasoningLog(`✅ Generated ${enhancedSuggestions.length} post-specific image recommendations`);
         addReasoningLog("🎨 Image suggestions are now available for each post!");
         
+        // Dismiss the loading toast
+        if (toastId) {
+          toast.dismiss(toastId);
+          toast.success('✨ Image suggestions ready!', {
+            duration: 3000,
+            position: 'top-right'
+          });
+        }
+        
         if (isPartOfMainFlow) {
           addReasoningLog("🎉 Complete process finished! Switching to editor view...");
-          setSelectedTabIndex(1); // Switch to Thread Editor tab
+          setSelectedTabIndex(2); // Switch to Thread Editor tab
         } else {
           addReasoningLog("👀 Check the Thread Editor tab to see recommended images for each post");
         }
       } else {
         addReasoningLog("❌ No image suggestions received from AI");
+        if (toastId) {
+          toast.dismiss(toastId);
+        }
       }
     } catch (error: any) {
       console.error("Error generating post-image suggestions:", error);
       addReasoningLog(`❌ Error generating image suggestions: ${error?.message || 'Unknown error'}`);
+      if (toastId) {
+        toast.dismiss(toastId);
+        toast.error('Failed to generate image suggestions', {
+          duration: 3000,
+          position: 'top-right'
+        });
+      }
     } finally {
       // Always clear processing state - whether standalone or part of main flow
       setIsProcessing(false);
@@ -838,11 +860,18 @@ function Page() {
       if (pageTexts.length > 0) {
         addReasoningLog("🎨 Now fetching AI image suggestions for each post...");
         addReasoningLog("🤖 Please wait while AI analyzes content to match images...");
-        await generatePostImageSuggestions(posts.thread, true);
+        
+        // Show persistent toast for image suggestions
+        const toastId = toast.loading('🎨 Image suggestions processing...', {
+          duration: Infinity,
+          position: 'top-right'
+        });
+        
+        await generatePostImageSuggestions(posts.thread, true, toastId);
       } else {
         addReasoningLog("⚠️ No document pages available for image suggestions");
         addReasoningLog("🎉 Process complete! Switching to editor view...");
-        setSelectedTabIndex(1); // Switch to Thread Editor tab
+        setSelectedTabIndex(2); // Switch to Thread Editor tab
       }
     } catch (error: any) {
       console.error("Analysis failed:", error);
@@ -2749,7 +2778,7 @@ function Page() {
                         setPageImages(thread.pageImages);
                       }
                       setCurrentView('main');
-                      setSelectedTabIndex(1); // Switch to thread editor tab
+                      setSelectedTabIndex(2); // Switch to thread editor tab
                       toast.success('Thread loaded for editing');
                     }}
                     className="btn-secondary text-sm flex-1"
