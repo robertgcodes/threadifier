@@ -355,7 +355,7 @@ export default function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-orange-600">Open Tickets</p>
                       <p className="text-2xl font-bold text-orange-900 dark:text-orange-100">
-                        {tickets.filter(t => t.status === 'open').length}
+                        {String(tickets.filter(t => t.status === 'open').length)}
                       </p>
                     </div>
                   </div>
@@ -448,10 +448,10 @@ export default function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                            {user.usage?.threadsGenerated || 0} threads
+                            {String(user.usage?.threadsGenerated || 0)} threads
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                            {user.credits?.premiumCredits || 0} premium
+                            {String(user.credits?.premiumCredits || 0)} premium
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {user.createdAt?.toDate?.()?.toLocaleDateString() || 'Unknown'}

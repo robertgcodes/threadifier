@@ -318,7 +318,7 @@ export default function ImageLibrary() {
         {selectedImages.length > 0 && (
           <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-between">
             <span className="text-sm text-blue-900 dark:text-blue-100">
-              {selectedImages.length} image(s) selected
+              {String(selectedImages.length)} image(s) selected
             </span>
             <button
               onClick={deleteSelectedImages}

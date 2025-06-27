@@ -116,7 +116,7 @@ export default function AISuggestions({
                         <p className="text-sm text-gray-700 dark:text-gray-300 italic">
                           "{suggestion.keyQuotes[0]}"
                           {suggestion.keyQuotes.length > 1 && (
-                            <span className="text-gray-400 dark:text-gray-500"> + {suggestion.keyQuotes.length - 1} more</span>
+                            <span className="text-gray-400 dark:text-gray-500"> + {String(suggestion.keyQuotes.length - 1)} more</span>
                           )}
                         </p>
                       </div>
@@ -198,7 +198,7 @@ export default function AISuggestions({
 
       {/* Footer */}
       <div className="text-center text-xs text-gray-500 dark:text-gray-400 border-t dark:border-gray-700 pt-4">
-        Found {suggestions.length} relevant page{suggestions.length !== 1 ? 's' : ''} for your thread
+        Found {String(suggestions.length)} relevant page{suggestions.length !== 1 ? 's' : ''} for your thread
       </div>
     </div>
   );
